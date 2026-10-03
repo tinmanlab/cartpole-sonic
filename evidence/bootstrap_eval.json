@@ -14,7 +14,6 @@
     "batch": 256,
     "actionMse": 0.18686945222956006,
     "auxMse": 0.011504613607245463,
-    "ms": 5568.774616000001,
     "teacher": {
       "source_repo": "tinmanlab/cartpole-ppo",
       "source_file": "examples/nominal_bam_checkpoint.json",

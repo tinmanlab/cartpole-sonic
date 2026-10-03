@@ -2,7 +2,7 @@
 
 > A small, interactive teaching lab for understanding the information flow behind NVIDIA GEAR-SONIC: **Encoder → latent → VQ/VQ-VAE → FSQ motion token → Dynamic Decoder → physical control**.
 
-[**Open the live lab →**](https://tinmanlab.github.io/cartpole-sonic/) · [FSQ lesson](https://tinmanlab.github.io/cartpole-sonic/?lesson=4) · [Whole SONIC view](https://tinmanlab.github.io/cartpole-sonic/?lesson=8)
+[**Open the live lab →**](https://tinmanlab.github.io/cartpole-sonic/) · [FSQ lesson](https://tinmanlab.github.io/cartpole-sonic/?lesson=fsq) · [Whole SONIC view](https://tinmanlab.github.io/cartpole-sonic/?lesson=sonic)
 
 <p align="center">
   <a href="https://tinmanlab.github.io/cartpole-sonic/">
@@ -139,19 +139,28 @@ Autoencoder
                 FSQ : discrete latent without a learned vector codebook
 ```
 
-Use the lesson bar in the page:
+The page now uses one fixed teaching shell in every chapter:
 
-| Lesson | Main question |
-|---|---|
-| 0 | What must remain invariant when simplifying SONIC? |
-| 1 | Why compress 16-D to 2-D and reconstruct it? |
-| 2 | What is VQ and what does a codebook do? |
-| 3 | Why does VQ-VAE need STE / commitment / codebook management? |
-| 4 | What does FSQ simplify? |
-| 5 | What exactly becomes a motion token? |
-| 6 | Why does the Dynamic Decoder still need proprioception? |
-| 7 | Why is PPO the main physical-training loop while reconstruction is auxiliary? |
-| 8 | How do all blocks map back to GEAR-SONIC? |
+```text
+[ same CartPole simulation ] [ same-size main visualization ] [ lesson guide ]
+                              ↓
+                    [ stable SONIC process strip ]
+```
+
+The main path is:
+
+| Step | Lesson | Main question |
+|---:|---|---|
+| 1 | Encoder / AE | Why compress 16-D to 2-D and reconstruct it? |
+| 2 | VQ | Why does a learned vector codebook help create discrete symbols? |
+| 3 | VQ-VAE | Why are STE, commitment, and codebook learning needed? |
+| 4 | FSQ | What does FSQ remove from VQ? |
+| 5 | Motion token | What exactly is being tokenized? |
+| 6 | Dynamic Decoder | Why does the token still need proprioception? |
+| 7 | PPO training | What actually trains physical tracking? |
+| 8 | GEAR-SONIC | How do the toy blocks map back to SONIC? |
+
+`VAE` is shown as an **optional branch from Autoencoder**, then the learner returns to VQ. It is not presented as a prerequisite for FSQ.
 
 ---
 
@@ -197,14 +206,15 @@ Open:
 
 Useful direct links:
 
-- Encoder / bottleneck: https://tinmanlab.github.io/cartpole-sonic/?lesson=1
-- VQ: https://tinmanlab.github.io/cartpole-sonic/?lesson=2
-- VQ-VAE: https://tinmanlab.github.io/cartpole-sonic/?lesson=3
-- FSQ: https://tinmanlab.github.io/cartpole-sonic/?lesson=4
-- Motion token: https://tinmanlab.github.io/cartpole-sonic/?lesson=5
-- Dynamic Decoder: https://tinmanlab.github.io/cartpole-sonic/?lesson=6
-- PPO training: https://tinmanlab.github.io/cartpole-sonic/?lesson=7
-- Full SONIC structure: https://tinmanlab.github.io/cartpole-sonic/?lesson=8
+- Encoder / bottleneck: https://tinmanlab.github.io/cartpole-sonic/?lesson=ae
+- VAE optional branch: https://tinmanlab.github.io/cartpole-sonic/?lesson=vae
+- VQ: https://tinmanlab.github.io/cartpole-sonic/?lesson=vq
+- VQ-VAE: https://tinmanlab.github.io/cartpole-sonic/?lesson=vqvae
+- FSQ: https://tinmanlab.github.io/cartpole-sonic/?lesson=fsq
+- Motion token: https://tinmanlab.github.io/cartpole-sonic/?lesson=motion-token
+- Dynamic Decoder: https://tinmanlab.github.io/cartpole-sonic/?lesson=dynamic-decoder
+- PPO training: https://tinmanlab.github.io/cartpole-sonic/?lesson=ppo
+- Full SONIC structure: https://tinmanlab.github.io/cartpole-sonic/?lesson=sonic
 
 ### 2. Run locally
 
@@ -268,22 +278,37 @@ These are teaching variants, not official Playground benchmark tasks.
 
 The page exposes a semantic control surface instead of requiring screen-coordinate automation.
 
-When the MCP-B browser runtime is available, the page registers tools including:
+When the MCP-B browser runtime is available, the page registers one consistent semantic API:
 
 ```text
-get_sonic_cartpole_state
-set_tracking_goal
-set_quantizer_mode
-run_ppo_iterations
-step_tracking_policy
-set_mujoco_model
-set_learning_lesson
-reset_sonic_cartpole
+course_get_outline
+course_get_state
+course_navigate
+course_run_lesson_action
+simulation_control
+experiment_set_goal
+training_run
+simulation_set_model
 ```
 
-The visible UI and WebMCP tools mutate the same experiment state.
+`course.js` is the single source of truth for the curriculum. The UI and WebMCP both read the same lesson IDs, prerequisites, questions, experiments, and SONIC mappings.
 
-That means an agent can say “switch to FSQ lesson”, “move the goal”, “run 10 PPO iterations”, or “read the current motion token” without driving mouse coordinates.
+`course_get_state` returns a structured teaching snapshot:
+
+```text
+course
+  current lesson + outline
+experiment
+  goal + live/model state
+signals
+  reference + latent + token + proprioception + action
+training
+  PPO iterations + held-out evidence
+backends
+  MuJoCo + WebGPU + WebMCP
+```
+
+This means an agent can navigate the course, run the canonical experiment for a chapter, manipulate the shared simulation, and then read back the exact evidence the learner sees—without screen-coordinate automation.
 
 The WebMCP pattern was informed by the related **tinmanlab/web-mcp-gpu** experiments.
 
@@ -293,7 +318,7 @@ The WebMCP pattern was informed by the related **tinmanlab/web-mcp-gpu** experim
 
 WebGPU is intentionally separated from the tiny PPO trainer so the project does not pretend that GPU acceleration is necessary for this small model.
 
-At startup, `webgpu_fsq.js` runs the actual FSQ scalar transform in a WebGPU compute shader:
+After the lesson UI is visible, `webgpu_fsq.js` asynchronously runs the actual FSQ scalar transform in a WebGPU compute shader:
 
 ```wgsl
 dst[i] = round(tanh(src[i]) * 1.998) / 2.0;
@@ -309,6 +334,16 @@ Current roles:
 - **WebMCP**: semantic agent control
 
 This keeps each technology's role explicit.
+
+---
+
+## Fast startup checkpoints
+
+The teaching UI does not recompute the 500-step teacher bootstrap on every page load.
+
+Three deterministic bootstrap checkpoints are bundled for the default continuous/VQ/FSQ students. They are loaded immediately so the first visualization is usable as soon as MuJoCo WASM is ready. PPO iterations run after that remain live browser-side learning.
+
+If a checkpoint is unavailable, the lab can fall back to the teacher bootstrap path.
 
 ---
 
@@ -372,13 +407,17 @@ What this toy **does not** reproduce:
 ```text
 .
 ├── index.html                 # interactive UI
-├── app.js                     # lesson/UI/WebMCP orchestration
+├── app.js                     # fixed teaching shell + WebMCP orchestration
+├── course.js                  # canonical curriculum SSOT
 ├── sonic_toy.js               # SONIC-like planner/encoder/token/decoder/PPO
 ├── mujoco_sim.js              # native MuJoCo WASM CartPole wrapper
 ├── webgpu_fsq.js              # WebGPU FSQ parity kernel
 ├── teacher_policy.js          # frozen bootstrap teacher adapter
 ├── assets/
-│   └── teacher_cartpole_ppo.json
+│   ├── teacher_cartpole_ppo.json
+│   ├── student_ae_bootstrap.json
+│   ├── student_vq_bootstrap.json
+│   └── student_fsq_bootstrap.json
 ├── evidence/                  # deterministic evaluation snapshots
 ├── scripts/                   # structure and evaluation checks
 ├── vendor/mujoco/             # pinned MuJoCo 3.14.0 JS/WASM

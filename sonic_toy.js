@@ -50,7 +50,7 @@ class MLP {
     for(let i=0;i<this.p.length;i++){const g=G[i]*scale;this.m[i]=.9*this.m[i]+.1*g;this.v[i]=.999*this.v[i]+.001*g*g;const mh=this.m[i]/bc1,vh=this.v[i]/bc2;this.p[i]-=lr*mh/(Math.sqrt(vh)+1e-8);}
     return norm;
   }
-  snapshot(){return{n:this.n,h:this.h,o:this.o,outTanh:this.outTanh,p:Array.from(this.p)};}
+  snapshot(){return{n:this.n,h:this.h,o:this.o,outTanh:this.outTanh,p:Array.from(this.p),m:Array.from(this.m),v:Array.from(this.v),t:this.t};}
 }
 
 function fsqScalar(z){
@@ -163,6 +163,30 @@ export class SonicToyTrainer {
     this.envs=Array.from({length:n},()=>new TrainEnv(sim,this.rng));this.iter=0;this.envSteps=0;this.episodes=0;this.history=[];this.last={reward:NaN,tracking:NaN,piLoss:NaN,valueLoss:NaN,auxLoss:NaN,entropy:Math.log(FIXED_STD*Math.sqrt(2*Math.PI*Math.E)),clipFraction:NaN};
   }
   setMode(mode){this.mode=mode;this.policy.mode=mode;}
+  restorePolicy(snapshot,{teacherBootstrap=null,rngState=null}={}){
+    if(!snapshot)throw new Error("policy snapshot required");
+    const load=(net,src,name)=>{
+      if(!src?.p||src.p.length!==net.p.length)throw new Error("invalid "+name+" checkpoint");
+      net.p.set(src.p);
+      if(src.m?.length===net.m.length)net.m.set(src.m);else net.m.fill(0);
+      if(src.v?.length===net.v.length)net.v.set(src.v);else net.v.fill(0);
+      net.t=Number.isFinite(src.t)?src.t:0;
+    };
+    load(this.policy.encoder,snapshot.encoder,"encoder");
+    load(this.policy.dynamicDecoder,snapshot.dynamicDecoder,"dynamicDecoder");
+    load(this.policy.kinematicDecoder,snapshot.kinematicDecoder,"kinematicDecoder");
+    load(this.policy.critic,snapshot.critic,"critic");
+    if(snapshot.codebook){
+      if(snapshot.codebook.length!==this.policy.codebook.length)throw new Error("invalid codebook checkpoint");
+      this.policy.codebook.set(snapshot.codebook);
+    }
+    if(rngState){
+      this.rng.s=(rngState.s>>>0);
+      this.rng.spare=Number.isFinite(rngState.spare)?rngState.spare:null;
+    }
+    this.teacherBootstrap=teacherBootstrap;
+    return this;
+  }
   collect(){
     const data=[];let rewardSum=0,trackSum=0;
     for(let t=0;t<this.horizon;t++){
@@ -269,7 +293,7 @@ export class SonicToyTrainer {
     return{episodes,successes,meanSteps:mean(steps),trackingMae:completedErrs.length?mean(completedErrs):null,allStepTrackingMae:mean(allErrs)};
   }
   snapshot(){
-    return{mode:this.mode,iter:this.iter,envSteps:this.envSteps,episodes:this.episodes,teacherBootstrap:this.teacherBootstrap||null,last:this.last,history:this.history.slice(-120),policy:{encoder:this.policy.encoder.snapshot(),dynamicDecoder:this.policy.dynamicDecoder.snapshot(),kinematicDecoder:this.policy.kinematicDecoder.snapshot(),critic:this.policy.critic.snapshot(),codebook:Array.from(this.policy.codebook)}};
+    return{mode:this.mode,iter:this.iter,envSteps:this.envSteps,episodes:this.episodes,rng:{s:this.rng.s,spare:this.rng.spare},teacherBootstrap:this.teacherBootstrap||null,last:this.last,history:this.history.slice(-120),policy:{encoder:this.policy.encoder.snapshot(),dynamicDecoder:this.policy.dynamicDecoder.snapshot(),kinematicDecoder:this.policy.kinematicDecoder.snapshot(),critic:this.policy.critic.snapshot(),codebook:Array.from(this.policy.codebook)}};
   }
   delete(){for(const e of this.envs)e.delete();}
 }

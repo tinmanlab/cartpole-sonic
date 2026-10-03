@@ -7,7 +7,8 @@ const teacher=new FrozenCartPoleTeacher(JSON.parse(fs.readFileSync(new URL("../a
 const sim=new MuJoCoCartPole();await sim.init("playground");
 const trainer=new SonicToyTrainer(sim,{mode:"fsq",n:8,horizon:96,epochs:4,batch:128});
 const before=trainer.evaluate(12);
-const bootstrap=trainer.bootstrapFromTeacher(teacher,{steps:500,batch:256,lr:.0015,auxCoef:.08});
+const bootstrapRaw=trainer.bootstrapFromTeacher(teacher,{steps:500,batch:256,lr:.0015,auxCoef:.08});
+const {ms: _elapsedMs, ...bootstrap}=bootstrapRaw;
 const after=trainer.evaluate(12);
 const result={schema:"sonic-cartpole-bootstrap-eval/v1",physics:sim.backend,mode:"fsq",before,bootstrap,after};
 fs.mkdirSync(new URL("../evidence/", import.meta.url),{recursive:true});

@@ -19,3 +19,4 @@ jobs:
       - run: npm run verify:teacher
       - run: npm run verify:bootstrap
       - run: npm run verify:ppo
+      - run: npm run verify:checkpoint

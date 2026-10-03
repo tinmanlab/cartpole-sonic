@@ -4,3 +4,5 @@ __pycache__/
 .server.pid
 server.log
 .DS_Store
+
+media/frames-new/
