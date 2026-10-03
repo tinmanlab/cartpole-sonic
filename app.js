@@ -3,7 +3,6 @@ import {
   SonicToyTrainer,
   planReference,
   advancePlannerContext,
-  referenceFramesPhysical,
   SONIC_TOY_CONSTANTS,
 } from "./sonic_toy.js";
 import { loadTeacherPolicy } from "./teacher_policy.js";
@@ -69,6 +68,20 @@ function setBadge(id,text,ok=true){
   const el=$(id); if(!el) return;
   el.textContent=text;
   el.className="badge "+(ok?"ok":"warn");
+}
+
+function beginCanvas(canvas){
+  const rect=canvas.getBoundingClientRect();
+  const w=Math.max(1,rect.width),h=Math.max(1,rect.height);
+  const dpr=Math.min(window.devicePixelRatio||1,2);
+  const bw=Math.max(1,Math.round(w*dpr)),bh=Math.max(1,Math.round(h*dpr));
+  if(canvas.width!==bw||canvas.height!==bh){
+    canvas.width=bw;canvas.height=bh;
+  }
+  const ctx=canvas.getContext("2d");
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.clearRect(0,0,w,h);
+  return{ctx,w,h,dpr};
 }
 
 async function getTrainer(mode){
@@ -159,7 +172,8 @@ async function runPPO(iterations){
   const n=clamp(Math.floor(iterations)||1,1,50);
   for(let i=0;i<n;i++){
     currentTrainer.iteration();
-    if(i%2===1) await new Promise(r=>setTimeout(r,0));
+    render();
+    await new Promise(r=>requestAnimationFrame(r));
   }
   heldoutEval=currentTrainer.evaluate(12);
   ppoHeldoutHistory.push({iterations:currentTrainer.iter,mae:heldoutEval.trackingMae});
@@ -229,35 +243,37 @@ async function navigateLesson(id){
 }
 
 function renderSimulation(){
-  const c=$("cart"),ctx=c.getContext("2d"),W=c.width,H=c.height;
-  ctx.clearRect(0,0,W,H);
+  const c=$("cart"),{ctx,w:W,h:H}=beginCanvas(c);
   ctx.fillStyle="#fff";ctx.fillRect(0,0,W,H);
-  const centerX=W/2,pivotY=225,railY=282,wheelY=272,scale=110,cartW=82,cartH=30;
-  ctx.strokeStyle="#cbd5e1";ctx.lineWidth=6;ctx.lineCap="round";
-  ctx.beginPath();ctx.moveTo(45,railY);ctx.lineTo(W-45,railY);ctx.stroke();
 
-  const refs=referenceFramesPhysical(plannerContext,goal);
-  refs.forEach((r,i)=>drawGhost(r.x,"#315dc9",.07+.045*i));
+  const centerX=W/2;
+  const railY=H*.82,pivotY=railY-54,wheelY=railY-11;
+  const worldHalf=1.8;
+  const scale=Math.min((W-74)/(worldHalf*2),118);
+  const cartW=76,cartH=28;
+
+  ctx.strokeStyle="#cbd5e1";ctx.lineWidth=5;ctx.lineCap="round";
+  ctx.beginPath();ctx.moveTo(34,railY);ctx.lineTo(W-34,railY);ctx.stroke();
+
   const s=state();
   drawActual(s[0],s[2]);
+
   const gx=centerX+goal*scale;
   ctx.strokeStyle="#16805d";ctx.lineWidth=2;ctx.setLineDash([5,4]);
-  ctx.beginPath();ctx.moveTo(gx,60);ctx.lineTo(gx,railY);ctx.stroke();ctx.setLineDash([]);
-  ctx.fillStyle="#16805d";ctx.font="600 10px system-ui";ctx.textAlign="center";ctx.fillText("goal",gx,53);
+  ctx.beginPath();ctx.moveTo(gx,28);ctx.lineTo(gx,railY);ctx.stroke();ctx.setLineDash([]);
+  ctx.fillStyle="#16805d";ctx.font="600 10px system-ui";ctx.textAlign="center";ctx.fillText("goal",gx,22);
 
-  function drawGhost(x,color,alpha){
-    const cx=centerX+x*scale;
-    ctx.save();ctx.globalAlpha=alpha;ctx.strokeStyle=color;ctx.lineWidth=1.5;
-    ctx.strokeRect(cx-cartW/2,pivotY,cartW,cartH);
-    ctx.beginPath();ctx.moveTo(cx,pivotY);ctx.lineTo(cx,pivotY-96);ctx.stroke();ctx.restore();
-  }
+  ctx.fillStyle="#667085";ctx.font="10px system-ui";ctx.textAlign="left";
+  ctx.fillText("actual MuJoCo robot",10,16);
+
   function drawActual(x,theta){
-    const cx=centerX+x*scale,L=142*(sim.spec?.poleLength||1);
+    const cx=centerX+x*scale,L=Math.min(H*.48,126)*(sim.spec?.poleLength||1);
     const tx=cx+Math.sin(theta)*L,ty=pivotY-Math.cos(theta)*L;
-    ctx.strokeStyle="#d64f4f";ctx.lineWidth=7;ctx.beginPath();ctx.moveTo(cx,pivotY);ctx.lineTo(tx,ty);ctx.stroke();
+    ctx.strokeStyle="#d64f4f";ctx.lineWidth=7;
+    ctx.beginPath();ctx.moveTo(cx,pivotY);ctx.lineTo(tx,ty);ctx.stroke();
     ctx.fillStyle="#334155";ctx.fillRect(cx-cartW/2,pivotY,cartW,cartH);
     ctx.fillStyle="#1e293b";
-    for(const dx of [-25,25]){ctx.beginPath();ctx.arc(cx+dx,wheelY,9,0,Math.PI*2);ctx.fill();}
+    for(const dx of [-23,23]){ctx.beginPath();ctx.arc(cx+dx,wheelY,8,0,Math.PI*2);ctx.fill();}
   }
 
   $("goal").value=goal;
@@ -272,34 +288,40 @@ function renderSimulation(){
 }
 
 function clearViz(){
-  const c=$("lessonViz"),ctx=c.getContext("2d");
-  ctx.clearRect(0,0,c.width,c.height);ctx.fillStyle="#fff";ctx.fillRect(0,0,c.width,c.height);
+  const c=$("lessonViz");
   $("vizHtml").classList.remove("visible");$("vizHtml").innerHTML="";
   $("lessonViz").style.display="block";
+  const {ctx,w,h}=beginCanvas(c);
+  ctx.fillStyle="#fff";ctx.fillRect(0,0,w,h);
   $("vizMetrics").innerHTML="";
 }
 function setMetrics(items){
   $("vizMetrics").innerHTML=items.map(x=>'<span class="chip">'+x+'</span>').join("");
 }
-function drawAxes(ctx,c,{xmin=-1.25,xmax=1.25,ymin=-1.25,ymax=1.25}={}){
-  const p=38;
-  const X=x=>p+(x-xmin)/(xmax-xmin)*(c.width-2*p);
-  const Y=y=>c.height-p-(y-ymin)/(ymax-ymin)*(c.height-2*p);
+function drawAxes(ctx,w,h,{xmin=-1.25,xmax=1.25,ymin=-1.25,ymax=1.25}={}){
+  const margin=42;
+  const sx=(w-2*margin)/(xmax-xmin),sy=(h-2*margin)/(ymax-ymin);
+  const scale=Math.min(sx,sy);
+  const plotW=(xmax-xmin)*scale,plotH=(ymax-ymin)*scale;
+  const left=(w-plotW)/2,top=(h-plotH)/2;
+  const X=x=>left+(x-xmin)*scale;
+  const Y=y=>top+plotH-(y-ymin)*scale;
   ctx.strokeStyle="#e2e6ec";ctx.lineWidth=1;
-  ctx.beginPath();ctx.moveTo(p,Y(0));ctx.lineTo(c.width-p,Y(0));ctx.moveTo(X(0),p);ctx.lineTo(X(0),c.height-p);ctx.stroke();
-  return {X,Y,p};
+  ctx.beginPath();ctx.moveTo(left,Y(0));ctx.lineTo(left+plotW,Y(0));ctx.moveTo(X(0),top);ctx.lineTo(X(0),top+plotH);ctx.stroke();
+  return{X,Y,left,top,plotW,plotH,scale};
 }
+
 function reconstructionError(p,ref){
   if(!p) return NaN;
   let e=0;for(let i=0;i<ref.length;i++)e+=(p.kinRecon[i]-ref[i])**2;
   return e/ref.length;
 }
 function renderReconstructionViz(){
-  const c=$("lessonViz"),ctx=c.getContext("2d"),p=preview(),ref=currentReference();
+  const c=$("lessonViz"),{ctx,w,h}=beginCanvas(c),p=preview(),ref=currentReference();
   const pad={l:48,r:22,t:32,b:48},ymin=-1.1,ymax=1.1;
-  const X=i=>pad.l+i/(SONIC_TOY_CONSTANTS.REF_FRAMES-1)*(c.width-pad.l-pad.r);
-  const Y=y=>pad.t+(ymax-y)/(ymax-ymin)*(c.height-pad.t-pad.b);
-  ctx.strokeStyle="#e3e6eb";ctx.beginPath();ctx.moveTo(pad.l,Y(0));ctx.lineTo(c.width-pad.r,Y(0));ctx.stroke();
+  const X=i=>pad.l+i/(SONIC_TOY_CONSTANTS.REF_FRAMES-1)*(w-pad.l-pad.r);
+  const Y=y=>pad.t+(ymax-y)/(ymax-ymin)*(h-pad.t-pad.b);
+  ctx.strokeStyle="#e3e6eb";ctx.beginPath();ctx.moveTo(pad.l,Y(0));ctx.lineTo(w-pad.r,Y(0));ctx.stroke();
 
   const draw=(arr,color,dash=[])=>{
     ctx.strokeStyle=color;ctx.lineWidth=3;ctx.setLineDash(dash);ctx.beginPath();
@@ -310,12 +332,12 @@ function renderReconstructionViz(){
 
   ctx.fillStyle="#667085";ctx.font="12px system-ui";
   ctx.fillText("future x reference (normalized)",pad.l,pad.t-10);
-  for(let i=0;i<8;i++){ctx.fillStyle="#7b8492";ctx.font="10px ui-monospace";ctx.fillText("t+"+fmt((i+1)*.08,2),X(i)-14,c.height-20);}
-  $("vizCaption").innerHTML='<span style="color:#315dc9;font-weight:700">blue = original future reference</span> · <span style="color:#795fc5;font-weight:700">purple dashed = Decoder reconstruction</span>. Decoder가 복원할 수 있어야 작은 latent에 motion 정보가 남았다고 볼 수 있다.';
+  for(let i=0;i<8;i++){ctx.fillStyle="#7b8492";ctx.font="10px ui-monospace";ctx.fillText("t+"+fmt((i+1)*.08,2),X(i)-14,h-20);}
+  $("vizCaption").innerHTML='<b>Reference world · pre-FSQ.</b> <span style="color:#315dc9;font-weight:700">blue = planner future reference</span> · <span style="color:#795fc5;font-weight:700">purple dashed = Kinematic Decoder reconstruction</span>. 이것은 actual robot trajectory가 아니다.';
   if(p)setMetrics(["16D input → 2D latent → 16D recon","z=["+fmt(p.z[0],3)+", "+fmt(p.z[1],3)+"]","recon MSE="+fmt(reconstructionError(p,ref),4)]);
 }
 function renderLatentViz(){
-  const c=$("lessonViz"),ctx=c.getContext("2d"),{X,Y}=drawAxes(ctx,c),cur=state(),codes=new Set();
+  const c=$("lessonViz"),{ctx,w,h}=beginCanvas(c),{X,Y}=drawAxes(ctx,w,h),cur=state(),codes=new Set();
   for(let g=-1.2;g<=1.2001;g+=.06){
     const ref=planReference(plannerContext,g),out=currentTrainer.preview(cur,ref,g);
     codes.add(out.q.map(v=>v.toFixed(2)).join(","));
@@ -332,12 +354,12 @@ function renderLatentViz(){
     ctx.fillStyle="#315dc9";ctx.beginPath();ctx.arc(X(p.z[0]),Y(p.z[1]),8,0,Math.PI*2);ctx.fill();
     ctx.fillStyle="#d64f4f";ctx.beginPath();ctx.arc(X(p.q[0]),Y(p.q[1]),8,0,Math.PI*2);ctx.fill();
   }
-  ctx.fillStyle="#667085";ctx.font="11px system-ui";ctx.fillText("z₁",c.width-48,Y(0)-8);ctx.fillText("z₂",X(0)+7,22);
+  ctx.fillStyle="#667085";ctx.font="11px system-ui";ctx.fillText("z₁",w-48,Y(0)-8);ctx.fillText("z₂",X(0)+7,22);
   if(lesson.mode==="vq"){
-    $("vizCaption").innerHTML='회색 = goal sweep의 continuous latent · 회색 큰 점 = <b>learned codebook</b> · 파랑 z → 빨강 q = nearest-vector 선택.';
+    $("vizCaption").innerHTML='<b>Reference/token world.</b> 회색 = reference sweep의 continuous latent · 회색 큰 점 = <b>learned codebook</b> · 파랑 z → 빨강 q = nearest-vector 선택. actual robot state는 이 좌표에 포함되지 않는다.';
     setMetrics(["learned codebook: 8 vectors","active codes="+codes.size+"/8",p?"z→q distance="+fmt(Math.hypot(p.z[0]-p.q[0],p.z[1]-p.q[1]),3):""]);
   }else{
-    $("vizCaption").innerHTML='회색 = goal sweep의 continuous latent · 작은 grid = <b>고정 FSQ finite levels</b> · 파랑 z → 빨강 q = bound + round.';
+    $("vizCaption").innerHTML='<b>Reference/token world.</b> 회색 = reference sweep의 continuous latent · 작은 grid = <b>고정 FSQ finite levels</b> · 파랑 z → 빨강 q = bound + round. 빨간 q가 FSQ 결과이며 physical action은 아니다.';
     setMetrics(["L=[5,5] → 25 implicit codes","active tokens="+codes.size+"/25",p?"q=["+fmt(p.q[0],2)+", "+fmt(p.q[1],2)+"]":""]);
   }
 }
@@ -390,26 +412,29 @@ function renderDecoderViz(){
   );
 }
 function renderTrainingViz(){
-  const c=$("lessonViz"),ctx=c.getContext("2d");
-  ctx.fillStyle="#fff";ctx.fillRect(0,0,c.width,c.height);
+  const c=$("lessonViz"),{ctx,w,h}=beginCanvas(c);
+  ctx.fillStyle="#fff";ctx.fillRect(0,0,w,h);
   const pad={l:62,r:28,t:32,b:50};
   ctx.strokeStyle="#e2e6ec";ctx.lineWidth=1;
-  ctx.beginPath();ctx.moveTo(pad.l,pad.t);ctx.lineTo(pad.l,c.height-pad.b);ctx.lineTo(c.width-pad.r,c.height-pad.b);ctx.stroke();
+  ctx.beginPath();ctx.moveTo(pad.l,pad.t);ctx.lineTo(pad.l,h-pad.b);ctx.lineTo(w-pad.r,h-pad.b);ctx.stroke();
 
   const ref=(ppoReferenceEvidence?.checkpoints||[])
     .map(x=>({iterations:x.ppoIterations,mae:x.eval?.trackingMae}))
     .filter(x=>Number.isFinite(x.mae));
-  const livePts=ppoHeldoutHistory.filter(x=>Number.isFinite(x.mae));
-  const all=[...ref,...livePts];
+  const rolloutPts=(currentTrainer.history||[])
+    .map(x=>({iterations:x.iter,mae:x.tracking}))
+    .filter(x=>Number.isFinite(x.mae));
+  const heldoutPts=ppoHeldoutHistory.filter(x=>Number.isFinite(x.mae));
+  const all=[...ref,...rolloutPts,...heldoutPts];
   const maxIter=Math.max(50,...all.map(x=>x.iterations));
   const maxMae=Math.max(.25,...all.map(x=>x.mae));
   const minMae=Math.min(.10,...all.map(x=>x.mae));
-  const X=i=>pad.l+i/maxIter*(c.width-pad.l-pad.r);
-  const Y=v=>c.height-pad.b-(v-minMae)/(maxMae-minMae)*(c.height-pad.t-pad.b);
+  const X=i=>pad.l+i/maxIter*(w-pad.l-pad.r);
+  const Y=v=>h-pad.b-(v-minMae)/(maxMae-minMae)*(h-pad.t-pad.b);
 
   for(let i=0;i<=5;i++){
     const v=minMae+(maxMae-minMae)*i/5,y=Y(v);
-    ctx.strokeStyle="#f0f2f5";ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(c.width-pad.r,y);ctx.stroke();
+    ctx.strokeStyle="#f0f2f5";ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(w-pad.r,y);ctx.stroke();
     ctx.fillStyle="#7b8492";ctx.font="10px ui-monospace";ctx.textAlign="right";ctx.fillText(v.toFixed(2),pad.l-8,y+3);
   }
 
@@ -421,13 +446,14 @@ function renderTrainingViz(){
     pts.forEach(p=>{ctx.fillStyle=color;ctx.beginPath();ctx.arc(X(p.iterations),Y(p.mae),4,0,Math.PI*2);ctx.fill();});
   };
   drawSeries(ref,"#9aa3af",[6,5],2);
-  drawSeries(livePts,"#315dc9",[],3);
+  drawSeries(rolloutPts,"#315dc9",[],2.5);
+  heldoutPts.forEach(p=>{ctx.fillStyle="#16805d";ctx.beginPath();ctx.arc(X(p.iterations),Y(p.mae),5,0,Math.PI*2);ctx.fill();});
 
   ctx.fillStyle="#667085";ctx.font="11px system-ui";ctx.textAlign="left";
   ctx.fillText("held-out tracking MAE ↓",pad.l,18);
-  ctx.textAlign="right";ctx.fillText("PPO iterations →",c.width-pad.r,c.height-15);
+  ctx.textAlign="right";ctx.fillText("PPO iterations →",w-pad.r,c.height-15);
 
-  $("vizCaption").innerHTML='회색 점선 = repo에 저장된 deterministic held-out sweep · 파랑 = 현재 세션. <b>낮을수록 좋다.</b> PPO는 reconstruction이 아니라 physics tracking error를 줄이는 본체다.';
+  $("vizCaption").innerHTML='회색 점선 = deterministic held-out reference · <span style="color:#315dc9;font-weight:700">파랑 = 매 PPO iteration의 rollout tracking MAE (실시간)</span> · <span style="color:#16805d;font-weight:700">초록 = 현재 세션 held-out check</span>. 낮을수록 좋다.';
   setMetrics([
     "PPO iter="+currentTrainer.iter,
     heldoutEval?"current held-out="+fmt(heldoutEval.trackingMae,3)+" m":"current held-out=—",
@@ -453,7 +479,15 @@ function renderSonicMap(){
 function renderLessonViz(){
   clearViz();
   $("vizTitle").textContent=lesson.title;
-  $("vizSub").textContent="Main visualization · 모든 장에서 같은 위치와 크기";
+  const worldLabel={
+    reference:"Reference world · pre-FSQ motion",
+    concept:"Concept branch · no robot-state mixing",
+    "reference-token":"Reference / token world · before and after quantization",
+    bridge:"Bridge · token + actual robot proprioception",
+    training:"Training evidence · physical tracking",
+    mapping:"Role mapping · CartPole ↔ GEAR-SONIC",
+  }[lesson.world]||"Main visualization";
+  $("vizSub").textContent=worldLabel+" · same position/size every lesson";
   $("vizStatus").textContent=lesson.optional?"optional branch":"step "+lesson.step;
   switch(lesson.viz){
     case "reconstruction": renderReconstructionViz(); break;
@@ -559,6 +593,13 @@ function courseSnapshot(){
     },
     experiment:{goal,live,preset,mode:lesson.mode},
     signals:{
+      semantics:{
+        reference:"pre-FSQ desired future motion from planner/reference source",
+        latent:"continuous Encoder output before quantization",
+        token:"post-FSQ/VQ compact motion representation; not a motor command",
+        proprioception:"measured actual robot state; separate from reference",
+        action:"Dynamic Decoder output applied to the actual robot",
+      },
       reference:Array.from(ref),
       latent:p?.z||null,
       token:p?.q||null,
@@ -666,6 +707,14 @@ function attachUI(){
   $("lessonAction").onclick=()=>{void runLessonAction();};
 }
 
+function installCanvasResizeObserver(){
+  if(!("ResizeObserver" in window))return;
+  const ro=new ResizeObserver(()=>{if(physicsReady&&currentTrainer)render();});
+  ro.observe($("cart"));
+  ro.observe($("lessonViz"));
+  window.__cartpoleSonicResizeObserver=ro;
+}
+
 function loop(now){
   const dt=Math.min(.05,Math.max(0,(now-lastFrame)/1000));lastFrame=now;
   if(live&&!busy&&currentTrainer&&physicsReady){
@@ -722,6 +771,7 @@ async function init(){
   if(location.hostname==="localhost"||location.hostname==="127.0.0.1"){
     setInterval(()=>{fetch("/telemetry",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(courseSnapshot()),keepalive:true}).catch(()=>{});},900);
   }
+  installCanvasResizeObserver();
   requestAnimationFrame(loop);
 }
 init().catch(err=>{

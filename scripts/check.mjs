@@ -40,6 +40,13 @@ const required=[
   [app,'experiment_set_goal',"semantic goal setter"],
   [app,'training_run',"semantic PPO training tool"],
   [app,'courseSnapshot()',"canonical WebMCP/readback state"],
+  [html,'Robot world · actual only',"simulation/reference separation"],
+  [html,'aspect-ratio:16/9',"simulation aspect is preserved"],
+  [html,'aspect-ratio:15/8',"main visualization aspect is preserved"],
+  [app,'function beginCanvas(canvas)',"DPR-aware canvas backing-store sync"],
+  [app,'Reference world · pre-FSQ',"reference world explicitly precedes FSQ"],
+  [app,'token:"post-FSQ/VQ compact motion representation; not a motor command"',"WebMCP token semantics"],
+  [app,'render();\n    await new Promise(r=>requestAnimationFrame(r));',"PPO graph redraws each iteration"],
   [app,'student_"+mode+"_bootstrap.json',"precomputed student checkpoint loading"],
   [toy,'restorePolicy(snapshot',"checkpoint restore path"],
   [app,'plannerContext=[0,0]',"runtime reference state independent from robot state"],
@@ -65,6 +72,7 @@ const forbidden=[
   [app,'get_sonic_cartpole_state',"old non-course state API"],
   [html,'height:610px',"artificial lesson stretching"],
   [html,'height:470px',"artificial lesson stretching"],
+  [app,'drawGhost(',"reference ghost must not be drawn in robot simulation"],
 ];
 for(const [src,token,label] of forbidden){
   if(src.includes(token)) throw new Error("forbidden legacy pattern: "+label);

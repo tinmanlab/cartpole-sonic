@@ -164,6 +164,49 @@ The main path is:
 
 ---
 
+## Reference, token, and robot state are different things
+
+The live UI deliberately separates them.
+
+```text
+Reference world
+planner future motion
+      ↓
+Encoder
+      ↓
+continuous latent z
+      ↓
+FSQ
+      ↓
+motion token q
+```
+
+The blue future reference is **upstream of FSQ**. It is not the command sent to the motor.
+
+```text
+motion token q       actual robot proprioception
+      │                        │
+      └──────────┬─────────────┘
+                 ↓
+          Dynamic Decoder
+                 ↓
+              action
+                 ↓
+          actual MuJoCo robot
+```
+
+So the semantic roles are:
+
+- **reference** = desired future motion, before Encoder/FSQ
+- **latent z** = continuous Encoder output
+- **token q** = post-FSQ compact motion representation
+- **proprioception** = measured state of the actual robot
+- **action** = Dynamic Decoder output applied to the actual robot
+
+For that reason, the Simulation panel now draws only the actual robot. Reference trajectories live in the separate center visualization instead of being overlaid as a ghost robot.
+
+---
+
 ## FSQ in one minute
 
 VQ uses a learned vector codebook:
@@ -193,6 +236,21 @@ So each normalized scalar lands on:
 With two scalar dimensions, that gives an implicit (5 × 5 = 25) code space.
 
 FSQ still uses a straight-through estimator for the non-differentiable rounding operation, but it does not need a learned vector codebook, codebook reseeding, or VQ-style commitment machinery.
+
+---
+
+## Visualization behavior
+
+All lessons share the same fixed layout:
+
+- left: actual MuJoCo robot, always the same location and controls
+- center: lesson-specific reference/token/training visualization
+- right: lesson guide
+- bottom: stable SONIC information-flow strip
+
+Canvas backing resolution follows its displayed CSS size and device-pixel ratio, so the plots are not stretched by mismatched canvas dimensions. Latent-space plots use equal x/y unit scaling (1:1 data aspect).
+
+When **Live** is enabled, reference, latent, token-dependent visualizations, proprioception, action, and the robot simulation are redrawn from the same live state. PPO training plots also redraw after each training iteration.
 
 ---
 

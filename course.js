@@ -19,6 +19,7 @@ export const LESSONS = {
   ae: {
     id: "ae",
     step: 1,
+    world: "reference",
     nav: "Encoder / AE",
     title: "왜 차원을 줄였다가 다시 복원할까?",
     mode: "ae",
@@ -42,6 +43,7 @@ export const LESSONS = {
   vae: {
     id: "vae",
     step: "2A",
+    world: "concept",
     nav: "VAE (optional)",
     title: "VAE는 어디에 있는가? — 선택 분기",
     mode: "ae",
@@ -65,6 +67,7 @@ export const LESSONS = {
   vq: {
     id: "vq",
     step: 2,
+    world: "reference-token",
     nav: "VQ",
     title: "VQ는 왜 codebook을 만들까?",
     mode: "vq",
@@ -87,6 +90,7 @@ export const LESSONS = {
   vqvae: {
     id: "vqvae",
     step: 3,
+    world: "reference-token",
     nav: "VQ-VAE",
     title: "VQ-VAE는 discrete code를 어떻게 학습할까?",
     mode: "vq",
@@ -109,6 +113,7 @@ export const LESSONS = {
   fsq: {
     id: "fsq",
     step: 4,
+    world: "reference-token",
     nav: "FSQ",
     title: "FSQ는 VQ에서 무엇을 없앴을까?",
     mode: "fsq",
@@ -131,6 +136,7 @@ export const LESSONS = {
   "motion-token": {
     id: "motion-token",
     step: 5,
+    world: "reference-token",
     nav: "Motion token",
     title: "무엇을 token으로 만드는가?",
     mode: "fsq",
@@ -153,6 +159,7 @@ export const LESSONS = {
   "dynamic-decoder": {
     id: "dynamic-decoder",
     step: 6,
+    world: "bridge",
     nav: "Dynamic decoder",
     title: "token만으로 왜 action을 만들 수 없을까?",
     mode: "fsq",
@@ -175,6 +182,7 @@ export const LESSONS = {
   ppo: {
     id: "ppo",
     step: 7,
+    world: "training",
     nav: "PPO training",
     title: "무엇이 실제 physical controller를 학습할까?",
     mode: "fsq",
@@ -197,6 +205,7 @@ export const LESSONS = {
   sonic: {
     id: "sonic",
     step: 8,
+    world: "mapping",
     nav: "GEAR-SONIC",
     title: "CartPole에서 이해한 구조를 GEAR-SONIC으로 되돌리기",
     mode: "fsq",
