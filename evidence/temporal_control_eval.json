@@ -1,0 +1,131 @@
+{
+  "schema": "cartpole-sonic-temporal-control-eval/v1",
+  "bootstrapSteps": 300,
+  "ppoHyperparameters": "matched across 1-token and 2-token controllers",
+  "checkpoints": [
+    {
+      "ppoIterations": 0,
+      "one": {
+        "clean": {
+          "episodes": 12,
+          "successes": 12,
+          "trackingMae": 0.25936888291006066,
+          "allStepTrackingMae": 0.25936888291006066,
+          "disturbance": null
+        },
+        "push": {
+          "episodes": 12,
+          "successes": 12,
+          "trackingMae": 0.24055857800321553,
+          "allStepTrackingMae": 0.24055857800321553,
+          "disturbance": {
+            "postPushTrackingMae": 0.23407850283461654,
+            "meanRecoverySteps": 209.41666666666666
+          }
+        }
+      },
+      "two": {
+        "clean": {
+          "episodes": 12,
+          "successes": 12,
+          "trackingMae": 0.2501170128781582,
+          "allStepTrackingMae": 0.2501170128781582,
+          "disturbance": null
+        },
+        "push": {
+          "episodes": 12,
+          "successes": 12,
+          "trackingMae": 0.23486435222890004,
+          "allStepTrackingMae": 0.23486435222890004,
+          "disturbance": {
+            "postPushTrackingMae": 0.2257559166354258,
+            "meanRecoverySteps": 202.5
+          }
+        }
+      }
+    },
+    {
+      "ppoIterations": 5,
+      "one": {
+        "clean": {
+          "episodes": 12,
+          "successes": 12,
+          "trackingMae": 0.25860436522772606,
+          "allStepTrackingMae": 0.25860436522772606,
+          "disturbance": null
+        },
+        "push": {
+          "episodes": 12,
+          "successes": 12,
+          "trackingMae": 0.2750973484264876,
+          "allStepTrackingMae": 0.2750973484264876,
+          "disturbance": {
+            "postPushTrackingMae": 0.27694644069884694,
+            "meanRecoverySteps": 187.41666666666666
+          }
+        }
+      },
+      "two": {
+        "clean": {
+          "episodes": 12,
+          "successes": 12,
+          "trackingMae": 0.29774319201847477,
+          "allStepTrackingMae": 0.29774319201847477,
+          "disturbance": null
+        },
+        "push": {
+          "episodes": 12,
+          "successes": 12,
+          "trackingMae": 0.2680708937033601,
+          "allStepTrackingMae": 0.2680708937033601,
+          "disturbance": {
+            "postPushTrackingMae": 0.265390824193748,
+            "meanRecoverySteps": 232.5
+          }
+        }
+      }
+    },
+    {
+      "ppoIterations": 10,
+      "one": {
+        "clean": {
+          "episodes": 12,
+          "successes": 12,
+          "trackingMae": 0.23763713461216873,
+          "allStepTrackingMae": 0.23763713461216873,
+          "disturbance": null
+        },
+        "push": {
+          "episodes": 12,
+          "successes": 12,
+          "trackingMae": 0.22818574829209579,
+          "allStepTrackingMae": 0.22818574829209579,
+          "disturbance": {
+            "postPushTrackingMae": 0.21521852134730193,
+            "meanRecoverySteps": 182.58333333333334
+          }
+        }
+      },
+      "two": {
+        "clean": {
+          "episodes": 12,
+          "successes": 12,
+          "trackingMae": 0.5068608406344589,
+          "allStepTrackingMae": 0.5068608406344589,
+          "disturbance": null
+        },
+        "push": {
+          "episodes": 12,
+          "successes": 12,
+          "trackingMae": 0.5180713844624464,
+          "allStepTrackingMae": 0.5180713844624464,
+          "disturbance": {
+            "postPushTrackingMae": 0.5785114557217416,
+            "meanRecoverySteps": 239.33333333333334
+          }
+        }
+      }
+    }
+  ],
+  "claimBoundary": "Matched-budget deterministic ablation; controllers differ in token/parameter capacity and are not individually tuned."
+}

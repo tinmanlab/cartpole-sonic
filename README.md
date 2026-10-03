@@ -499,6 +499,59 @@ https://tinmanlab.github.io/cartpole-sonic/?focus=token&concept=temporal&depth=m
 
 ---
 
+### Closed-loop 1-token vs 2-token control experiment
+
+The reconstruction experiment above answers only a **representation-capacity** question. It does not prove that the larger token interface produces a better physical controller.
+
+A second live lab therefore connects both tokenizations all the way to native MuJoCo:
+
+```text
+1-token controller
+16D future → Encoder → FSQ q(2) + proprioception(4) → Dynamic Decoder → force → MuJoCo
+
+2-token controller
+16D future → Encoder → reshape 2×2 → FSQ q(4) + proprioception(4) → Dynamic Decoder → force → MuJoCo
+```
+
+The comparison deliberately uses matched conditions:
+
+- same future-reference distribution
+- same frozen teacher target during a 300-step imitation/bootstrap phase
+- same native MuJoCo Playground dynamics
+- same PPO iteration budget and hyperparameters
+- same deterministic clean and disturbance evaluation seeds
+
+Both bootstrap controllers survive all 12 clean evaluation episodes. Before PPO, performance is similar:
+
+```text
+bootstrap              1 token       2 tokens
+clean tracking MAE     0.259 m       0.250 m
+push post-MAE          0.234 m       0.226 m
+```
+
+After the **same +10 PPO iterations**, the result diverges:
+
+```text
++10 PPO                1 token       2 tokens
+clean survival         12/12         12/12
+clean tracking MAE     0.238 m       0.507 m
+push post-MAE          0.215 m       0.579 m
+```
+
+So this toy demonstrates an important distinction:
+
+> **More token capacity improved reconstruction, but it did not automatically improve closed-loop control under the same optimization settings.**
+
+The 2-token controller exposes a larger policy interface and more trainable parameters. The experiment intentionally does not retune each controller independently, so it should be read as a **matched-budget optimization ablation**, not as evidence that one token is universally better than two or that SONIC's two-token release design is suboptimal.
+
+The left shared MuJoCo viewport can be driven directly by either controller using `Drive robot: 1 token` or `Drive robot: 2 tokens`. This verifies that the comparison reaches the actual physical control path rather than stopping at reconstruction.
+
+Direct link:
+
+https://tinmanlab.github.io/cartpole-sonic/?focus=token&concept=temporal-control&depth=mechanism
+
+---
+
 ### Why do different encoders produce a universal token?
 
 FSQ alone does not guarantee that a G1 Encoder, SMPL Encoder, and teleoperation Encoder give the same semantic token.
@@ -562,6 +615,7 @@ Useful direct links:
 - FSQ: https://tinmanlab.github.io/cartpole-sonic/?focus=quantizer&concept=fsq
 - Universal Token: https://tinmanlab.github.io/cartpole-sonic/?focus=token
 - 1 vs 2 temporal token slots: https://tinmanlab.github.io/cartpole-sonic/?focus=token&concept=temporal&depth=mechanism
+- Closed-loop 1 vs 2 token control: https://tinmanlab.github.io/cartpole-sonic/?focus=token&concept=temporal-control&depth=mechanism
 - Robot Motion Decoder: https://tinmanlab.github.io/cartpole-sonic/?focus=motion-decoder
 - Robot Control Decoder: https://tinmanlab.github.io/cartpole-sonic/?focus=control-decoder
 - Robot / Feedback: https://tinmanlab.github.io/cartpole-sonic/?focus=robot
@@ -643,6 +697,7 @@ experiment_set_goal
 training_run
 alignment_control
 temporal_token_control
+temporal_control_control
 simulation_set_model
 ```
 
@@ -665,6 +720,9 @@ sonic_open_training({topic_id:"alignment"})
 alignment_control({action:"train", steps:50})
 sonic_focus({node_id:"token", concept_id:"temporal"})
 temporal_token_control({action:"train", steps:200})
+sonic_focus({node_id:"token", concept_id:"temporal-control"})
+temporal_control_control({action:"select", controller:"two"})
+temporal_control_control({action:"train", steps:10})
 ```
 
 The map payload also includes the same structured explanations used by the UI: intuition, mechanism, actual SONIC mapping, failure-if-removed, transition-to-next-block, and toy/SONIC data shapes.
@@ -710,7 +768,7 @@ This keeps each technology's role explicit.
 
 The teaching UI does not recompute the 500-step teacher bootstrap on every page load.
 
-Three deterministic bootstrap checkpoints are bundled for the default continuous/VQ/FSQ students. They are loaded immediately so the first visualization is usable as soon as MuJoCo WASM is ready. PPO iterations run after that remain live browser-side learning.
+Deterministic bootstrap checkpoints are bundled for the default continuous/VQ/FSQ students, plus a matched 1-token/2-token closed-loop control checkpoint used by the control ablation. They are loaded immediately so the relevant visualization is usable without recomputing teacher imitation on page entry. PPO iterations run after that remain live browser-side learning.
 
 If a checkpoint is unavailable, the lab can fall back to the teacher bootstrap path.
 
@@ -738,8 +796,11 @@ Current checked results:
 | FSQ student + 20 PPO iterations | ~0.144 m MAE |
 | FSQ student + 30 PPO iterations | ~0.142 m MAE |
 | FSQ student + 50 PPO iterations | regresses to ~0.192 m MAE |
+| two-Encoder alignment +50 steps | latent MSE 0.110 → 0.00258, token agreement 17.2% → 92.2% |
+| temporal capacity +200 steps | 2-token reconstruction MSE ~50% of 1-token |
+| matched closed-loop +10 PPO | 1-token 0.238 m MAE, 2-token 0.507 m MAE |
 
-These are **toy CartPole measurements**, not NVIDIA SONIC benchmark results.
+These are **toy CartPole measurements**, not NVIDIA SONIC benchmark results. The alignment and temporal-token experiments are mechanism ablations, not claims about real G1/SMPL/teleop or globally optimal token counts.
 
 ---
 
@@ -763,7 +824,7 @@ What this toy **does not** reproduce:
 
 - G1 morphology and multi-contact dynamics
 - the production SONIC network size
-- multi-encoder latent alignment
+- real G1/SMPL/teleop modality alignment (the repo contains a two-representation CartPole alignment analogue, not those production modalities)
 - large-scale motion data
 - real actuator/sensor dynamics
 - sim-to-real deployment quality
@@ -780,7 +841,8 @@ What this toy **does not** reproduce:
 ├── course.js                  # canonical SONIC system-map / concept SSOT
 ├── sonic_toy.js               # SONIC-like planner/encoder/token/decoder/PPO
 ├── alignment_lab.js           # live two-Encoder representation-alignment experiment
-├── temporal_token_lab.js      # live 1-token vs 2-token capacity experiment
+├── temporal_token_lab.js      # live 1-token vs 2-token reconstruction/capacity experiment
+├── temporal_control_lab.js    # live 1-token vs 2-token closed-loop control ablation
 ├── mujoco_sim.js              # native MuJoCo WASM CartPole wrapper
 ├── webgpu_fsq.js              # WebGPU FSQ parity kernel
 ├── teacher_policy.js          # frozen bootstrap teacher adapter
@@ -788,8 +850,9 @@ What this toy **does not** reproduce:
 │   ├── teacher_cartpole_ppo.json
 │   ├── student_ae_bootstrap.json
 │   ├── student_vq_bootstrap.json
-│   └── student_fsq_bootstrap.json
-├── evidence/                  # deterministic evaluation snapshots
+│   ├── student_fsq_bootstrap.json
+│   └── temporal_control_bootstrap.json
+├── evidence/                  # deterministic evaluation snapshots, including temporal_control_eval.json
 ├── scripts/                   # structure and evaluation checks
 ├── vendor/mujoco/             # pinned MuJoCo 3.14.0 JS/WASM
 └── media/

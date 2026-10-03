@@ -8,6 +8,7 @@ const sim=fs.readFileSync(new URL("../mujoco_sim.js",import.meta.url),"utf8");
 const gpu=fs.readFileSync(new URL("../webgpu_fsq.js",import.meta.url),"utf8");
 const alignment=fs.readFileSync(new URL("../alignment_lab.js",import.meta.url),"utf8");
 const temporal=fs.readFileSync(new URL("../temporal_token_lab.js",import.meta.url),"utf8");
+const temporalControl=fs.readFileSync(new URL("../temporal_control_lab.js",import.meta.url),"utf8");
 
 for(const name of ["student_ae_bootstrap.json","student_vq_bootstrap.json","student_fsq_bootstrap.json"]){
   const u=new URL("../assets/"+name,import.meta.url);
@@ -15,6 +16,16 @@ for(const name of ["student_ae_bootstrap.json","student_vq_bootstrap.json","stud
   const j=JSON.parse(fs.readFileSync(u,"utf8"));
   if(j.schema!=="cartpole-sonic-student-bootstrap/v1") throw new Error("invalid checkpoint schema: "+name);
 }
+
+for(const [name,schema] of [["temporal_control_bootstrap.json","cartpole-sonic-temporal-control-lab/v1"]]){
+  const u=new URL("../assets/"+name,import.meta.url);
+  if(!fs.existsSync(u))throw new Error("missing temporal-control asset: "+name);
+  const j=JSON.parse(fs.readFileSync(u,"utf8"));
+  if(j.schema!==schema)throw new Error("invalid temporal-control asset schema: "+name);
+}
+const controlEvidenceUrl=new URL("../evidence/temporal_control_eval.json",import.meta.url);
+if(!fs.existsSync(controlEvidenceUrl))throw new Error("missing temporal-control evidence");
+if(JSON.parse(fs.readFileSync(controlEvidenceUrl,"utf8")).schema!=="cartpole-sonic-temporal-control-eval/v1")throw new Error("invalid temporal-control evidence schema");
 
 const required=[
   [html,'system-map',"fixed SONIC system map"],
@@ -69,6 +80,13 @@ const required=[
   [temporal,'tokens=2',"two-token model"],
   [temporal,'earlyLatentDelta',"token-slot sensitivity diagnostic"],
   [app,'temporal_token_control',"WebMCP temporal-token control tool"],
+  [course,'{id:"temporal-control",label:"Closed-loop 1 vs 2"}',"closed-loop token-count ablation lives under Universal Token"],
+  [app,'function renderTemporalControlViz()',"live 1-token vs 2-token closed-loop visualization"],
+  [temporalControl,'class TemporalControlLab',"closed-loop temporal-token control lab"],
+  [temporalControl,'class TemporalControlTrainer',"matched controller trainer"],
+  [temporalControl,'disturbance:true',"disturbance evaluation path"],
+  [app,'temporal_control_control',"WebMCP closed-loop temporal control tool"],
+  [app,'temporalControlActive()',"shared MuJoCo can be driven by selected ablation controller"],
   [app,'visualizationKind()',"live vs concept visualization is explicit"],
   [app,'sonic_get_map',"semantic WebMCP system-map tool"],
   [app,'sonic_get_state',"semantic WebMCP state tool"],

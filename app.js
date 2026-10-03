@@ -9,6 +9,7 @@ import { loadTeacherPolicy } from "./teacher_policy.js";
 import { probeWebGPUFSQ } from "./webgpu_fsq.js";
 import { AlignmentLab } from "./alignment_lab.js";
 import { TemporalTokenLab } from "./temporal_token_lab.js";
+import { TemporalControlLab } from "./temporal_control_lab.js";
 import {
   COURSE_VERSION,
   SONIC_FLOW,
@@ -70,6 +71,11 @@ let ppoReferenceEvidence = null;
 let ppoHeldoutHistory = [];
 let alignmentLab = null;
 let temporalTokenLab = null;
+let temporalControlLab = null;
+let temporalControlLoadPromise = null;
+let temporalControlBootstrapSnapshot = null;
+let temporalControlSelected = "one";
+let temporalControlEvidence = null;
 const MAX_SIGNAL_HISTORY = 260;
 let signalHistory = [];
 let controlTick = 0;
@@ -83,7 +89,18 @@ function state(){
 function currentReference(){
   return planReference(plannerContext,goal);
 }
+function temporalControlModeRequested(){
+  return !trainingMode&&focus.id==="token"&&conceptId==="temporal-control";
+}
+function temporalControlActive(){
+  return temporalControlModeRequested()&&temporalControlLab;
+}
 function preview(){
+  if(temporalControlActive()){
+    const trainer=temporalControlSelected==="two"?temporalControlLab.two:temporalControlLab.one;
+    const out=trainer.preview(state(),currentReference(),goal);
+    return{...out,ref:Array.from(currentReference())};
+  }
   return currentTrainer ? currentTrainer.preview(state(),currentReference(),goal) : null;
 }
 function setBadge(id,text,ok=true){
@@ -135,6 +152,10 @@ function clearTrainers(){
   heldoutEval=null;
   ppoHeldoutHistory=[];
   alignmentLab=null;
+  if(temporalControlLab)temporalControlLab.delete();
+  temporalControlLab=null;
+  temporalControlLoadPromise=null;
+  temporalControlBootstrapSnapshot=null;
 }
 async function ensureTrainer(){
   currentTrainer=await getTrainer(requiredMode());
@@ -204,6 +225,7 @@ function setGoal(x){
   render();
 }
 async function changePreset(next){
+  if(temporalControlModeRequested()&&next!=="playground")return;
   if(!MuJoCoCartPole.presets[next]||busy) return;
   live=false;busy=true;
   clearTrainers();preset=next;
@@ -272,6 +294,45 @@ function resetTemporalTokenLab(){
   ensureTemporalTokenLab().reset();
   render();
 }
+async function ensureTemporalControlLabReady(){
+  if(temporalControlLab)return temporalControlLab;
+  if(temporalControlLoadPromise)return temporalControlLoadPromise;
+  temporalControlLoadPromise=(async()=>{
+    const snap=await fetch("./assets/temporal_control_bootstrap.json",{cache:"force-cache"}).then(r=>r.ok?r.json():Promise.reject(new Error("temporal control checkpoint "+r.status)));
+    const lab=new TemporalControlLab(sim);
+    lab.restore(snap);
+    temporalControlLab=lab;
+    temporalControlBootstrapSnapshot=snap;
+    return lab;
+  })().finally(()=>{temporalControlLoadPromise=null;});
+  return temporalControlLoadPromise;
+}
+async function runTemporalControlPPO(steps=5){
+  const lab=await ensureTemporalControlLabReady();
+  if(!lab||busy)return;
+  busy=true;live=false;render();
+  const n=clamp(Math.floor(steps)||1,1,30);
+  for(let i=0;i<n;i++){
+    lab.one.iteration();lab.two.iteration();
+    render();
+    await new Promise(r=>requestAnimationFrame(r));
+  }
+  lab.evaluate();
+  busy=false;render();
+}
+function resetTemporalControlLab(){
+  if(!temporalControlLab||!temporalControlBootstrapSnapshot)return;
+  temporalControlLab.restore(temporalControlBootstrapSnapshot);
+  temporalControlSelected="one";
+  resetSignalHistory("temporal control reset");
+  resetRobot("temporal control reset");
+}
+function selectTemporalController(which){
+  if(!["one","two"].includes(which)||!temporalControlLab)return;
+  temporalControlSelected=which;
+  resetSignalHistory("controller switched");
+  resetRobot("controller switched to "+which+"-token");
+}
 
 function normalizeConcept(){
   const ids=(focus.concepts||[]).map(x=>x.id);
@@ -305,13 +366,17 @@ async function focusNode(id,concept=null){
   const next=getNode(id);
   trainingMode=false;focus=next;focusId=next.id;
   conceptId=concept;normalizeConcept();
+  if(focus.id==="token"&&conceptId==="temporal-control"&&preset!=="playground")await changePreset("playground");
   await switchTrainerIfNeeded();
+  if(focus.id==="token"&&conceptId==="temporal-control")await ensureTemporalControlLabReady();
   updateUrl();render();
 }
 async function setConcept(id){
   if(!(focus.concepts||[]).some(x=>x.id===id)||busy)return;
   conceptId=id;
+  if(focus.id==="token"&&conceptId==="temporal-control"&&preset!=="playground")await changePreset("playground");
   await switchTrainerIfNeeded();
+  if(focus.id==="token"&&conceptId==="temporal-control")await ensureTemporalControlLabReady();
   updateUrl();render();
 }
 async function openTraining(topicId="loss-flow"){
@@ -382,12 +447,18 @@ function renderSimulation(){
     for(const dx of [-23,23]){ctx.beginPath();ctx.arc(cx+dx,wheelY,8,0,Math.PI*2);ctx.fill();}
   }
   $("goal").value=goal;$("goalVal").textContent=(goal>=0?"+":"")+fmt(goal,2)+" m";
+  $("simPreset").disabled=temporalControlModeRequested();
   $("liveBtn").textContent="Live "+(live?"ON":"OFF");$("liveBtn").classList.toggle("active",live);
   $("vX").textContent=fmt(s[0],3)+" m";$("vXd").textContent=fmt(s[1],3);
   $("vTh").textContent=fmt(s[2]*180/Math.PI,1)+"°";$("vThd").textContent=fmt(s[3]*180/Math.PI,1);
   $("vForce").textContent=fmt(lastForce,2)+" N";
   $("episodeStatus").textContent="ep "+episodeIndex+" · t="+fmt(controlTick*.02,2)+"s"+(autoResetCount?" · ↻"+autoResetCount:"");
   $("episodeStatus").title=lastEpisodeEvent;
+  if($("simNote")){
+    $("simNote").innerHTML=temporalControlActive()
+      ?("<b>Closed-loop ablation:</b> actual MuJoCo is currently driven by the <b>"+(temporalControlSelected==="two"?"2-token":"1-token")+"</b> controller. Both use the same reference and measured proprioception.")
+      :"Robot world는 measured state만 표시한다. future reference / latent / token은 별도 세계다.";
+  }
 }
 
 function clearViz(){
@@ -707,6 +778,106 @@ function renderTemporalTokenViz(){
     if(reset)reset.onclick=()=>resetTemporalTokenLab();
   });
 }
+function drawTemporalControlCurve(lab){
+  const c=$("temporalControlCurve");if(!c)return;
+  const {ctx,w,h}=beginCanvas(c);
+  ctx.fillStyle="#fff";ctx.fillRect(0,0,w,h);
+  const pts=lab.evalHistory||[];
+  const ref=temporalControlEvidence?.checkpoints||[];
+  const all=[...pts,...ref];
+  const pad={l:46,r:18,t:24,b:30},maxIter=Math.max(10,...all.map(x=>x.ppoIterations||0));
+  const vals=[];
+  for(const x of all){
+    if(Number.isFinite(x?.one?.clean?.trackingMae))vals.push(x.one.clean.trackingMae);
+    if(Number.isFinite(x?.two?.clean?.trackingMae))vals.push(x.two.clean.trackingMae);
+  }
+  const ymin=Math.min(.15,...vals),ymax=Math.max(.6,...vals);
+  const X=i=>pad.l+(i/maxIter)*(w-pad.l-pad.r),Y=v=>h-pad.b-(v-ymin)/(ymax-ymin)*(h-pad.t-pad.b);
+  for(let i=0;i<=4;i++){
+    const v=ymin+(ymax-ymin)*i/4,y=Y(v);
+    ctx.strokeStyle="#f0f2f5";ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(w-pad.r,y);ctx.stroke();
+    ctx.fillStyle="#7b8492";ctx.font="8px ui-monospace";ctx.textAlign="right";ctx.fillText(v.toFixed(2),pad.l-5,y+3);
+  }
+  const draw=(arr,get,color,dash=[])=>{
+    const q=arr.filter(x=>Number.isFinite(get(x)));if(!q.length)return;
+    ctx.strokeStyle=color;ctx.lineWidth=2.2;ctx.setLineDash(dash);ctx.beginPath();
+    q.forEach((x,i)=>{const px=X(x.ppoIterations),py=Y(get(x));i?ctx.lineTo(px,py):ctx.moveTo(px,py);});ctx.stroke();ctx.setLineDash([]);
+    q.forEach(x=>{ctx.fillStyle=color;ctx.beginPath();ctx.arc(X(x.ppoIterations),Y(get(x)),3,0,Math.PI*2);ctx.fill();});
+  };
+  draw(ref,x=>x.one?.clean?.trackingMae,"rgba(201,123,32,.45)",[5,4]);
+  draw(ref,x=>x.two?.clean?.trackingMae,"rgba(49,93,201,.40)",[5,4]);
+  draw(pts,x=>x.one?.clean?.trackingMae,"#c97b20");
+  draw(pts,x=>x.two?.clean?.trackingMae,"#315dc9");
+  ctx.fillStyle="#667085";ctx.font="9px system-ui";ctx.textAlign="left";ctx.fillText("clean tracking MAE ↓",pad.l,13);
+  ctx.textAlign="right";ctx.fillText("PPO iterations →",w-pad.r,h-8);
+}
+function renderTemporalControlViz(){
+  const lab=temporalControlLab;
+  if(!lab){
+    showHtml('<div style="height:100%;display:grid;place-items:center"><div style="text-align:center"><b>Loading closed-loop controller lab…</b><div style="font-size:10px;color:#667085;margin-top:6px">precomputed 1-token / 2-token bootstrap checkpoint</div></div></div>','Closed-loop controller comparison is loading.');
+    return;
+  }
+  const ref=currentReference(),s=state();
+  const a=lab.one.preview(s,ref,goal),b=lab.two.preview(s,ref,goal),snap=lab.snapshot();
+  const e=snap.evalHistory.at(-1);
+  const baseline=snap.evalHistory[0];
+  const verified10=temporalControlEvidence?.checkpoints?.find(x=>x.ppoIterations===10);
+  const mae=x=>Number.isFinite(x)?fmt(x,3)+" m":"—";
+  const pct=(n,d)=>d?((n/d)*100).toFixed(0)+"%":"—";
+  showHtml(
+    '<div class="control-ablation">'+
+      '<div class="control-pipes">'+
+        '<div class="control-pipe '+(temporalControlSelected==="one"?"selected":"")+'">'+
+          '<div class="control-step"><b>16D future</b><span>whole window</span></div><div class="control-arrow">→</div>'+
+          '<div class="control-step"><b>1 token FSQ</b><span>q2=['+a.q.map(v=>fmt(v,2)).join(',')+']</span></div><div class="control-arrow">+</div>'+
+          '<div class="control-step"><b>state4 → Decoder</b><span>same proprioception</span></div><div class="control-arrow">→</div>'+
+          '<div class="control-step"><b>'+fmt(a.force,2)+' N</b><span>MuJoCo</span></div>'+
+        '</div>'+
+        '<div class="control-pipe two '+(temporalControlSelected==="two"?"selected":"")+'">'+
+          '<div class="control-step"><b>same 16D future</b><span>whole window</span></div><div class="control-arrow">→</div>'+
+          '<div class="control-step"><b>2 token FSQ</b><span>q4=['+b.q.map(v=>fmt(v,2)).join(',')+']</span></div><div class="control-arrow">+</div>'+
+          '<div class="control-step"><b>state4 → Decoder</b><span>same proprioception</span></div><div class="control-arrow">→</div>'+
+          '<div class="control-step"><b>'+fmt(b.force,2)+' N</b><span>MuJoCo</span></div>'+
+        '</div>'+
+      '</div>'+
+      '<div class="control-metrics">'+
+        '<div class="control-metric"><span>matched PPO iter</span><b>'+lab.one.iter+'</b><small>same iteration budget</small></div>'+
+        '<div class="control-metric"><span>1-token clean MAE</span><b>'+mae(e?.one?.clean?.trackingMae)+'</b><small>bootstrap '+mae(baseline?.one?.clean?.trackingMae)+'</small></div>'+
+        '<div class="control-metric"><span>2-token clean MAE</span><b>'+mae(e?.two?.clean?.trackingMae)+'</b><small>bootstrap '+mae(baseline?.two?.clean?.trackingMae)+'</small></div>'+
+        '<div class="control-metric"><span>2 / 1 clean MAE</span><b>'+pct(e?.two?.clean?.trackingMae,e?.one?.clean?.trackingMae)+'</b><small>lower is better</small></div>'+
+      '</div>'+
+      '<div class="control-bottom">'+
+        '<div class="control-chart"><canvas id="temporalControlCurve"></canvas></div>'+
+        '<div class="control-side">'+
+          '<table><thead><tr><th>metric</th><th>1 token</th><th>2 tokens</th></tr></thead><tbody>'+
+            '<tr><td>clean survival</td><td>'+(e?.one?.clean?.successes??"—")+'/12</td><td>'+(e?.two?.clean?.successes??"—")+'/12</td></tr>'+
+            '<tr><td>clean tracking MAE</td><td>'+mae(e?.one?.clean?.trackingMae)+'</td><td>'+mae(e?.two?.clean?.trackingMae)+'</td></tr>'+
+            '<tr><td>push post-MAE</td><td>'+mae(e?.one?.push?.disturbance?.postPushTrackingMae)+'</td><td>'+mae(e?.two?.push?.disturbance?.postPushTrackingMae)+'</td></tr>'+
+            '<tr><td>verified +10 PPO</td><td>'+mae(verified10?.one?.clean?.trackingMae)+'</td><td>'+mae(verified10?.two?.clean?.trackingMae)+'</td></tr>'+
+          '</tbody></table>'+
+          '<div class="control-actions">'+
+            '<button id="driveOneBtn" class="'+(temporalControlSelected==="one"?"primary":"")+'">Drive robot: 1 token</button>'+
+            '<button id="driveTwoBtn" class="'+(temporalControlSelected==="two"?"primary":"")+'">Drive robot: 2 tokens</button>'+
+            '<button id="controlPpo5" class="primary">PPO both +5</button><button id="controlPpo10">PPO both +10</button>'+
+            '<button id="controlReset" style="grid-column:1/-1">Reset matched bootstrap</button>'+
+          '</div>'+
+          '<div class="control-note"><b>Interpretation:</b> the 2-token reconstruction lab had more capacity, but this matched-control ablation asks a different question. Extra token slots also enlarge the policy interface and can make PPO optimization harder. Same hyperparameters are intentionally used; neither controller is individually tuned.</div>'+
+        '</div>'+
+      '</div>'+
+    '</div>',
+    '<b>LIVE closed-loop control ablation.</b> 왼쪽 actual MuJoCo robot은 선택한 controller가 직접 구동한다. 두 controller는 같은 future reference, same proprioception, 같은 teacher bootstrap/PPO budget을 사용한다. representation 이득이 control 이득으로 자동 전이되는지 직접 분리 검증한다.',
+    ["selected="+temporalControlSelected+"-token","1-token q dim=2","2-token q dim=4","matched 300-step teacher bootstrap"]
+  );
+  requestAnimationFrame(()=>{
+    drawTemporalControlCurve(lab);
+    const one=$("driveOneBtn"),two=$("driveTwoBtn"),p5=$("controlPpo5"),p10=$("controlPpo10"),reset=$("controlReset");
+    if(one)one.onclick=()=>selectTemporalController("one");
+    if(two)two.onclick=()=>selectTemporalController("two");
+    if(p5)p5.onclick=()=>{void runTemporalControlPPO(5);};
+    if(p10)p10.onclick=()=>{void runTemporalControlPPO(10);};
+    if(reset)reset.onclick=()=>resetTemporalControlLab();
+  });
+}
 function renderMotionDecoderViz(){
   renderAutoencoderViz();
   $("vizCaption").innerHTML='<b>LIVE Robot Motion Decoder / Kinematic Decoder.</b> token에서 future motion을 복원한다. 이 경로는 motion 정보를 token 안에 유지시키는 auxiliary reconstruction 역할이며 physical motor command가 아니다.';
@@ -916,6 +1087,7 @@ function renderVisualization(){
       break;
     case "token":
       if(conceptId==="temporal")renderTemporalTokenViz();
+      else if(conceptId==="temporal-control")renderTemporalControlViz();
       else renderTokenViz();
       break;
     case "motion-decoder":renderMotionDecoderViz();break;
@@ -988,6 +1160,10 @@ function guideLiveValues(){
         const lab=ensureTemporalTokenLab(),snap=lab.snapshot();
         return [cell("train step",snap.step),cell("1-token MSE",fmt(snap.current.mseOne,5)),cell("2-token MSE",fmt(snap.current.mseTwo,5)),cell("MSE ratio",(snap.current.mseRatio*100).toFixed(1)+"%")];
       }
+      if(conceptId==="temporal-control"&&temporalControlLab){
+        const e=temporalControlLab.evalHistory.at(-1);
+        return [cell("selected",temporalControlSelected+"-token"),cell("PPO iter",temporalControlLab.one.iter),cell("1-token MAE",fmt(e?.one?.clean?.trackingMae,3)+" m"),cell("2-token MAE",fmt(e?.two?.clean?.trackingMae,3)+" m")];
+      }
       return [cell("q₁",fmt(p?.q?.[0],2)),cell("q₂",fmt(p?.q?.[1],2)),cell("toy token","2 values"),cell("SONIC release","64 flattened")];
     case "motion-decoder":
       return [cell("recon MSE",fmt(reconstructionError(p,ref),4)),cell("recon x₁",fmt((p?.kinRecon?.[0]??NaN)*SONIC_TOY_CONSTANTS.STATE_SCALE[0],3)),cell("target x₁",fmt(ref[0]*SONIC_TOY_CONSTANTS.STATE_SCALE[0],3)),cell("token",p?"["+p.q.map(v=>fmt(v,2)).join(",")+"]":"—")];
@@ -1017,6 +1193,7 @@ function guideActionSpec(){
     return{label:live?"Stop Live":"Start Live",disabled:false};
   }
   if(focus.id==="token"&&conceptId==="temporal")return{label:"Train both +50",disabled:false};
+  if(focus.id==="token"&&conceptId==="temporal-control")return{label:"PPO both +5",disabled:false};
   if(["token","robot"].includes(focus.id))return{label:live?"Stop Live":"Start Live",disabled:false};
   if(focus.id==="encoder"&&conceptId==="vae")return{label:"Optional background · no runtime action",disabled:true};
   return{label:"Change goal",disabled:false};
@@ -1061,7 +1238,7 @@ function renderGuide(){
   $("guideSection2").textContent=s2;
 
   const live=guideLiveValues();
-  const hideLive=(guideDepth==="sonic")||(trainingMode&&!["ppo","alignment"].includes(trainingTopic.id))||(focus.id==="encoder"&&conceptId==="vae")||(focus.id==="quantizer"&&conceptId==="vqvae"&&guideDepth==="mechanism")||(focus.id==="token"&&conceptId==="temporal"&&guideDepth==="mechanism");
+  const hideLive=(guideDepth==="sonic")||(trainingMode&&!["ppo","alignment"].includes(trainingTopic.id))||(focus.id==="encoder"&&conceptId==="vae")||(focus.id==="quantizer"&&conceptId==="vqvae"&&guideDepth==="mechanism")||(focus.id==="token"&&["temporal","temporal-control"].includes(conceptId)&&guideDepth==="mechanism");
   $("guideLiveBlock").hidden=hideLive;
   $("guideLive").innerHTML=hideLive?"":live.map(x=>'<div class="live-kv"><span>'+x.k+'</span><b>'+x.v+'</b></div>').join("");
 
@@ -1095,6 +1272,7 @@ async function runFocusAction(){
   }
   if(focus.id==="control-decoder"){pushRobot();stepPolicy(1);return;}
   if(focus.id==="token"&&conceptId==="temporal"){await runTemporalTokenTraining(50);return;}
+  if(focus.id==="token"&&conceptId==="temporal-control"){await runTemporalControlPPO(5);return;}
   if(["quantizer","token","robot"].includes(focus.id)){live=!live;accumulator=0;render();return;}
   if(focus.id==="encoder"&&conceptId==="vae")return;
   setGoal(goal>0?-0.8:0.8);
@@ -1192,6 +1370,11 @@ function systemSnapshot(){
         ...temporalTokenLab.snapshot(),
         live:temporalTokenLab.compare(ref),
         sensitivity:temporalTokenLab.sensitivity(ref)
+      }:null,
+      temporalControl:temporalControlLab?{
+        ...temporalControlLab.snapshot(),
+        selectedController:temporalControlSelected,
+        verifiedReference:temporalControlEvidence
       }:null
     },
     backends:{physics:physicsReady?sim.backend:null,webgpu:webgpuStatus,webmcp:{mode:webmcpMode,tools:webmcpTools}}
@@ -1213,6 +1396,7 @@ async function registerWebMCP(){
     {name:"training_run",description:"Run bounded PPO iterations on the current student policy.",inputSchema:{type:"object",properties:{iterations:{type:"integer",minimum:1,maximum:30}},required:["iterations"]},annotations:{readOnlyHint:false},execute:async({iterations})=>{await runPPO(iterations);return systemSnapshot();}},
     {name:"alignment_control",description:"Train or reset the live CartPole multi-encoder alignment lab. The tool first switches to the alignment training view/FSQ student, then aligns a sparse-keypoint Encoder to the frozen full-trajectory Encoder and reports latent/token/action agreement.",inputSchema:{type:"object",properties:{action:{type:"string",enum:["train","reset"]},steps:{type:"integer",minimum:1,maximum:200}},required:["action"]},annotations:{readOnlyHint:false},execute:async({action,steps=50})=>{if(!trainingMode||trainingTopic.id!=="alignment")await openTraining("alignment");if(action==="reset")resetAlignment();else await runAlignment(steps);return systemSnapshot();}},
     {name:"temporal_token_control",description:"Train or reset the live 1-token vs 2-token temporal-slot lab. The tool switches to Universal Token → 1 vs 2 token slots and compares reconstruction capacity without assigning near/far semantics to token indices.",inputSchema:{type:"object",properties:{action:{type:"string",enum:["train","reset"]},steps:{type:"integer",minimum:1,maximum:250}},required:["action"]},annotations:{readOnlyHint:false},execute:async({action,steps=50})=>{if(trainingMode||focus.id!=="token"||conceptId!=="temporal")await focusNode("token","temporal");if(action==="reset")resetTemporalTokenLab();else await runTemporalTokenTraining(steps);return systemSnapshot();}},
+    {name:"temporal_control_control",description:"Operate the matched 1-token vs 2-token closed-loop control ablation. Switches to Universal Token → Closed-loop 1 vs 2 on the default Playground model, can select which controller drives the shared MuJoCo robot, train both with the same PPO budget, or reset to the matched teacher-bootstrap checkpoint.",inputSchema:{type:"object",properties:{action:{type:"string",enum:["train","reset","select"]},steps:{type:"integer",minimum:1,maximum:30},controller:{type:"string",enum:["one","two"]}},required:["action"]},annotations:{readOnlyHint:false},execute:async({action,steps=5,controller="one"})=>{if(!temporalControlModeRequested())await focusNode("token","temporal-control");await ensureTemporalControlLabReady();if(action==="reset")resetTemporalControlLab();else if(action==="select")selectTemporalController(controller);else await runTemporalControlPPO(steps);return systemSnapshot();}},
     {name:"simulation_set_model",description:"Switch native MuJoCo CartPole dynamics/morphology preset.",inputSchema:{type:"object",properties:{preset:{type:"string",enum:["playground","long","heavy"]}},required:["preset"]},annotations:{readOnlyHint:false},execute:async({preset})=>{await changePreset(preset);return systemSnapshot();}}
   ];
   for(const t of tools)await mc.registerTool(t);webmcpTools=tools.map(t=>t.name);renderHeaderState();
@@ -1239,12 +1423,17 @@ function loop(now){
   requestAnimationFrame(loop);
 }
 async function init(){
-  attachUI();busy=true;normalizeConcept();renderPreload();
+  attachUI();busy=true;normalizeConcept();
+  if(focus.id==="token"&&conceptId==="temporal-control")preset="playground";
+  renderPreload();
   teacherPromise=loadTeacherPolicy().then(t=>(teacher=t,t)).catch(err=>{console.warn("teacher unavailable",err);return null;});
   fetch("./evidence/ppo_eval.json",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(x=>{ppoReferenceEvidence=x;if(trainingMode&&trainingTopic.id==="ppo"&&!busy)render();}).catch(()=>{});
+  fetch("./evidence/temporal_control_eval.json",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(x=>{temporalControlEvidence=x;if(!trainingMode&&focus.id==="token"&&conceptId==="temporal-control"&&!busy)render();}).catch(()=>{});
   await sim.init(preset);physicsReady=true;$("simPreset").value=preset;resetRobot();
   setBadge("physicsBadge",sim.backend,true);
-  currentTrainer=await getTrainer(requiredMode());busy=false;
+  currentTrainer=await getTrainer(requiredMode());
+  if(!trainingMode&&focus.id==="token"&&conceptId==="temporal-control")await ensureTemporalControlLabReady();
+  busy=false;
   if(trainingMode&&trainingTopic.id==="ppo"){heldoutEval=currentTrainer.evaluate(12);ppoHeldoutHistory=[{iterations:currentTrainer.iter,mae:heldoutEval.trackingMae}];}
   if(trainingMode&&trainingTopic.id==="alignment")ensureAlignmentLab();
   updateUrl();render();
@@ -1268,4 +1457,7 @@ window.__cartpoleSonic={
   resetAlignment,
   runTemporalTokenTraining,
   resetTemporalTokenLab,
+  runTemporalControlPPO,
+  resetTemporalControlLab,
+  selectTemporalController,
 };

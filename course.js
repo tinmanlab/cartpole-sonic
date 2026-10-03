@@ -1,4 +1,4 @@
-export const COURSE_VERSION = "2.3";
+export const COURSE_VERSION = "2.4";
 
 export const SONIC_FLOW = [
   {
@@ -99,7 +99,8 @@ export const SONIC_FLOW = [
     action:"live",
     concepts:[
       {id:"core",label:"Current token"},
-      {id:"temporal",label:"1 vs 2 token slots"}
+      {id:"temporal",label:"1 vs 2 token slots"},
+      {id:"temporal-control",label:"Closed-loop 1 vs 2"}
     ]
   },
   {
@@ -405,6 +406,20 @@ export const CONCEPT_TEXT = {
     toyShape:"same 16D window → 1×2 FSQ vs 2×2 FSQ",
     sonicShape:"whole future window → 2 token slots × 32 scalar dims → 64 flattened values",
     key:"multiple token slots increase representational capacity, but slot semantics are learned/not pre-assigned."
+  },
+  "temporal-control":{
+    title:"1 token vs 2 token control — 표현력 증가가 실제 제어도 좋아지게 할까?",
+    input:"same future reference + same actual proprioception",
+    output:"1-token vs 2-token Dynamic Decoder actions → native MuJoCo",
+    short:"두 controller를 같은 teacher/bootstrap과 같은 PPO budget으로 학습해 실제 tracking과 disturbance recovery를 비교한다.",
+    why:"reconstruction이 좋아졌다는 사실만으로 physical control이 좋아졌다고 결론낼 수 없기 때문이다.",
+    mechanism:"1-token controller는 16D reference→2D→FSQ q2, 2-token controller는 16D→4D→reshape 2×2→FSQ q4를 사용한다. 각 q는 같은 4D proprioception과 결합되어 별도 Dynamic Decoder가 force를 낸다. 두 controller는 동일 300-step teacher imitation과 동일 PPO hyperparameter/budget을 받는다.",
+    sonic:"실제 SONIC Robot Control Decoder는 flattened multi-token representation과 proprioception을 받아 action을 낸다. 이 toy는 token-slot 수가 representation capacity뿐 아니라 policy optimization 난이도에도 영향을 줄 수 있음을 분리해 보여준다.",
+    ifMissing:"'2-token reconstruction이 더 좋다 → 2-token controller도 반드시 더 좋다'는 잘못된 결론을 내리게 된다.",
+    question:"2-token reconstruction 이득이 같은 PPO 조건에서 closed-loop tracking 이득으로 그대로 이어지는가?",
+    toyShape:"1-token: q2+state4→force1 ; 2-token: q4+state4→force1",
+    sonicShape:"flattened multi-token vector + robot proprioception → whole-body action",
+    key:"matched-budget ablation, not a claim that one or two tokens is globally optimal."
   }};
 
 export function getNode(id){
