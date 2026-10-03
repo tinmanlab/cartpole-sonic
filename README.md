@@ -1,8 +1,8 @@
 # CartPole SONIC
 
-> A small, interactive teaching lab for understanding the information flow behind NVIDIA GEAR-SONIC: **Encoder → latent → VQ/VQ-VAE → FSQ motion token → Dynamic Decoder → physical control**.
+> An interactive teaching lab that keeps the **SONIC universal-control system map** visible at all times, then explains Encoder/VQ/VQ-VAE/FSQ/token/decoder/training concepts inside the block where they actually belong.
 
-[**Open the live lab →**](https://tinmanlab.github.io/cartpole-sonic/) · [FSQ lesson](https://tinmanlab.github.io/cartpole-sonic/?lesson=fsq) · [Whole SONIC view](https://tinmanlab.github.io/cartpole-sonic/?lesson=sonic)
+[**Open the live lab →**](https://tinmanlab.github.io/cartpole-sonic/) · [FSQ](https://tinmanlab.github.io/cartpole-sonic/?focus=quantizer&concept=fsq) · [Universal Token](https://tinmanlab.github.io/cartpole-sonic/?focus=token)
 
 <p align="center">
   <a href="https://tinmanlab.github.io/cartpole-sonic/">
@@ -107,63 +107,68 @@ This distinction is one of the main reasons this lab exists.
 
 ---
 
-## Learning path
+## Learning structure: SONIC first, prerequisite concepts second
 
-The main path is intentionally short:
-
-```text
-Encoder / Autoencoder
-        ↓
-Vector Quantization
-        ↓
-VQ-VAE
-        ↓
-FSQ
-        ↓
-What actually learns?
-        ↓
-Motion token
-        ↓
-Dynamic Decoder
-        ↓
-PPO physical tracking
-        ↓
-Full SONIC structure
-```
-
-**VAE is an optional side branch**, not a required prerequisite for FSQ:
+The top of the page now follows the **SONIC system roles** rather than a generic ML study sequence:
 
 ```text
-Autoencoder
-├── VAE      : probabilistic continuous latent (μ, σ, KL)
-└── VQ-VAE   : discrete latent via learned vector codebook
-                 ↓
-                FSQ : discrete latent without a learned vector codebook
+Task / Interface
+      ↓
+Motion Generator
+      ↓
+Motion Reference
+      ↓
+Encoder(s)
+      ↓
+FSQ Quantizer
+      ↓
+Universal Token
+      ├────────→ Robot Motion Decoder      [kinematic / reconstruction path]
+      │
+      └────────→ Robot Control Decoder + actual proprioception
+                                      ↓
+                                    Robot
+                                      ↓
+                                   feedback
 ```
 
-The page now uses one fixed teaching shell in every chapter:
+This mirrors the role structure shown in the SONIC system diagram: diverse task interfaces feed motion generators and motion representations, multiple encoders map those representations through a quantizer into a universal token, and decoders produce robot motion/control outputs.
 
-```text
-[ same CartPole simulation ] [ same-size main visualization ] [ lesson guide ]
-                              ↓
-                    [ stable SONIC process strip ]
-```
+The page therefore does **not** put AE, VAE, VQ-VAE, “What learns?”, or PPO into the deployment runtime chain.
 
-The main path is:
+Instead, click the relevant SONIC block:
 
-| Step | Lesson | Main question |
-|---:|---|---|
-| 1 | Encoder / AE | Why compress 16-D to 2-D and reconstruct it? |
-| 2 | VQ | Why does a learned vector codebook help create discrete symbols? |
-| 3 | VQ-VAE | Why are STE, commitment, and codebook learning needed? |
-| 4 | FSQ | What does FSQ remove from VQ? |
-| 5 | What learns? | Does FSQ learn? Which modules actually receive parameter updates? |
-| 6 | Motion token | What exactly is being tokenized? |
-| 7 | Dynamic Decoder | Why does the token still need proprioception? |
-| 8 | PPO training | What actually trains physical tracking? |
-| 9 | GEAR-SONIC | How do the toy blocks map back to SONIC? |
+| SONIC block | Contextual explanation |
+|---|---|
+| Encoder(s) | Core Encoder · Autoencoder · **VAE (optional background)** |
+| Quantizer · FSQ | Core · VQ · **VQ-VAE** · FSQ |
+| Universal Token | token shape, numeric-vector meaning, temporal compression |
+| Robot Motion Decoder | live future-motion reconstruction |
+| Robot Control Decoder | live token + proprioception → action |
+| Robot / Feedback | live reference-vs-actual tracking |
+| **How is this learned?** | Loss flow · **What learns?** · Multi-encoder alignment · PPO |
 
-`VAE` is shown as an **optional branch from Autoencoder**, then the learner returns to VQ. It is not presented as a prerequisite for FSQ.
+This distinction matters:
+
+- **runtime blocks** answer “what information flows where?”
+- **context concepts** answer “why was this representation method invented?”
+- **training topics** answer “how do the parameters get learned?”
+
+### What is actually live?
+
+The UI marks every center view as either:
+
+- **LIVE** — values come from the current CartPole/reference/policy state and update with `1 Step` or `Live`
+- **CONCEPT** — the toy does not contain that mechanism, so the page shows an explanatory diagram instead of inventing fake runtime data
+
+Current concept-only views are intentionally limited to:
+
+- VAE — SONIC does not use a VAE in this runtime path
+- multi-encoder alignment — the CartPole toy has only one motion Encoder
+- high-level official task modalities — the toy collapses them to one goal scalar
+- loss/trainability diagrams — explanatory views of optimization structure
+
+VQ, VQ-VAE live values, FSQ, Universal Token, both Decoder roles, robot tracking, and PPO curves all use real toy state/evidence.
 
 ---
 
@@ -392,16 +397,22 @@ Open:
 
 Useful direct links:
 
-- Encoder / bottleneck: https://tinmanlab.github.io/cartpole-sonic/?lesson=ae
-- VAE optional branch: https://tinmanlab.github.io/cartpole-sonic/?lesson=vae
-- VQ: https://tinmanlab.github.io/cartpole-sonic/?lesson=vq
-- VQ-VAE: https://tinmanlab.github.io/cartpole-sonic/?lesson=vqvae
-- FSQ: https://tinmanlab.github.io/cartpole-sonic/?lesson=fsq
-- What learns?: https://tinmanlab.github.io/cartpole-sonic/?lesson=learning-graph
-- Motion token: https://tinmanlab.github.io/cartpole-sonic/?lesson=motion-token
-- Dynamic Decoder: https://tinmanlab.github.io/cartpole-sonic/?lesson=dynamic-decoder
-- PPO training: https://tinmanlab.github.io/cartpole-sonic/?lesson=ppo
-- Full SONIC structure: https://tinmanlab.github.io/cartpole-sonic/?lesson=sonic
+- System start / Task: https://tinmanlab.github.io/cartpole-sonic/?focus=task
+- Motion Generator: https://tinmanlab.github.io/cartpole-sonic/?focus=generator
+- Motion Reference: https://tinmanlab.github.io/cartpole-sonic/?focus=reference
+- Encoder core: https://tinmanlab.github.io/cartpole-sonic/?focus=encoder
+- Autoencoder: https://tinmanlab.github.io/cartpole-sonic/?focus=encoder&concept=ae
+- VAE optional background: https://tinmanlab.github.io/cartpole-sonic/?focus=encoder&concept=vae
+- VQ: https://tinmanlab.github.io/cartpole-sonic/?focus=quantizer&concept=vq
+- VQ-VAE: https://tinmanlab.github.io/cartpole-sonic/?focus=quantizer&concept=vqvae
+- FSQ: https://tinmanlab.github.io/cartpole-sonic/?focus=quantizer&concept=fsq
+- Universal Token: https://tinmanlab.github.io/cartpole-sonic/?focus=token
+- Robot Motion Decoder: https://tinmanlab.github.io/cartpole-sonic/?focus=motion-decoder
+- Robot Control Decoder: https://tinmanlab.github.io/cartpole-sonic/?focus=control-decoder
+- Robot / Feedback: https://tinmanlab.github.io/cartpole-sonic/?focus=robot
+- What learns?: https://tinmanlab.github.io/cartpole-sonic/?training=what-learns
+- Multi-encoder alignment: https://tinmanlab.github.io/cartpole-sonic/?training=alignment
+- PPO: https://tinmanlab.github.io/cartpole-sonic/?training=ppo
 
 ### 2. Run locally
 
@@ -463,41 +474,47 @@ These are teaching variants, not official Playground benchmark tasks.
 
 ## WebMCP
 
-The page exposes a semantic control surface instead of requiring screen-coordinate automation.
-
-When the MCP-B browser runtime is available, the page registers one consistent semantic API:
+The semantic API follows the same SONIC system map shown in the UI:
 
 ```text
-course_get_outline
-course_get_state
-course_navigate
-course_run_lesson_action
+sonic_get_map
+sonic_get_state
+sonic_focus
+sonic_open_training
+sonic_run_focus_action
 simulation_control
 experiment_set_goal
 training_run
 simulation_set_model
 ```
 
-`course.js` is the single source of truth for the curriculum. The UI and WebMCP both read the same lesson IDs, prerequisites, questions, experiments, and SONIC mappings.
+`course.js` is the single source of truth for:
 
-`course_get_state` returns a structured teaching snapshot:
+- runtime SONIC blocks
+- contextual concept tabs
+- separate training topics
+- official-role ↔ CartPole-role mapping
+
+Examples:
 
 ```text
-course
-  current lesson + outline
-experiment
-  goal + live/model state
-signals
-  reference + latent + token + proprioception + action
-training
-  PPO iterations + held-out evidence
-backends
-  MuJoCo + WebGPU + WebMCP
+sonic_focus({node_id:"encoder", concept_id:"ae"})
+sonic_focus({node_id:"quantizer", concept_id:"vqvae"})
+sonic_focus({node_id:"token"})
+sonic_open_training({topic_id:"what-learns"})
 ```
 
-This means an agent can navigate the course, run the canonical experiment for a chapter, manipulate the shared simulation, and then read back the exact evidence the learner sees—without screen-coordinate automation.
+`sonic_get_state` returns the currently focused system block plus the actual signals:
 
-The WebMCP pattern was informed by the related **tinmanlab/web-mcp-gpu** experiments.
+```text
+reference       = desired future motion before FSQ
+latent          = continuous Encoder output
+token           = post-VQ/FSQ numeric motion representation
+proprioception  = measured actual robot state
+action          = Robot Control Decoder output
+```
+
+This makes agent navigation match the learner's conceptual map instead of exposing a second, unrelated lesson hierarchy.
 
 ---
 
@@ -595,7 +612,7 @@ What this toy **does not** reproduce:
 .
 ├── index.html                 # interactive UI
 ├── app.js                     # fixed teaching shell + WebMCP orchestration
-├── course.js                  # canonical curriculum SSOT
+├── course.js                  # canonical SONIC system-map / concept SSOT
 ├── sonic_toy.js               # SONIC-like planner/encoder/token/decoder/PPO
 ├── mujoco_sim.js              # native MuJoCo WASM CartPole wrapper
 ├── webgpu_fsq.js              # WebGPU FSQ parity kernel
