@@ -79,7 +79,7 @@ button,select{border:1px solid #cfd5df;border-radius:7px;background:#fff;padding
 
 <main class="shell">
   <section class="card sim-card">
-    <div class="head"><div><h2>Robot world · actual only</h2><div class="sub">실제 MuJoCo robot만 표시 · reference는 중앙 panel에서 분리</div></div><select id="simPreset"><option value="playground">Playground</option><option value="long">Long pole</option><option value="heavy">Heavy pole</option></select></div>
+    <div class="head"><div><h2>Robot world · actual only</h2><div class="sub">실제 MuJoCo robot만 표시 · reference는 중앙 panel에서 분리</div></div><div style="display:flex;align-items:center;gap:6px"><span id="episodeStatus" class="sub">episode 1</span><select id="simPreset"><option value="playground">Playground</option><option value="long">Long pole</option><option value="heavy">Heavy pole</option></select></div></div>
     <div class="sim"><canvas id="cart" width="640" height="360"></canvas></div>
     <div class="legend"><span><i class="line" style="border-color:#d64f4f"></i>actual robot</span><span><i class="line dashed" style="border-color:#16805d"></i>high-level goal</span></div>
     <div class="goal"><input id="goal" type="range" min="-1.2" max="1.2" step="0.05"><output id="goalVal">+0.80 m</output></div>

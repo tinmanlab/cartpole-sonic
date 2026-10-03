@@ -1,4 +1,4 @@
-export const COURSE_VERSION = "1.0";
+export const COURSE_VERSION = "1.1";
 
 export const PRIMARY_PATH = [
   "ae",
@@ -78,10 +78,10 @@ export const LESSONS = {
     answer: "무한히 많은 실수 벡터 대신 제한된 대표 motion symbol을 사용하기 위해서다.",
     why: "VQ는 k-means처럼 learned codebook에서 z와 가장 가까운 vector를 선택한다. 그래서 continuous latent를 discrete code로 바꿀 수 있다.",
     watch: [
-      "회색 reference sweep이 latent 공간에서 어디에 놓이는지 본다.",
+      "Live 또는 1 Step으로 이번 episode의 파란 z trail이 시간순으로 쌓이는지 본다.",
       "파란 z가 어느 learned code로 이동해 빨간 q가 되는지 본다.",
     ],
-    try: "goal을 천천히 움직여 z는 연속적으로 움직이지만 q는 특정 code 사이에서 점프하는지 본다.",
+    try: "Live를 켜고 파란 z trail은 연속적으로 움직이지만 빨간 q는 learned code 사이에서 점프하는지 본다.",
     takeaway: "VQ = learned vector dictionary + nearest-neighbor assignment.",
     sonic: "FSQ를 이해하기 위한 직접적인 비교 기준이다.",
     highlights: ["reference", "encoder", "latent", "quantizer"],
@@ -124,10 +124,10 @@ export const LESSONS = {
     answer: "저차원 latent의 각 scalar를 finite level로 bound하고 round한다. scalar 조합이 implicit codebook을 만든다.",
     why: "VQ의 learned codebook lookup, dead-code 관리, reseeding 같은 부담을 줄이면서 discrete bottleneck을 유지한다.",
     watch: [
-      "파란 z가 고정된 FSQ grid의 빨간 q로 이동하는지 본다.",
-      "VQ와 달리 회색 code point가 학습되어 이동하지 않는다는 점을 본다.",
+      "Live 또는 1 Step으로 실제 episode의 파란 z trail과 현재 빨간 q를 같이 본다.",
+      "회색 FSQ grid는 고정되어 있고, 짧은 점선 z→q는 현재 quantization 이동량일 뿐 trajectory가 아님을 확인한다.",
     ],
-    try: "goal을 움직이며 z는 연속적으로 움직이고 q는 5×5 finite grid를 따라 바뀌는지 본다.",
+    try: "Live를 켜고 z history가 실제 reference progression에 따라 움직이는 동안 q가 5×5 finite grid에서 어떻게 바뀌는지 본다.",
     takeaway: "FSQ = low-dimensional scalar quantization + implicit codebook + STE.",
     sonic: "GEAR-SONIC universal motion token의 핵심 bottleneck에 대응한다.",
     highlights: ["reference", "encoder", "latent", "quantizer", "token"],

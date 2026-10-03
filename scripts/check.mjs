@@ -45,6 +45,10 @@ const required=[
   [html,'aspect-ratio:15/8',"main visualization aspect is preserved"],
   [app,'function beginCanvas(canvas)',"DPR-aware canvas backing-store sync"],
   [app,'Reference world · pre-FSQ',"reference world explicitly precedes FSQ"],
+  [app,'signalHistory',"live latent plot uses actual episode history"],
+  [app,'autoResetEpisode',"live episodes auto-reset instead of silently stopping"],
+  [sim,'applyImpulse({xDotDelta=0.75, thetaDotDelta=-1.25}',"push perturbs robot state without advancing reference"],
+
   [app,'token:"post-FSQ/VQ compact motion representation; not a motor command"',"WebMCP token semantics"],
   [app,'render();\n    await new Promise(r=>requestAnimationFrame(r));',"PPO graph redraws each iteration"],
   [app,'student_"+mode+"_bootstrap.json',"precomputed student checkpoint loading"],
@@ -73,6 +77,8 @@ const forbidden=[
   [html,'height:610px',"artificial lesson stretching"],
   [html,'height:470px',"artificial lesson stretching"],
   [app,'drawGhost(',"reference ghost must not be drawn in robot simulation"],
+  [app,'for(let g=-1.2',"hypothetical goal sweep must not be mixed into the live latent plot"],
+
 ];
 for(const [src,token,label] of forbidden){
   if(src.includes(token)) throw new Error("forbidden legacy pattern: "+label);

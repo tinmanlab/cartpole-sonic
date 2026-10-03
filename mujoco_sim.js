@@ -115,6 +115,13 @@ export class MuJoCoCartPole {
     return this.snapshot(forceN);
   }
 
+  applyImpulse({xDotDelta=0.75, thetaDotDelta=-1.25}={}) {
+    this.data.qvel[0] += Number(xDotDelta) || 0;
+    this.data.qvel[1] += Number(thetaDotDelta) || 0;
+    this.mujoco.mj_forward(this.model, this.data);
+    return this.snapshot();
+  }
+
   snapshot(forceN = null) {
     const [x,xDot,theta,thetaDot] = this.getState();
     return {

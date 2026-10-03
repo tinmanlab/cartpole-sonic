@@ -1,6 +1,6 @@
 {
   "name": "cartpole-sonic",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -9,7 +9,8 @@
     "verify:bootstrap": "node scripts/evaluate_bootstrap.mjs",
     "verify:ppo": "node scripts/evaluate_ppo.mjs",
     "generate:checkpoints": "node scripts/generate_student_checkpoints.mjs",
-    "verify:checkpoint": "node scripts/verify_checkpoint.mjs"
+    "verify:checkpoint": "node scripts/verify_checkpoint.mjs",
+    "verify:separation": "node scripts/verify_reference_robot_separation.mjs"
   },
   "dependencies": {
     "@mujoco/mujoco": "3.14.0"

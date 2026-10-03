@@ -55,6 +55,13 @@ let heldoutEval = null;
 let ppoReferenceEvidence = null;
 let ppoHeldoutHistory = [];
 
+const MAX_SIGNAL_HISTORY = 220;
+let signalHistory = [];
+let controlTick = 0;
+let episodeIndex = 0;
+let autoResetCount = 0;
+let lastEpisodeEvent = "initial";
+
 function state(){
   return physicsReady ? sim.getState() : [0,0,.1,0];
 }
@@ -121,19 +128,49 @@ async function ensureLessonTrainer(){
   }
 }
 
-function resetRobot(){
+function resetSignalHistory(reason="reset"){
+  signalHistory=[];
+  controlTick=0;
+  lastEpisodeEvent=reason;
+}
+function recordControlSample(p,s){
+  if(!p) return;
+  signalHistory.push({
+    t:controlTick*0.02,
+    episode:episodeIndex,
+    state:Array.from(s),
+    reference:Array.from(p.ref),
+    z:Array.from(p.z),
+    q:Array.from(p.q),
+    force:p.force,
+  });
+  controlTick++;
+  if(signalHistory.length>MAX_SIGNAL_HISTORY) signalHistory.shift();
+}
+function terminationReason(s){
+  if(!s.every(Number.isFinite)) return "non-finite state";
+  if(Math.abs(s[0])>1.78) return "track limit";
+  if(Math.abs(s[2])>.75) return "pole angle";
+  return null;
+}
+function resetRobot(reason="manual reset"){
   if(!physicsReady) return;
   sim.reset({x:0,xDot:0,theta:.1,thetaDot:0});
   plannerContext=[0,0];
   lastForce=0;
   accumulator=0;
+  episodeIndex++;
+  resetSignalHistory(reason);
   render();
+}
+function autoResetEpisode(reason){
+  autoResetCount++;
+  resetRobot("auto-reset: "+reason);
 }
 function pushRobot(){
   if(!physicsReady) return;
-  sim.stepForce(10,8);
-  plannerContext=advancePlannerContext(plannerContext,goal,.08);
-  lastForce=10;
+  sim.applyImpulse({xDotDelta:.75,thetaDotDelta:-1.25});
+  lastEpisodeEvent="external impulse · reference unchanged";
   render();
 }
 function stepPolicy(steps=1){
@@ -141,15 +178,23 @@ function stepPolicy(steps=1){
   const n=clamp(Math.floor(steps)||1,1,100);
   for(let i=0;i<n;i++){
     const p=preview();
+    const s0=state();
+    recordControlSample(p,s0);
     sim.stepForce(p.force,2);
     plannerContext=advancePlannerContext(plannerContext,goal,.02);
     lastForce=p.force;
+    const reason=terminationReason(state());
+    if(reason){
+      lastEpisodeEvent="terminated: "+reason;
+      break;
+    }
   }
   render();
 }
 function setGoal(x){
   goal=clamp(Number(x),-1.2,1.2);
   $("goal").value=goal;
+  resetSignalHistory("goal changed");
   updateUrl();
   render();
 }
@@ -231,6 +276,7 @@ async function navigateLesson(id){
   live=false;
   lessonId=id; lesson=getLesson(id);
   currentTrainer=await getTrainer(lesson.mode);
+  resetSignalHistory("lesson changed");
   if(id==="ppo"){
     heldoutEval=currentTrainer.evaluate(12);
     if(!ppoHeldoutHistory.length || ppoHeldoutHistory.at(-1).iterations!==currentTrainer.iter){
@@ -285,6 +331,8 @@ function renderSimulation(){
   $("vTh").textContent=fmt(s[2]*180/Math.PI,1)+"°";
   $("vThd").textContent=fmt(s[3]*180/Math.PI,1);
   $("vForce").textContent=fmt(lastForce,2)+" N";
+  $("episodeStatus").textContent="ep "+episodeIndex+" · t="+fmt(controlTick*.02,2)+"s"+(autoResetCount?" · ↻"+autoResetCount:"");
+  $("episodeStatus").title=lastEpisodeEvent;
 }
 
 function clearViz(){
@@ -318,51 +366,106 @@ function reconstructionError(p,ref){
 }
 function renderReconstructionViz(){
   const c=$("lessonViz"),{ctx,w,h}=beginCanvas(c),p=preview(),ref=currentReference();
-  const pad={l:48,r:22,t:32,b:48},ymin=-1.1,ymax=1.1;
+  const pad={l:50,r:22,t:28,b:34},gap=28;
+  const panelH=(h-pad.t-pad.b-gap)/2;
   const X=i=>pad.l+i/(SONIC_TOY_CONSTANTS.REF_FRAMES-1)*(w-pad.l-pad.r);
-  const Y=y=>pad.t+(ymax-y)/(ymax-ymin)*(h-pad.t-pad.b);
-  ctx.strokeStyle="#e3e6eb";ctx.beginPath();ctx.moveTo(pad.l,Y(0));ctx.lineTo(w-pad.r,Y(0));ctx.stroke();
+  const Y=(v,top)=>top+panelH/2-v*(panelH*.43);
 
-  const draw=(arr,color,dash=[])=>{
-    ctx.strokeStyle=color;ctx.lineWidth=3;ctx.setLineDash(dash);ctx.beginPath();
-    for(let i=0;i<SONIC_TOY_CONSTANTS.REF_FRAMES;i++){const x=X(i),y=Y(arr[i*2]);i?ctx.lineTo(x,y):ctx.moveTo(x,y);}ctx.stroke();ctx.setLineDash([]);
+  const drawPanel=(component,top,label)=>{
+    ctx.strokeStyle="#eef0f3";ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(pad.l,Y(0,top));ctx.lineTo(w-pad.r,Y(0,top));ctx.stroke();
+    ctx.fillStyle="#667085";ctx.font="11px system-ui";ctx.textAlign="left";ctx.fillText(label,pad.l,top+12);
+
+    const draw=(arr,color,dash=[])=>{
+      ctx.strokeStyle=color;ctx.lineWidth=2.6;ctx.setLineDash(dash);ctx.beginPath();
+      for(let i=0;i<SONIC_TOY_CONSTANTS.REF_FRAMES;i++){
+        const x=X(i),y=Y(arr[i*2+component],top);
+        i?ctx.lineTo(x,y):ctx.moveTo(x,y);
+      }
+      ctx.stroke();ctx.setLineDash([]);
+    };
+    draw(ref,"#315dc9");
+    if(p) draw(p.kinRecon,"#795fc5",[7,5]);
   };
-  draw(ref,"#315dc9");
-  if(p) draw(p.kinRecon,"#795fc5",[7,5]);
 
-  ctx.fillStyle="#667085";ctx.font="12px system-ui";
-  ctx.fillText("future x reference (normalized)",pad.l,pad.t-10);
-  for(let i=0;i<8;i++){ctx.fillStyle="#7b8492";ctx.font="10px ui-monospace";ctx.fillText("t+"+fmt((i+1)*.08,2),X(i)-14,h-20);}
-  $("vizCaption").innerHTML='<b>Reference world · pre-FSQ.</b> <span style="color:#315dc9;font-weight:700">blue = planner future reference</span> · <span style="color:#795fc5;font-weight:700">purple dashed = Kinematic Decoder reconstruction</span>. 이것은 actual robot trajectory가 아니다.';
-  if(p)setMetrics(["16D input → 2D latent → 16D recon","z=["+fmt(p.z[0],3)+", "+fmt(p.z[1],3)+"]","recon MSE="+fmt(reconstructionError(p,ref),4)]);
+  drawPanel(0,pad.t,"normalized future x");
+  drawPanel(1,pad.t+panelH+gap,"normalized future ẋ");
+
+  ctx.fillStyle="#7b8492";ctx.font="9.5px ui-monospace";ctx.textAlign="center";
+  for(let i=0;i<8;i++) ctx.fillText("+"+fmt((i+1)*.08,2)+"s",X(i),h-12);
+
+  $("vizCaption").innerHTML='<b>Reference world · pre-FSQ.</b> 위 = x, 아래 = ẋ. <span style="color:#315dc9;font-weight:700">blue = planner future reference</span> · <span style="color:#795fc5;font-weight:700">purple dashed = Kinematic Decoder reconstruction</span>. 16D=[8×(x,ẋ)] 전체를 두 plot으로 표시한다.';
+  if(p)setMetrics(["16D → 2D latent → 16D recon","z=["+fmt(p.z[0],3)+", "+fmt(p.z[1],3)+"]","all-16D MSE="+fmt(reconstructionError(p,ref),4)]);
 }
+
 function renderLatentViz(){
-  const c=$("lessonViz"),{ctx,w,h}=beginCanvas(c),{X,Y}=drawAxes(ctx,w,h),cur=state(),codes=new Set();
-  for(let g=-1.2;g<=1.2001;g+=.06){
-    const ref=planReference(plannerContext,g),out=currentTrainer.preview(cur,ref,g);
-    codes.add(out.q.map(v=>v.toFixed(2)).join(","));
-    ctx.fillStyle="rgba(125,135,150,.28)";ctx.beginPath();ctx.arc(X(out.z[0]),Y(out.z[1]),2.4,0,Math.PI*2);ctx.fill();
-  }
-  if(lesson.mode==="vq"){
-    for(let k=0;k<8;k++){const x=currentTrainer.policy.codebook[k*2],y=currentTrainer.policy.codebook[k*2+1];ctx.fillStyle="#7b8492";ctx.beginPath();ctx.arc(X(x),Y(y),7,0,Math.PI*2);ctx.fill();ctx.fillStyle="#4b5563";ctx.font="10px monospace";ctx.fillText(String(k),X(x)+9,Y(y)-5);}
-  }else{
-    for(const a of [-1,-.5,0,.5,1])for(const b of [-1,-.5,0,.5,1]){ctx.fillStyle="#c7ccd4";ctx.beginPath();ctx.arc(X(a),Y(b),3.5,0,Math.PI*2);ctx.fill();}
-  }
+  const c=$("lessonViz"),canvas=beginCanvas(c),ctx=canvas.ctx,w=canvas.w,h=canvas.h;
   const p=preview();
-  if(p){
-    ctx.strokeStyle="#9aa3af";ctx.setLineDash([5,4]);ctx.beginPath();ctx.moveTo(X(p.z[0]),Y(p.z[1]));ctx.lineTo(X(p.q[0]),Y(p.q[1]));ctx.stroke();ctx.setLineDash([]);
-    ctx.fillStyle="#315dc9";ctx.beginPath();ctx.arc(X(p.z[0]),Y(p.z[1]),8,0,Math.PI*2);ctx.fill();
-    ctx.fillStyle="#d64f4f";ctx.beginPath();ctx.arc(X(p.q[0]),Y(p.q[1]),8,0,Math.PI*2);ctx.fill();
-  }
-  ctx.fillStyle="#667085";ctx.font="11px system-ui";ctx.fillText("z₁",w-48,Y(0)-8);ctx.fillText("z₂",X(0)+7,22);
+  const hist=signalHistory.filter(x=>x.episode===episodeIndex);
+  const allZ=[...hist.map(x=>x.z),p?.z].filter(Boolean);
+  let maxAbs=1.05;
+  for(const z of allZ) maxAbs=Math.max(maxAbs,Math.abs(z[0]),Math.abs(z[1]));
   if(lesson.mode==="vq"){
-    $("vizCaption").innerHTML='<b>Reference/token world.</b> 회색 = reference sweep의 continuous latent · 회색 큰 점 = <b>learned codebook</b> · 파랑 z → 빨강 q = nearest-vector 선택. actual robot state는 이 좌표에 포함되지 않는다.';
-    setMetrics(["learned codebook: 8 vectors","active codes="+codes.size+"/8",p?"z→q distance="+fmt(Math.hypot(p.z[0]-p.q[0],p.z[1]-p.q[1]),3):""]);
+    for(let k=0;k<8;k++) maxAbs=Math.max(maxAbs,Math.abs(currentTrainer.policy.codebook[k*2]),Math.abs(currentTrainer.policy.codebook[k*2+1]));
+  }
+  const lim=Math.max(1.25,Math.min(2.5,maxAbs*1.15));
+  const {X,Y}=drawAxes(ctx,w,h,{xmin:-lim,xmax:lim,ymin:-lim,ymax:lim});
+
+  if(lesson.mode==="vq"){
+    for(let k=0;k<8;k++){
+      const x=currentTrainer.policy.codebook[k*2],y=currentTrainer.policy.codebook[k*2+1];
+      ctx.fillStyle="#9aa3af";ctx.beginPath();ctx.arc(X(x),Y(y),6,0,Math.PI*2);ctx.fill();
+      ctx.fillStyle="#596273";ctx.font="10px ui-monospace";ctx.fillText(String(k),X(x)+8,Y(y)-5);
+    }
   }else{
-    $("vizCaption").innerHTML='<b>Reference/token world.</b> 회색 = reference sweep의 continuous latent · 작은 grid = <b>고정 FSQ finite levels</b> · 파랑 z → 빨강 q = bound + round. 빨간 q가 FSQ 결과이며 physical action은 아니다.';
-    setMetrics(["L=[5,5] → 25 implicit codes","active tokens="+codes.size+"/25",p?"q=["+fmt(p.q[0],2)+", "+fmt(p.q[1],2)+"]":""]);
+    for(const a of [-1,-.5,0,.5,1])for(const b of [-1,-.5,0,.5,1]){
+      ctx.fillStyle="#c7ccd4";ctx.beginPath();ctx.arc(X(a),Y(b),3.3,0,Math.PI*2);ctx.fill();
+    }
+  }
+
+  // Only the trajectory actually produced during this episode.
+  if(hist.length>1){
+    ctx.strokeStyle="rgba(49,93,201,.45)";ctx.lineWidth=2;ctx.beginPath();
+    hist.forEach((sample,i)=>{
+      const x=X(sample.z[0]),y=Y(sample.z[1]);
+      i?ctx.lineTo(x,y):ctx.moveTo(x,y);
+    });
+    ctx.stroke();
+    hist.forEach((sample,i)=>{
+      const alpha=.16+.54*(i+1)/hist.length;
+      ctx.fillStyle="rgba(49,93,201,"+alpha.toFixed(3)+")";
+      ctx.beginPath();ctx.arc(X(sample.z[0]),Y(sample.z[1]),2.3,0,Math.PI*2);ctx.fill();
+    });
+  }
+
+  if(p){
+    const zx=X(p.z[0]),zy=Y(p.z[1]),qx=X(p.q[0]),qy=Y(p.q[1]);
+    // Current quantization displacement only. This is not a trajectory.
+    ctx.strokeStyle="#7b8492";ctx.lineWidth=1.5;ctx.setLineDash([5,4]);
+    ctx.beginPath();ctx.moveTo(zx,zy);ctx.lineTo(qx,qy);ctx.stroke();ctx.setLineDash([]);
+    const mx=(zx+qx)/2,my=(zy+qy)/2;
+    ctx.fillStyle="#667085";ctx.font="10px system-ui";ctx.fillText("quantize",mx+5,my-5);
+
+    ctx.fillStyle="#315dc9";ctx.beginPath();ctx.arc(zx,zy,7,0,Math.PI*2);ctx.fill();
+    ctx.fillStyle="#d64f4f";ctx.beginPath();ctx.arc(qx,qy,7,0,Math.PI*2);ctx.fill();
+  }
+
+  ctx.fillStyle="#667085";ctx.font="11px system-ui";
+  ctx.fillText("z₁",w-48,Y(0)-8);ctx.fillText("z₂",X(0)+7,22);
+
+  const used=new Set(hist.map(x=>x.q.map(v=>v.toFixed(2)).join(",")));
+  if(p) used.add(p.q.map(v=>v.toFixed(2)).join(","));
+  if(lesson.mode==="vq"){
+    $("vizCaption").innerHTML='<b>Reference/token world.</b> 회색 큰 점 = learned VQ codebook · 파란 trail = <b>이번 실제 episode에서 시간순으로 발생한 Encoder z</b> · 짧은 점선은 현재 z→q quantization 이동량이다. 가상 goal sweep은 표시하지 않는다.';
+    const refX=p?p.ref[0]*SONIC_TOY_CONSTANTS.STATE_SCALE[0]:NaN,actualX=state()[0];
+    setMetrics(["same tick t="+fmt(controlTick*.02,2)+"s","ref x(+80ms)="+fmt(refX,3)+"m","actual x="+fmt(actualX,3)+"m","episode codes="+used.size+"/8",p?"q=["+fmt(p.q[0],2)+", "+fmt(p.q[1],2)+"]":""]);
+  }else{
+    $("vizCaption").innerHTML='<b>Reference/token world.</b> 회색 grid = 고정 FSQ finite levels · 파란 trail = <b>이번 실제 episode의 Encoder z history</b> · 빨간 q = 현재 FSQ 결과. 짧은 점선은 quantization 이동이며 robot trajectory가 아니다.';
+    const refX=p?p.ref[0]*SONIC_TOY_CONSTANTS.STATE_SCALE[0]:NaN,actualX=state()[0];
+    setMetrics(["same tick t="+fmt(controlTick*.02,2)+"s","ref x(+80ms)="+fmt(refX,3)+"m","actual x="+fmt(actualX,3)+"m","episode tokens="+used.size+"/25",p?"q=["+fmt(p.q[0],2)+", "+fmt(p.q[1],2)+"]":""]);
   }
 }
+
 function showHtml(html,caption,metrics=[]){
   $("lessonViz").style.display="none";
   $("vizHtml").innerHTML=html;
@@ -407,7 +510,7 @@ function renderDecoderViz(){
     '<div class="flow-arrow">→</div>'+
     '<div class="flow-box"><strong>force</strong><span style="font-size:18px;font-weight:800;color:#172554">'+force+'</span></div>'+
     '</div></div>',
-    'goal을 고정한 채 Push를 누르면 desired motion token보다 actual state가 크게 변한다. Dynamic Decoder가 그 차이를 보고 즉시 다른 action을 내는지 확인한다.',
+    '<b>Push는 actual robot에만 impulse를 주고 planner/reference는 진행시키지 않는다.</b> 따라서 motion token q는 그대로이고 proprioception만 바뀐다. 그 결과 Dynamic Decoder action이 달라지는지 확인한다.',
     [p?"token="+token:"","state θ="+fmt(s[2]*180/Math.PI,1)+"°","action="+force]
   );
 }
@@ -450,8 +553,8 @@ function renderTrainingViz(){
   heldoutPts.forEach(p=>{ctx.fillStyle="#16805d";ctx.beginPath();ctx.arc(X(p.iterations),Y(p.mae),5,0,Math.PI*2);ctx.fill();});
 
   ctx.fillStyle="#667085";ctx.font="11px system-ui";ctx.textAlign="left";
-  ctx.fillText("held-out tracking MAE ↓",pad.l,18);
-  ctx.textAlign="right";ctx.fillText("PPO iterations →",w-pad.r,c.height-15);
+  ctx.fillText("tracking MAE [m] ↓",pad.l,18);
+  ctx.textAlign="right";ctx.fillText("PPO iterations →",w-pad.r,h-15);
 
   $("vizCaption").innerHTML='회색 점선 = deterministic held-out reference · <span style="color:#315dc9;font-weight:700">파랑 = 매 PPO iteration의 rollout tracking MAE (실시간)</span> · <span style="color:#16805d;font-weight:700">초록 = 현재 세션 held-out check</span>. 낮을수록 좋다.';
   setMetrics([
@@ -591,7 +694,7 @@ function courseSnapshot(){
       },
       outline:getCourseOutline(),
     },
-    experiment:{goal,live,preset,mode:lesson.mode},
+    experiment:{goal,live,preset,mode:lesson.mode,episode:episodeIndex,autoResets:autoResetCount,lastEpisodeEvent},
     signals:{
       semantics:{
         reference:"pre-FSQ desired future motion from planner/reference source",
@@ -607,6 +710,7 @@ function courseSnapshot(){
       actionMean:p?.mu??null,
       force:p?.force??null,
       kinematicReconstruction:p?.kinRecon||null,
+      liveHistory:signalHistory.slice(-80).map(x=>({t:x.t,episode:x.episode,z:x.z,q:x.q,force:x.force,state:x.state})),
     },
     training:currentTrainer?{
       ppoIterations:currentTrainer.iter,
@@ -722,13 +826,18 @@ function loop(now){
     let n=0;
     while(accumulator>=.02&&n<4){
       const p=preview();
+      const s0=state();
+      recordControlSample(p,s0);
       sim.stepForce(p.force,2);
       plannerContext=advancePlannerContext(plannerContext,goal,.02);
       lastForce=p.force;
       accumulator-=.02;n++;
+      const reason=terminationReason(state());
+      if(reason){
+        autoResetEpisode(reason);
+        break;
+      }
     }
-    const s=state();
-    if(Math.abs(s[0])>1.78||Math.abs(s[2])>.75)live=false;
     render();
   }
   requestAnimationFrame(loop);

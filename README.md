@@ -243,14 +243,43 @@ FSQ still uses a straight-through estimator for the non-differentiable rounding 
 
 All lessons share the same fixed layout:
 
-- left: actual MuJoCo robot, always the same location and controls
-- center: lesson-specific reference/token/training visualization
+- left: **actual MuJoCo robot only**, always the same location and controls
+- center: lesson-specific **reference / latent / token / training** visualization
 - right: lesson guide
 - bottom: stable SONIC information-flow strip
 
-Canvas backing resolution follows its displayed CSS size and device-pixel ratio, so the plots are not stretched by mismatched canvas dimensions. Latent-space plots use equal x/y unit scaling (1:1 data aspect).
+The reference and robot worlds are intentionally separated:
 
-When **Live** is enabled, reference, latent, token-dependent visualizations, proprioception, action, and the robot simulation are redrawn from the same live state. PPO training plots also redraw after each training iteration.
+- the Simulation panel never draws a future-reference ghost robot
+- planner future motion is **pre-FSQ reference**, not a motor command
+- FSQ/VQ produces motion token `q`
+- `q + actual proprioception → Dynamic Decoder → action`
+
+For VQ/FSQ latent plots:
+
+- gray points are only the fixed FSQ grid or learned VQ codebook
+- the blue trail is the **actual z history generated during the current live episode**
+- there is no hypothetical goal sweep mixed into the live graph
+- the short dashed `z → q` segment is only the current quantization displacement
+- latent x/y axes use equal unit scale (1:1 data aspect)
+
+Canvas backing resolution follows displayed CSS size × device-pixel ratio, so plots are not stretched by mismatched canvas dimensions.
+
+When **Live** is enabled, the robot, current reference, latent, token-dependent visualizations, proprioception, and action are redrawn from the same control ticks. If the CartPole reaches a termination condition, the teaching demo automatically starts a new episode and keeps Live running instead of silently stopping.
+
+**Push** is a robot-only impulse: it changes actual velocity/proprioception without advancing the planner/reference. This makes the Dynamic Decoder experiment explicit:
+
+```text
+same reference
+same motion token q
+      +
+changed actual proprioception
+      ↓
+different action
+```
+
+PPO training plots redraw after each training iteration.
+
 
 ---
 
