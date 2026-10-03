@@ -47,7 +47,15 @@ export class MLP {
   adam(G,lr,maxNorm=1.0){
     const norm=Math.sqrt(G.reduce((s,v)=>s+v*v,0)),scale=Math.min(1,maxNorm/(norm+1e-12));this.t++;
     const bc1=1-.9**this.t,bc2=1-.999**this.t;
-    for(let i=0;i<this.p.length;i++){const g=G[i]*scale;this.m[i]=.9*this.m[i]+.1*g;this.v[i]=.999*this.v[i]+.001*g*g;const mh=this.m[i]/bc1,vh=this.v[i]/bc2;this.p[i]-=lr*mh/(Math.sqrt(vh)+1e-8);}
+    let deltaSq=0,paramSq=0;
+    for(let i=0;i<this.p.length;i++){
+      const g=G[i]*scale;this.m[i]=.9*this.m[i]+.1*g;this.v[i]=.999*this.v[i]+.001*g*g;
+      const mh=this.m[i]/bc1,vh=this.v[i]/bc2,before=this.p[i];
+      this.p[i]-=lr*mh/(Math.sqrt(vh)+1e-8);
+      deltaSq+=(this.p[i]-before)**2;paramSq+=before*before;
+    }
+    // Measure the actual Adam displacement, not LR times the raw gradient.
+    this.lastUpdate={preClipNorm:norm,postClipNorm:norm*scale,clipScale:scale,updateNorm:Math.sqrt(deltaSq),relativeUpdateNorm:Math.sqrt(deltaSq)/(Math.sqrt(paramSq)+1e-12),updateRms:Math.sqrt(deltaSq/this.p.length)};
     return norm;
   }
   snapshot(){return{n:this.n,h:this.h,o:this.o,outTanh:this.outTanh,p:Array.from(this.p),m:Array.from(this.m),v:Array.from(this.v),t:this.t};}
@@ -106,9 +114,10 @@ export class SonicCartPolePolicy {
   forward(state,ref,goal,{sample=false,rng=this.rng}={}){
     const ef=this.encoder.forward(ref),z=Array.from(ef.y),quant=this.quantize(z),sNorm=normalizeState(state);
     const dynIn=[quant.q[0],quant.q[1],...sNorm],df=this.dynamicDecoder.forward(dynIn),mu=clamp(df.y[0],-.999,.999);
-    let action=mu;if(sample)action=clamp(mu+rng.normal()*FIXED_STD,-1,1);
+    // PPO likelihood is defined on this Gaussian sample; only the actuator input is clipped.
+    const rawAction=sample?mu+rng.normal()*FIXED_STD:mu,action=clamp(rawAction,-1,1);
     const kf=this.kinematicDecoder.forward(quant.q),cf=this.critic.forward([...sNorm,goal/STATE_SCALE[0]]);
-    return{ref,z,q:quant.q,qIndex:quant.index,qDeriv:quant.deriv,mu,action,force:action*ACTION_FORCE,value:cf.y[0],kinRecon:Array.from(kf.y),cache:{ef,df,kf,cf,sNorm}};
+    return{ref,z,q:quant.q,qIndex:quant.index,qDeriv:quant.deriv,mu,rawAction,action,force:action*ACTION_FORCE,value:cf.y[0],kinRecon:Array.from(kf.y),cache:{ef,df,kf,cf,sNorm}};
   }
   codeUsage(refs){
     if(this.mode!=="vq")return null;const c=new Array(8).fill(0);for(const ref of refs){const z=Array.from(this.encoder.forward(ref).y),q=this.quantize(z);c[q.index]++;}return c;
@@ -146,7 +155,7 @@ class TrainEnv {
     this.steps++;
     this.refContext=advancePlannerContext(this.refContext,this.goal,.02);
     const s=this.state(),targetX=this.refContext[0],done=doneFor(s)||this.steps>=500,r=rewardFor(s,targetX,action);
-    return{s,r,targetX,done,terminated:done&&this.steps<500};
+    return{s,r,targetX,done,terminated:doneFor(s)};
   }
   delete(){this.data.delete();}
 }
@@ -191,9 +200,9 @@ export class SonicToyTrainer {
     const data=[];let rewardSum=0,trackSum=0;
     for(let t=0;t<this.horizon;t++){
       for(let i=0;i<this.n;i++){
-        const e=this.envs[i],s=e.state(),goal=e.goal,ref=e.reference(),out=this.policy.forward(s,ref,goal,{sample:true,rng:this.rng}),oldLogp=logProbGaussian(out.action,out.mu),oldV=out.value;
+        const e=this.envs[i],s=e.state(),goal=e.goal,ref=e.reference(),out=this.policy.forward(s,ref,goal,{sample:true,rng:this.rng}),oldLogp=logProbGaussian(out.rawAction,out.mu),oldV=out.value;
         const step=e.step(out.action),nextRef=e.reference(),next=this.policy.forward(step.s,nextRef,goal,{sample:false}),nextV=next.value;
-        const q={env:i,state:s.slice(),goal,ref:Array.from(out.ref),action:out.action,oldMu:out.mu,oldLogp,oldV,r:step.r,nextV,done:step.done,terminated:step.terminated};
+        const q={env:i,state:s.slice(),goal,ref:Array.from(out.ref),rawAction:out.rawAction,action:out.action,oldMu:out.mu,oldLogp,oldV,r:step.r,nextV,done:step.done,terminated:step.terminated};
         data.push(q);rewardSum+=step.r;trackSum+=Math.abs(step.s[0]-e.refContext[0]);this.envSteps++;
         if(step.done){this.episodes++;e.reset();}
       }
@@ -201,7 +210,7 @@ export class SonicToyTrainer {
     gae(data,this.n);return{data,rewardMean:rewardSum/data.length,trackingMae:trackSum/data.length};
   }
   optimize(data){
-    const ids=Array.from({length:data.length},(_,i)=>i);let piSum=0,vSum=0,auxSum=0,count=0,clipped=0;
+    const ids=Array.from({length:data.length},(_,i)=>i);let piSum=0,vSum=0,auxSum=0,count=0,clipped=0,objectiveClipped=0;
     for(let ep=0;ep<this.epochs;ep++){
       for(let i=ids.length-1;i>0;i--){const j=Math.floor(this.rng.uniform()*(i+1));[ids[i],ids[j]]=[ids[j],ids[i]];}
       for(let st=0;st<ids.length;st+=this.batch){
@@ -209,9 +218,9 @@ export class SonicToyTrainer {
         const GE=new Float64Array(this.policy.encoder.p.length),GD=new Float64Array(this.policy.dynamicDecoder.p.length),GK=new Float64Array(this.policy.kinematicDecoder.p.length),GC=new Float64Array(this.policy.critic.p.length);
         const cbSums=Array.from({length:8},()=>[0,0]),cbCount=new Uint32Array(8);
         for(let ii=st;ii<end;ii++){
-          const qd=data[ids[ii]],out=this.policy.forward(qd.state,qd.ref,qd.goal,{sample:false}),ratio=Math.exp(logProbGaussian(qd.action,out.mu)-qd.oldLogp);
-          const active=qd.adv>=0?ratio<=1.2:ratio>=.8;if(!active)clipped++;
-          const dlogp=active?-qd.adv*ratio:0, dmu=dlogp*(qd.action-out.mu)/(FIXED_STD*FIXED_STD);
+          const qd=data[ids[ii]],out=this.policy.forward(qd.state,qd.ref,qd.goal,{sample:false}),ratio=Math.exp(logProbGaussian(qd.rawAction,out.mu)-qd.oldLogp);
+          const active=qd.adv>=0?ratio<=1.2:ratio>=.8;if(!active)objectiveClipped++;if(ratio<.8||ratio>1.2)clipped++;
+          const dlogp=active?-qd.adv*ratio:0, dmu=dlogp*(qd.rawAction-out.mu)/(FIXED_STD*FIXED_STD);
           const dqPolicy=this.policy.dynamicDecoder.backward(out.cache.df,[dmu],GD,1/bs).slice(0,2);
           const auxDiff=out.kinRecon.map((v,j)=>v-qd.ref[j]),auxLoss=auxDiff.reduce((s,v)=>s+v*v,0)/REF_DIM;
           const dqAux=this.policy.kinematicDecoder.backward(out.cache.kf,auxDiff.map(v=>.20*2*v/REF_DIM),GK,1/bs);
@@ -225,7 +234,7 @@ export class SonicToyTrainer {
         if(this.mode==="vq"){for(let k=0;k<8;k++)if(cbCount[k]){for(let d=0;d<2;d++){const m=cbSums[k][d]/cbCount[k];this.policy.codebook[k*2+d]+=.08*(m-this.policy.codebook[k*2+d]);}}}
       }
     }
-    return{piLoss:piSum/count,valueLoss:vSum/count,auxLoss:auxSum/count,clipFraction:clipped/count};
+    return{piLoss:piSum/count,valueLoss:vSum/count,auxLoss:auxSum/count,clipFraction:clipped/count,objectiveClipFraction:objectiveClipped/count};
   }
   bootstrapFromTeacher(teacher,{steps=160,batch=128,lr=8e-4,auxCoef=.12}={}){
     if(!teacher)throw new Error("teacher required");

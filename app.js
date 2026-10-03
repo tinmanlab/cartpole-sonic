@@ -10,6 +10,7 @@ import { probeWebGPUFSQ } from "./webgpu_fsq.js";
 import { AlignmentLab } from "./alignment_lab.js";
 import { TemporalTokenLab } from "./temporal_token_lab.js";
 import { TemporalControlLab } from "./temporal_control_lab.js";
+import { renderOptimizerEvidencePanel, optimizerViewState } from "./optimizer_evidence_view.js";
 import {
   COURSE_VERSION,
   SONIC_FLOW,
@@ -1029,64 +1030,8 @@ function renderAlignmentViz(){
   });
 }
 
-function drawOptimizerBars(evidence){
-  const c=$("optimizerBars");if(!c)return;
-  const {ctx,w,h}=beginCanvas(c);
-  ctx.fillStyle="#fff";ctx.fillRect(0,0,w,h);
-  const variants=evidence?.variants||[];
-  const pad={l:132,r:22,t:24,b:24},max=Math.max(.65,...variants.map(v=>v.after?.cleanMae||0)),rowH=(h-pad.t-pad.b)/Math.max(1,variants.length);
-  ctx.fillStyle="#667085";ctx.font="9px system-ui";ctx.textAlign="left";ctx.fillText("clean tracking MAE after +10 PPO ↓",8,13);
-  variants.forEach((v,i)=>{
-    const y=pad.t+i*rowH+rowH*.18,bh=rowH*.62,value=v.after?.cleanMae||0;
-    ctx.fillStyle="#667085";ctx.font="8.5px system-ui";ctx.textAlign="right";ctx.fillText(v.label,pad.l-7,y+bh*.72);
-    ctx.fillStyle=v.id==="one-default"?"#c97b20":v.id==="two-default"?"#315dc9":v.id==="two-matched-capacity"?"#d64f4f":v.id==="two-actor-005"?"#16805d":"#9a88c0";
-    ctx.fillRect(pad.l,y,(w-pad.l-pad.r)*value/max,bh);
-    ctx.fillStyle="#172033";ctx.font="8.5px ui-monospace";ctx.textAlign="left";ctx.fillText(fmt(value,3)+" m",pad.l+(w-pad.l-pad.r)*value/max+5,y+bh*.72);
-  });
-}
-function drawOptimizerTrajectory(evidence){
-  const c=$("optimizerTrajectory");if(!c)return;
-  const {ctx,w,h}=beginCanvas(c);ctx.fillStyle="#fff";ctx.fillRect(0,0,w,h);
-  const pts=evidence?.tunedTrajectory||[],pad={l:48,r:18,t:25,b:30};
-  const maxIter=Math.max(50,...pts.map(x=>x.ppoIterations)),min=.20,max=.32;
-  const X=x=>pad.l+x/maxIter*(w-pad.l-pad.r),Y=v=>h-pad.b-(v-min)/(max-min)*(h-pad.t-pad.b);
-  for(let i=0;i<=3;i++){const v=min+(max-min)*i/3,y=Y(v);ctx.strokeStyle="#f0f2f5";ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(w-pad.r,y);ctx.stroke();ctx.fillStyle="#7b8492";ctx.font="8px ui-monospace";ctx.textAlign="right";ctx.fillText(v.toFixed(2),pad.l-5,y+3);}
-  ctx.strokeStyle="#16805d";ctx.lineWidth=2.4;ctx.beginPath();pts.forEach((p,i)=>{const x=X(p.ppoIterations),y=Y(p.cleanMae);i?ctx.lineTo(x,y):ctx.moveTo(x,y);});ctx.stroke();
-  pts.forEach(p=>{ctx.fillStyle="#16805d";ctx.beginPath();ctx.arc(X(p.ppoIterations),Y(p.cleanMae),3.2,0,Math.PI*2);ctx.fill();ctx.fillStyle="#172033";ctx.font="8px ui-monospace";ctx.textAlign="center";ctx.fillText(fmt(p.cleanMae,3),X(p.ppoIterations),Y(p.cleanMae)-7);});
-  ctx.fillStyle="#667085";ctx.font="9px system-ui";ctx.textAlign="left";ctx.fillText("2-token actor LR×0.05 · longer budget",pad.l,13);ctx.textAlign="right";ctx.fillText("PPO iterations →",w-pad.r,h-8);
-}
 function renderOptimizerEvidenceViz(){
-  const ev=optimizerEvidence;
-  if(!ev){
-    showHtml('<div style="height:100%;display:grid;place-items:center"><div style="text-align:center"><b>Loading deterministic optimization evidence…</b><div style="margin-top:6px;color:#667085;font-size:10px">matched-capacity / encoder-freeze / actor-step ablations</div></div></div>','Evidence is loaded from the repository deterministic evaluation snapshot.');
-    return;
-  }
-  const find=id=>ev.variants.find(v=>v.id===id);
-  const one=find("one-default"),two=find("two-default"),matched=find("two-matched-capacity"),low=find("two-actor-005"),freeze=find("two-freeze-encoder");
-  const tuned50=ev.tunedTrajectory.find(x=>x.ppoIterations===50);
-  const rows=ev.variants.map(v=>{
-    const actorScale=v.ppoModuleScales?.encoder===v.ppoModuleScales?.dynamic?v.ppoModuleScales.encoder:"mixed";
-    return '<tr><td>'+v.label+'</td><td>'+v.parameterCount+'</td><td>'+actorScale+'</td><td>'+fmt(v.after.cleanMae,3)+'</td><td>'+fmt(v.after.pushMae,3)+'</td><td>'+((v.diagnostics.clipFraction||0)*100).toFixed(1)+'%</td><td>'+Number(v.diagnostics.dynamicUpdateProxy||0).toExponential(1)+'</td></tr>';
-  }).join("");
-  showHtml(
-    '<div class="optimizer-wrap">'+
-      '<div class="optimizer-summary">'+
-        '<div class="optimizer-card"><span>parameter count test</span><b>'+matched.parameterCount+' = '+one.parameterCount+'</b><small>matched 2-token still '+fmt(matched.after.cleanMae,3)+' m</small></div>'+
-        '<div class="optimizer-card"><span>freeze Encoder test</span><b>'+fmt(freeze.after.cleanMae,3)+' m</b><small>helps vs '+fmt(two.after.cleanMae,3)+' m, not enough</small></div>'+
-        '<div class="optimizer-card"><span>actor LR ×0.05 · +10</span><b>'+fmt(low.after.cleanMae,3)+' m</b><small>step-size sensitivity</small></div>'+
-        '<div class="optimizer-card"><span>actor LR ×0.05 · +50</span><b>'+fmt(tuned50.cleanMae,3)+' m</b><small>longer gentle optimization</small></div>'+
-      '</div>'+
-      '<div class="optimizer-bottom">'+
-        '<div class="optimizer-left"><div class="optimizer-chart"><canvas id="optimizerBars"></canvas></div><div class="optimizer-chart"><canvas id="optimizerTrajectory"></canvas></div></div>'+
-        '<div class="optimizer-table"><table><thead><tr><th>variant</th><th>params</th><th>actor×</th><th>clean</th><th>push</th><th>clip</th><th>dyn step*</th></tr></thead><tbody>'+rows+'</tbody></table>'+
-          '<div class="optimizer-note"><b>* dyn step</b> = raw Dynamic Decoder gradient norm × nominal LR × module scale. Raw gradient norms alone are similar; the effective actor step changes strongly with scale.<br><br><b>Supported conclusion:</b> parameter count and Encoder drift contribute at most partially. The dominant recoverable factor in this toy is the coupled Encoder+Dynamic-Decoder update scale. This does not prescribe SONIC production hyperparameters.</div>'+
-        '</div>'+
-      '</div>'+
-    '</div>',
-    '<b>EVIDENCE · deterministic optimizer ablation.</b> 2-token instability does not disappear when parameter count is matched or Encoder is frozen. Reducing the coupled Encoder+Dynamic-Decoder actor step stabilizes training; LR×0.05 with a longer 50-iteration budget recovers clean MAE to ≈0.237 m.',
-    ["1-token +10="+fmt(one.after.cleanMae,3)+"m","2-token default +10="+fmt(two.after.cleanMae,3)+"m","matched-cap +10="+fmt(matched.after.cleanMae,3)+"m","2-token tuned +50="+fmt(tuned50.cleanMae,3)+"m"]
-  );
-  requestAnimationFrame(()=>{drawOptimizerBars(ev);drawOptimizerTrajectory(ev);});
+  renderOptimizerEvidencePanel({evidence:optimizerEvidence,showHtml,beginCanvas,rerender:render});
 }
 function renderTrainingViz(){
   const c=$("lessonViz"),{ctx,w,h}=beginCanvas(c);
@@ -1435,7 +1380,7 @@ function systemSnapshot(){
       ppoIterations:currentTrainer.iter,envSteps:currentTrainer.envSteps,episodes:currentTrainer.episodes,last:currentTrainer.last,
       heldoutEval,heldoutHistory:ppoHeldoutHistory,verifiedReference:ppoReferenceEvidence,
       alignment:alignmentLab?{...alignmentLab.snapshot(),live:alignmentLab.compare(ref,s,goal)}:null,
-      optimizerEvidence:optimizerEvidence
+      optimizerEvidence:optimizerEvidence,optimizerEvidenceView:optimizerViewState()
     }:null,
     representationLabs:{
       temporalTokens:temporalTokenLab?{
@@ -1449,6 +1394,20 @@ function systemSnapshot(){
         verifiedReference:temporalControlEvidence
       }:null
     },
+    backends:{physics:physicsReady?sim.backend:null,webgpu:webgpuStatus,webmcp:{mode:webmcpMode,tools:webmcpTools}}
+  };
+}
+// Local periodic telemetry is bounded. Full weights and static evidence are returned only on explicit reads.
+function telemetrySnapshot(){
+  const p=preview(),brief=t=>t?{iter:t.iter,envSteps:t.envSteps,last:t.last,parameters:t.policy.parameterBreakdown()}:null;
+  return {
+    schema:"cartpole-sonic-telemetry/v2",
+    system:{version:COURSE_VERSION,mode:trainingMode?"training":"runtime",focus:trainingMode?null:{node:focus.id,concept:conceptId},trainingTopic:trainingMode?trainingTopic.id:null},
+    experiment:{goal,live,preset,episode:episodeIndex,autoResets:autoResetCount},
+    signals:{reference:Array.from(currentReference()),latent:p?.z||null,token:p?.q||null,proprioception:state(),actionMean:p?.mu??null,force:p?.force??null},
+    training:currentTrainer?{ppoIterations:currentTrainer.iter,envSteps:currentTrainer.envSteps,last:currentTrainer.last}:null,
+    representationLabs:{temporalControl:temporalControlLab?{selectedController:temporalControlSelected,one:brief(temporalControlLab.one),two:brief(temporalControlLab.two)}:null},
+    optimizerEvidence:{revision:optimizerEvidence?.revision??null,uri:"./evidence/control_optimization_eval.json",view:optimizerViewState()},
     backends:{physics:physicsReady?sim.backend:null,webgpu:webgpuStatus,webmcp:{mode:webmcpMode,tools:webmcpTools}}
   };
 }
@@ -1512,13 +1471,14 @@ async function init(){
   updateUrl();render();
   registerWebMCP().then(()=>renderHeaderState()).catch(()=>{});
   probeWebGPUFSQ().then(status=>{webgpuStatus=status;setBadge("webgpuBadge",status.ok?"WebGPU FSQ ✓":status.available?"WebGPU fallback":"WebGPU unavailable",status.ok);}).catch(err=>{webgpuStatus={available:false,ok:false,reason:err.message};setBadge("webgpuBadge","WebGPU unavailable",false);});
-  if(location.hostname==="localhost"||location.hostname==="127.0.0.1"){setInterval(()=>{fetch("/telemetry",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(systemSnapshot()),keepalive:true}).catch(()=>{});},900);}
+  if(location.hostname==="localhost"||location.hostname==="127.0.0.1"){setInterval(()=>{fetch("/telemetry",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(telemetrySnapshot()),keepalive:true}).catch(()=>{});},900);}
   installCanvasResizeObserver();requestAnimationFrame(loop);
 }
 init().catch(err=>{console.error(err);setBadge("physicsBadge","init error",false);});
 
 window.__cartpoleSonic={
   getState:systemSnapshot,
+  getTelemetry:telemetrySnapshot,
   focus:focusNode,
   concept:setConcept,
   openTraining,

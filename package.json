@@ -1,10 +1,10 @@
 {
   "name": "cartpole-sonic",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "check": "node --check app.js && node --check course.js && node --check alignment_lab.js && node --check temporal_token_lab.js && node --check temporal_control_lab.js && node --check sonic_toy.js && node --check teacher_policy.js && node --check mujoco_sim.js && node --check webgpu_fsq.js && node scripts/check.mjs",
+    "check": "node --check optimizer_evidence_view.js && node --check app.js && node --check course.js && node --check alignment_lab.js && node --check temporal_token_lab.js && node --check temporal_control_lab.js && node --check sonic_toy.js && node --check teacher_policy.js && node --check mujoco_sim.js && node --check webgpu_fsq.js && node scripts/check.mjs",
     "verify:teacher": "node scripts/evaluate_teacher.mjs",
     "verify:bootstrap": "node scripts/evaluate_bootstrap.mjs",
     "verify:ppo": "node scripts/evaluate_ppo.mjs",
@@ -15,7 +15,8 @@
     "verify:temporal": "node scripts/verify_temporal_tokens.mjs",
     "verify:temporal-control": "node scripts/verify_temporal_control.mjs",
     "evaluate:optimization": "node scripts/evaluate_control_optimization.mjs",
-    "verify:optimization": "node scripts/verify_control_optimization.mjs"
+    "verify:optimization": "node scripts/verify_control_optimization.mjs",
+    "verify:contracts": "node --test scripts/verify_ppo_contract.test.mjs scripts/verify_optimizer_evidence.test.mjs"
   },
   "dependencies": {
     "@mujoco/mujoco": "3.14.0"

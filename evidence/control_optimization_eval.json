@@ -1,9 +1,31 @@
 {
   "schema": "cartpole-sonic-control-optimization-ablation/v1",
+  "revision": 2,
+  "ppoContract": "raw-gaussian-sample/v2",
+  "provenance": {
+    "physics": "MuJoCo 3.14.0",
+    "nodeMajor": 22,
+    "sha256": {
+      "sonic_toy.js": "a16100f67129fa44febe2e83c46b8018047de904b774659658fc47cc8a1515b3",
+      "temporal_control_lab.js": "f59f61a35e0b41c0b8319464d29897180ff3a4273a6308b9778d855d15799d7a",
+      "scripts/control_optimization_experiment.mjs": "e9818efb95963b1b0b2f17767ff9b31d56284c6f248c223dbca64feed066530d",
+      "assets/temporal_control_bootstrap.json": "bf11c4014999519c6632b407d93dee41cd8f1acf3cf60bf791a962598f06f961",
+      "assets/teacher_cartpole_ppo.json": "aaa5789ab66f78ee4eed3959e2b2a23f55c3f29390a0b86c83b06432d691d2a0"
+    }
+  },
   "protocol": {
-    "bootstrap": "matched 300-step teacher imitation",
-    "ppo": "same PPO rollout/batch/epoch settings; variants change only stated width/update scales",
-    "evaluation": "12 deterministic clean + 12 deterministic disturbance episodes"
+    "bootstrap": "300 steps × 256 teacher-imitation examples; fixed weights and Adam moments for each architecture",
+    "ppo": "8 env × 96 steps; 4 epochs, batch 128; action std 0.12; auxiliary coefficient 0.20",
+    "evaluation": "12 clean + 12 push episodes, 500 control steps each; failed-before-push has null post-push error",
+    "metricDefinitions": {
+      "updateNorm": "mean per-minibatch ||weights_after_Adam - weights_before_Adam||2, after clipping and moment preconditioning",
+      "postUpdateKl": "exact raw-Gaussian KL with fixed std, measured on the same collected states/references after all PPO epochs; not clipped-action KL",
+      "tokenChangeFraction": "fraction of fixed rollout references with at least one quantized scalar changed",
+      "clipFraction": "ratio outside [0.8,1.2], separate from advantage-dependent objective clipping",
+      "sampleClipFraction": "fraction of Gaussian samples clipped for physical actuation; not policy-mean saturation",
+      "recovery": "first tolerance entry, not sustained recovery; non-recovery capped at 380 after push",
+      "cleanMae": "episode-mean tracking MAE conditional on completed episodes; always interpret with survival counts"
+    }
   },
   "variants": [
     {
@@ -12,6 +34,14 @@
       "tokens": 1,
       "steps": 10,
       "parameterCount": 1220,
+      "parameters": {
+        "encoder": 382,
+        "dynamic": 225,
+        "kinematic": 472,
+        "critic": 141,
+        "actor": 607,
+        "total": 1220
+      },
       "widths": {
         "encoder": 20,
         "dynamic": 28,
@@ -26,25 +56,121 @@
         "critic": 1
       },
       "before": {
+        "ppoIterations": 0,
+        "envSteps": 0,
+        "optimizerBatches": 0,
         "cleanMae": 0.25936888291006066,
+        "cleanAllStepMae": 0.25936888291006066,
         "cleanSuccesses": 12,
         "pushMae": 0.23407850283461654,
-        "recoverySteps": 209.41666666666666
+        "pushSuccesses": 12,
+        "pushReachedEpisodes": 12,
+        "recoveredEpisodes": 7,
+        "recoverySteps": 209.41666666666666,
+        "diagnostics": null
       },
       "after": {
+        "ppoIterations": 10,
+        "envSteps": 7680,
+        "optimizerBatches": 240,
         "cleanMae": 0.23763713461216873,
+        "cleanAllStepMae": 0.23763713461216873,
         "cleanSuccesses": 12,
         "pushMae": 0.21521852134730193,
-        "recoverySteps": 182.58333333333334
+        "pushSuccesses": 12,
+        "pushReachedEpisodes": 12,
+        "recoveredEpisodes": 10,
+        "recoverySteps": 182.58333333333334,
+        "diagnostics": {
+          "rolloutMae": 0.09728136670712323,
+          "clipFraction": 0.0703125,
+          "objectiveClipFraction": 0.037760416666666664,
+          "actionSaturation": 0,
+          "sampleClipFraction": 0,
+          "postUpdateKl": 0.028658350194799852,
+          "postUpdateApproxKl": 0.034048602252890754,
+          "tokenChangeFraction": 0.125,
+          "actionMeanShiftRms": 0.02872908779634738,
+          "gradEncoder": 0.1778036443323537,
+          "gradDynamic": 1.4160856120893823,
+          "updates": {
+            "encoder": {
+              "preClipNorm": 0.1778036443323537,
+              "postClipNorm": 0.1778036443323537,
+              "updateNorm": 0.0017330168162180482,
+              "relativeUpdateNorm": 0.0003674456458377788,
+              "gradClipFraction": 0
+            },
+            "dynamic": {
+              "preClipNorm": 1.4160856120893823,
+              "postClipNorm": 0.6674307917322256,
+              "updateNorm": 0.0022906247842784558,
+              "relativeUpdateNorm": 0.0004770398612874498,
+              "gradClipFraction": 0.9166666666666666
+            },
+            "kinematic": {
+              "preClipNorm": 0.002056261067898232,
+              "postClipNorm": 0.002056261067898232,
+              "updateNorm": 0.005644788328325253,
+              "relativeUpdateNorm": 0.0019463450926321387,
+              "gradClipFraction": 0
+            },
+            "critic": {
+              "preClipNorm": 36.1138087508565,
+              "postClipNorm": 0.9999999999999721,
+              "updateNorm": 0.01790431153014049,
+              "relativeUpdateNorm": 0.00443450918825504,
+              "gradClipFraction": 1
+            }
+          },
+          "maxKlAcrossIterations": 0.031964623144926506,
+          "meanSampleClipAcrossIterations": 0
+        }
       },
       "diagnostics": {
         "rolloutMae": 0.09728136670712323,
-        "clipFraction": 0.037760416666666664,
+        "clipFraction": 0.0703125,
+        "objectiveClipFraction": 0.037760416666666664,
         "actionSaturation": 0,
+        "sampleClipFraction": 0,
+        "postUpdateKl": 0.028658350194799852,
+        "postUpdateApproxKl": 0.034048602252890754,
+        "tokenChangeFraction": 0.125,
+        "actionMeanShiftRms": 0.02872908779634738,
         "gradEncoder": 0.1778036443323537,
         "gradDynamic": 1.4160856120893823,
-        "encoderUpdateProxy": 0.00008890182216617686,
-        "dynamicUpdateProxy": 0.001132868489671506
+        "updates": {
+          "encoder": {
+            "preClipNorm": 0.1778036443323537,
+            "postClipNorm": 0.1778036443323537,
+            "updateNorm": 0.0017330168162180482,
+            "relativeUpdateNorm": 0.0003674456458377788,
+            "gradClipFraction": 0
+          },
+          "dynamic": {
+            "preClipNorm": 1.4160856120893823,
+            "postClipNorm": 0.6674307917322256,
+            "updateNorm": 0.0022906247842784558,
+            "relativeUpdateNorm": 0.0004770398612874498,
+            "gradClipFraction": 0.9166666666666666
+          },
+          "kinematic": {
+            "preClipNorm": 0.002056261067898232,
+            "postClipNorm": 0.002056261067898232,
+            "updateNorm": 0.005644788328325253,
+            "relativeUpdateNorm": 0.0019463450926321387,
+            "gradClipFraction": 0
+          },
+          "critic": {
+            "preClipNorm": 36.1138087508565,
+            "postClipNorm": 0.9999999999999721,
+            "updateNorm": 0.01790431153014049,
+            "relativeUpdateNorm": 0.00443450918825504,
+            "gradClipFraction": 1
+          }
+        },
+        "maxKlAcrossIterations": 0.031964623144926506,
+        "meanSampleClipAcrossIterations": 0
       }
     },
     {
@@ -53,6 +179,14 @@
       "tokens": 2,
       "steps": 10,
       "parameterCount": 1366,
+      "parameters": {
+        "encoder": 424,
+        "dynamic": 281,
+        "kinematic": 520,
+        "critic": 141,
+        "actor": 705,
+        "total": 1366
+      },
       "widths": {
         "encoder": 20,
         "dynamic": 28,
@@ -67,33 +201,137 @@
         "critic": 1
       },
       "before": {
+        "ppoIterations": 0,
+        "envSteps": 0,
+        "optimizerBatches": 0,
         "cleanMae": 0.2501170128781582,
+        "cleanAllStepMae": 0.2501170128781582,
         "cleanSuccesses": 12,
         "pushMae": 0.2257559166354258,
-        "recoverySteps": 202.5
+        "pushSuccesses": 12,
+        "pushReachedEpisodes": 12,
+        "recoveredEpisodes": 8,
+        "recoverySteps": 202.5,
+        "diagnostics": null
       },
       "after": {
+        "ppoIterations": 10,
+        "envSteps": 7680,
+        "optimizerBatches": 240,
         "cleanMae": 0.5068608406344589,
+        "cleanAllStepMae": 0.5068608406344589,
         "cleanSuccesses": 12,
         "pushMae": 0.5785114557217416,
-        "recoverySteps": 239.33333333333334
+        "pushSuccesses": 12,
+        "pushReachedEpisodes": 12,
+        "recoveredEpisodes": 5,
+        "recoverySteps": 239.33333333333334,
+        "diagnostics": {
+          "rolloutMae": 0.2723067624696904,
+          "clipFraction": 0.058268229166666664,
+          "objectiveClipFraction": 0.032877604166666664,
+          "actionSaturation": 0,
+          "sampleClipFraction": 0,
+          "postUpdateKl": 0.012899880629679264,
+          "postUpdateApproxKl": 0.013525221570095607,
+          "tokenChangeFraction": 0.125,
+          "actionMeanShiftRms": 0.01927476490478581,
+          "gradEncoder": 0.20416176833262067,
+          "gradDynamic": 1.6720323380811906,
+          "updates": {
+            "encoder": {
+              "preClipNorm": 0.20416176833262067,
+              "postClipNorm": 0.20416176833262067,
+              "updateNorm": 0.0013465371958597894,
+              "relativeUpdateNorm": 0.00028675039403973916,
+              "gradClipFraction": 0
+            },
+            "dynamic": {
+              "preClipNorm": 1.6720323380811906,
+              "postClipNorm": 0.6510797209162108,
+              "updateNorm": 0.003250375332119745,
+              "relativeUpdateNorm": 0.0006697332184714561,
+              "gradClipFraction": 0.75
+            },
+            "kinematic": {
+              "preClipNorm": 0.001086174245209277,
+              "postClipNorm": 0.001086174245209277,
+              "updateNorm": 0.005157224912836309,
+              "relativeUpdateNorm": 0.0014921093432240578,
+              "gradClipFraction": 0
+            },
+            "critic": {
+              "preClipNorm": 36.226155216659976,
+              "postClipNorm": 0.9999999999999724,
+              "updateNorm": 0.021424351420785578,
+              "relativeUpdateNorm": 0.004952117229226126,
+              "gradClipFraction": 1
+            }
+          },
+          "maxKlAcrossIterations": 0.014342716390221022,
+          "meanSampleClipAcrossIterations": 0
+        }
       },
       "diagnostics": {
         "rolloutMae": 0.2723067624696904,
-        "clipFraction": 0.032877604166666664,
+        "clipFraction": 0.058268229166666664,
+        "objectiveClipFraction": 0.032877604166666664,
         "actionSaturation": 0,
+        "sampleClipFraction": 0,
+        "postUpdateKl": 0.012899880629679264,
+        "postUpdateApproxKl": 0.013525221570095607,
+        "tokenChangeFraction": 0.125,
+        "actionMeanShiftRms": 0.01927476490478581,
         "gradEncoder": 0.20416176833262067,
         "gradDynamic": 1.6720323380811906,
-        "encoderUpdateProxy": 0.00010208088416631034,
-        "dynamicUpdateProxy": 0.0013376258704649526
+        "updates": {
+          "encoder": {
+            "preClipNorm": 0.20416176833262067,
+            "postClipNorm": 0.20416176833262067,
+            "updateNorm": 0.0013465371958597894,
+            "relativeUpdateNorm": 0.00028675039403973916,
+            "gradClipFraction": 0
+          },
+          "dynamic": {
+            "preClipNorm": 1.6720323380811906,
+            "postClipNorm": 0.6510797209162108,
+            "updateNorm": 0.003250375332119745,
+            "relativeUpdateNorm": 0.0006697332184714561,
+            "gradClipFraction": 0.75
+          },
+          "kinematic": {
+            "preClipNorm": 0.001086174245209277,
+            "postClipNorm": 0.001086174245209277,
+            "updateNorm": 0.005157224912836309,
+            "relativeUpdateNorm": 0.0014921093432240578,
+            "gradClipFraction": 0
+          },
+          "critic": {
+            "preClipNorm": 36.226155216659976,
+            "postClipNorm": 0.9999999999999724,
+            "updateNorm": 0.021424351420785578,
+            "relativeUpdateNorm": 0.004952117229226126,
+            "gradClipFraction": 1
+          }
+        },
+        "maxKlAcrossIterations": 0.014342716390221022,
+        "meanSampleClipAcrossIterations": 0
       }
     },
     {
       "id": "two-matched-capacity",
-      "label": "2-token matched capacity",
+      "label": "2-token matched TOTAL parameters",
       "tokens": 2,
       "steps": 10,
       "parameterCount": 1220,
+      "parameters": {
+        "encoder": 382,
+        "dynamic": 261,
+        "kinematic": 436,
+        "critic": 141,
+        "actor": 643,
+        "total": 1220
+      },
       "widths": {
         "encoder": 18,
         "dynamic": 26,
@@ -108,25 +346,266 @@
         "critic": 1
       },
       "before": {
+        "ppoIterations": 0,
+        "envSteps": 0,
+        "optimizerBatches": 0,
         "cleanMae": 0.2896148893987894,
+        "cleanAllStepMae": 0.2896148893987894,
         "cleanSuccesses": 12,
         "pushMae": 0.2664203797392076,
-        "recoverySteps": 273.8333333333333
+        "pushSuccesses": 12,
+        "pushReachedEpisodes": 12,
+        "recoveredEpisodes": 4,
+        "recoverySteps": 273.8333333333333,
+        "diagnostics": null
       },
       "after": {
+        "ppoIterations": 10,
+        "envSteps": 7680,
+        "optimizerBatches": 240,
         "cleanMae": 0.6040297217238703,
+        "cleanAllStepMae": 0.6040297217238703,
         "cleanSuccesses": 12,
         "pushMae": 0.670319063142674,
-        "recoverySteps": 289.5833333333333
+        "pushSuccesses": 12,
+        "pushReachedEpisodes": 12,
+        "recoveredEpisodes": 3,
+        "recoverySteps": 289.5833333333333,
+        "diagnostics": {
+          "rolloutMae": 0.385952120087311,
+          "clipFraction": 0.0166015625,
+          "objectiveClipFraction": 0.007486979166666667,
+          "actionSaturation": 0,
+          "sampleClipFraction": 0,
+          "postUpdateKl": 0.0020520451331708894,
+          "postUpdateApproxKl": 0.0021818277856012844,
+          "tokenChangeFraction": 0,
+          "actionMeanShiftRms": 0.007687580883172651,
+          "gradEncoder": 0.25317548041143034,
+          "gradDynamic": 1.3955736621416277,
+          "updates": {
+            "encoder": {
+              "preClipNorm": 0.25317548041143034,
+              "postClipNorm": 0.25317548041143034,
+              "updateNorm": 0.0011570766032609787,
+              "relativeUpdateNorm": 0.00025266806907507617,
+              "gradClipFraction": 0
+            },
+            "dynamic": {
+              "preClipNorm": 1.3955736621416277,
+              "postClipNorm": 0.6209454714791377,
+              "updateNorm": 0.002578540787896227,
+              "relativeUpdateNorm": 0.0005490501374055004,
+              "gradClipFraction": 0.75
+            },
+            "kinematic": {
+              "preClipNorm": 0.0008579585361951744,
+              "postClipNorm": 0.0008579585361951744,
+              "updateNorm": 0.002066171036879574,
+              "relativeUpdateNorm": 0.0006611499124783792,
+              "gradClipFraction": 0
+            },
+            "critic": {
+              "preClipNorm": 34.05111238950339,
+              "postClipNorm": 0.9999999999999706,
+              "updateNorm": 0.02283766897861561,
+              "relativeUpdateNorm": 0.005024058459175562,
+              "gradClipFraction": 1
+            }
+          },
+          "maxKlAcrossIterations": 0.022299122994685963,
+          "meanSampleClipAcrossIterations": 0
+        }
       },
       "diagnostics": {
         "rolloutMae": 0.385952120087311,
-        "clipFraction": 0.007486979166666667,
+        "clipFraction": 0.0166015625,
+        "objectiveClipFraction": 0.007486979166666667,
         "actionSaturation": 0,
+        "sampleClipFraction": 0,
+        "postUpdateKl": 0.0020520451331708894,
+        "postUpdateApproxKl": 0.0021818277856012844,
+        "tokenChangeFraction": 0,
+        "actionMeanShiftRms": 0.007687580883172651,
         "gradEncoder": 0.25317548041143034,
         "gradDynamic": 1.3955736621416277,
-        "encoderUpdateProxy": 0.00012658774020571516,
-        "dynamicUpdateProxy": 0.0011164589297133023
+        "updates": {
+          "encoder": {
+            "preClipNorm": 0.25317548041143034,
+            "postClipNorm": 0.25317548041143034,
+            "updateNorm": 0.0011570766032609787,
+            "relativeUpdateNorm": 0.00025266806907507617,
+            "gradClipFraction": 0
+          },
+          "dynamic": {
+            "preClipNorm": 1.3955736621416277,
+            "postClipNorm": 0.6209454714791377,
+            "updateNorm": 0.002578540787896227,
+            "relativeUpdateNorm": 0.0005490501374055004,
+            "gradClipFraction": 0.75
+          },
+          "kinematic": {
+            "preClipNorm": 0.0008579585361951744,
+            "postClipNorm": 0.0008579585361951744,
+            "updateNorm": 0.002066171036879574,
+            "relativeUpdateNorm": 0.0006611499124783792,
+            "gradClipFraction": 0
+          },
+          "critic": {
+            "preClipNorm": 34.05111238950339,
+            "postClipNorm": 0.9999999999999706,
+            "updateNorm": 0.02283766897861561,
+            "relativeUpdateNorm": 0.005024058459175562,
+            "gradClipFraction": 1
+          }
+        },
+        "maxKlAcrossIterations": 0.022299122994685963,
+        "meanSampleClipAcrossIterations": 0
+      }
+    },
+    {
+      "id": "two-matched-actor",
+      "label": "2-token matched ACTOR parameters",
+      "tokens": 2,
+      "steps": 10,
+      "parameterCount": 1268,
+      "parameters": {
+        "encoder": 466,
+        "dynamic": 141,
+        "kinematic": 520,
+        "critic": 141,
+        "actor": 607,
+        "total": 1268
+      },
+      "widths": {
+        "encoder": 22,
+        "dynamic": 14,
+        "kinematic": 24,
+        "critic": 20
+      },
+      "ppoLrScale": 1,
+      "ppoModuleScales": {
+        "encoder": 1,
+        "dynamic": 1,
+        "kinematic": 1,
+        "critic": 1
+      },
+      "before": {
+        "ppoIterations": 0,
+        "envSteps": 0,
+        "optimizerBatches": 0,
+        "cleanMae": 0.27469083394578975,
+        "cleanAllStepMae": 0.27469083394578975,
+        "cleanSuccesses": 12,
+        "pushMae": 0.24306816976015022,
+        "pushSuccesses": 12,
+        "pushReachedEpisodes": 12,
+        "recoveredEpisodes": 7,
+        "recoverySteps": 185.16666666666666,
+        "diagnostics": null
+      },
+      "after": {
+        "ppoIterations": 10,
+        "envSteps": 7680,
+        "optimizerBatches": 240,
+        "cleanMae": 0.8115037800736449,
+        "cleanAllStepMae": 0.8115037800736449,
+        "cleanSuccesses": 12,
+        "pushMae": 0.9055555180833884,
+        "pushSuccesses": 12,
+        "pushReachedEpisodes": 12,
+        "recoveredEpisodes": 2,
+        "recoverySteps": 318.75,
+        "diagnostics": {
+          "rolloutMae": 0.4304038796742089,
+          "clipFraction": 0.031575520833333336,
+          "objectiveClipFraction": 0.016276041666666668,
+          "actionSaturation": 0,
+          "sampleClipFraction": 0,
+          "postUpdateKl": 0.00533175432605255,
+          "postUpdateApproxKl": 0.0056801689550847545,
+          "tokenChangeFraction": 0,
+          "actionMeanShiftRms": 0.012391711931380318,
+          "gradEncoder": 0.12187159959456813,
+          "gradDynamic": 1.4963304087974159,
+          "updates": {
+            "encoder": {
+              "preClipNorm": 0.12187159959456813,
+              "postClipNorm": 0.12187159959456813,
+              "updateNorm": 0.00208966311493474,
+              "relativeUpdateNorm": 0.00043763034646990636,
+              "gradClipFraction": 0
+            },
+            "dynamic": {
+              "preClipNorm": 1.4963304087974159,
+              "postClipNorm": 0.6068619455857597,
+              "updateNorm": 0.0014903900092318675,
+              "relativeUpdateNorm": 0.0003527570747843666,
+              "gradClipFraction": 0.6666666666666666
+            },
+            "kinematic": {
+              "preClipNorm": 0.0004676645454943769,
+              "postClipNorm": 0.0004676645454943769,
+              "updateNorm": 0.0008510482448675382,
+              "relativeUpdateNorm": 0.00025912312924356045,
+              "gradClipFraction": 0
+            },
+            "critic": {
+              "preClipNorm": 33.15935822156543,
+              "postClipNorm": 0.9999999999999697,
+              "updateNorm": 0.022874303216376467,
+              "relativeUpdateNorm": 0.005362691285401774,
+              "gradClipFraction": 1
+            }
+          },
+          "maxKlAcrossIterations": 0.015357673555107905,
+          "meanSampleClipAcrossIterations": 0
+        }
+      },
+      "diagnostics": {
+        "rolloutMae": 0.4304038796742089,
+        "clipFraction": 0.031575520833333336,
+        "objectiveClipFraction": 0.016276041666666668,
+        "actionSaturation": 0,
+        "sampleClipFraction": 0,
+        "postUpdateKl": 0.00533175432605255,
+        "postUpdateApproxKl": 0.0056801689550847545,
+        "tokenChangeFraction": 0,
+        "actionMeanShiftRms": 0.012391711931380318,
+        "gradEncoder": 0.12187159959456813,
+        "gradDynamic": 1.4963304087974159,
+        "updates": {
+          "encoder": {
+            "preClipNorm": 0.12187159959456813,
+            "postClipNorm": 0.12187159959456813,
+            "updateNorm": 0.00208966311493474,
+            "relativeUpdateNorm": 0.00043763034646990636,
+            "gradClipFraction": 0
+          },
+          "dynamic": {
+            "preClipNorm": 1.4963304087974159,
+            "postClipNorm": 0.6068619455857597,
+            "updateNorm": 0.0014903900092318675,
+            "relativeUpdateNorm": 0.0003527570747843666,
+            "gradClipFraction": 0.6666666666666666
+          },
+          "kinematic": {
+            "preClipNorm": 0.0004676645454943769,
+            "postClipNorm": 0.0004676645454943769,
+            "updateNorm": 0.0008510482448675382,
+            "relativeUpdateNorm": 0.00025912312924356045,
+            "gradClipFraction": 0
+          },
+          "critic": {
+            "preClipNorm": 33.15935822156543,
+            "postClipNorm": 0.9999999999999697,
+            "updateNorm": 0.022874303216376467,
+            "relativeUpdateNorm": 0.005362691285401774,
+            "gradClipFraction": 1
+          }
+        },
+        "maxKlAcrossIterations": 0.015357673555107905,
+        "meanSampleClipAcrossIterations": 0
       }
     },
     {
@@ -135,6 +614,14 @@
       "tokens": 2,
       "steps": 10,
       "parameterCount": 1366,
+      "parameters": {
+        "encoder": 424,
+        "dynamic": 281,
+        "kinematic": 520,
+        "critic": 141,
+        "actor": 705,
+        "total": 1366
+      },
       "widths": {
         "encoder": 20,
         "dynamic": 28,
@@ -149,25 +636,121 @@
         "critic": 1
       },
       "before": {
+        "ppoIterations": 0,
+        "envSteps": 0,
+        "optimizerBatches": 0,
         "cleanMae": 0.2501170128781582,
+        "cleanAllStepMae": 0.2501170128781582,
         "cleanSuccesses": 12,
         "pushMae": 0.2257559166354258,
-        "recoverySteps": 202.5
+        "pushSuccesses": 12,
+        "pushReachedEpisodes": 12,
+        "recoveredEpisodes": 8,
+        "recoverySteps": 202.5,
+        "diagnostics": null
       },
       "after": {
+        "ppoIterations": 10,
+        "envSteps": 7680,
+        "optimizerBatches": 240,
         "cleanMae": 0.45294600378146543,
+        "cleanAllStepMae": 0.45294600378146543,
         "cleanSuccesses": 12,
         "pushMae": 0.4536862438476847,
-        "recoverySteps": 256.6666666666667
+        "pushSuccesses": 12,
+        "pushReachedEpisodes": 12,
+        "recoveredEpisodes": 4,
+        "recoverySteps": 256.6666666666667,
+        "diagnostics": {
+          "rolloutMae": 0.2435576396438557,
+          "clipFraction": 0.019205729166666668,
+          "objectiveClipFraction": 0.011393229166666666,
+          "actionSaturation": 0,
+          "sampleClipFraction": 0,
+          "postUpdateKl": 0.0007786638584222896,
+          "postUpdateApproxKl": 0.0008526247398415692,
+          "tokenChangeFraction": 0,
+          "actionMeanShiftRms": 0.00473555900845528,
+          "gradEncoder": 0.15751680485397518,
+          "gradDynamic": 1.2827677479329636,
+          "updates": {
+            "encoder": {
+              "preClipNorm": 0.15751680485397518,
+              "postClipNorm": 0.15751680485397518,
+              "updateNorm": 0,
+              "relativeUpdateNorm": 0,
+              "gradClipFraction": 0
+            },
+            "dynamic": {
+              "preClipNorm": 1.2827677479329636,
+              "postClipNorm": 0.6091171213453223,
+              "updateNorm": 0.002139378532072638,
+              "relativeUpdateNorm": 0.0004418580660580655,
+              "gradClipFraction": 0.625
+            },
+            "kinematic": {
+              "preClipNorm": 0.00047986443568460887,
+              "postClipNorm": 0.00047986443568460887,
+              "updateNorm": 0.0005030253979584378,
+              "relativeUpdateNorm": 0.00014472981924834754,
+              "gradClipFraction": 0
+            },
+            "critic": {
+              "preClipNorm": 36.50457350947399,
+              "postClipNorm": 0.9999999999999725,
+              "updateNorm": 0.0200139069244501,
+              "relativeUpdateNorm": 0.00467382346518143,
+              "gradClipFraction": 1
+            }
+          },
+          "maxKlAcrossIterations": 0.00811577217681755,
+          "meanSampleClipAcrossIterations": 0
+        }
       },
       "diagnostics": {
         "rolloutMae": 0.2435576396438557,
-        "clipFraction": 0.011393229166666666,
+        "clipFraction": 0.019205729166666668,
+        "objectiveClipFraction": 0.011393229166666666,
         "actionSaturation": 0,
+        "sampleClipFraction": 0,
+        "postUpdateKl": 0.0007786638584222896,
+        "postUpdateApproxKl": 0.0008526247398415692,
+        "tokenChangeFraction": 0,
+        "actionMeanShiftRms": 0.00473555900845528,
         "gradEncoder": 0.15751680485397518,
         "gradDynamic": 1.2827677479329636,
-        "encoderUpdateProxy": 0,
-        "dynamicUpdateProxy": 0.001026214198346371
+        "updates": {
+          "encoder": {
+            "preClipNorm": 0.15751680485397518,
+            "postClipNorm": 0.15751680485397518,
+            "updateNorm": 0,
+            "relativeUpdateNorm": 0,
+            "gradClipFraction": 0
+          },
+          "dynamic": {
+            "preClipNorm": 1.2827677479329636,
+            "postClipNorm": 0.6091171213453223,
+            "updateNorm": 0.002139378532072638,
+            "relativeUpdateNorm": 0.0004418580660580655,
+            "gradClipFraction": 0.625
+          },
+          "kinematic": {
+            "preClipNorm": 0.00047986443568460887,
+            "postClipNorm": 0.00047986443568460887,
+            "updateNorm": 0.0005030253979584378,
+            "relativeUpdateNorm": 0.00014472981924834754,
+            "gradClipFraction": 0
+          },
+          "critic": {
+            "preClipNorm": 36.50457350947399,
+            "postClipNorm": 0.9999999999999725,
+            "updateNorm": 0.0200139069244501,
+            "relativeUpdateNorm": 0.00467382346518143,
+            "gradClipFraction": 1
+          }
+        },
+        "maxKlAcrossIterations": 0.00811577217681755,
+        "meanSampleClipAcrossIterations": 0
       }
     },
     {
@@ -176,6 +759,14 @@
       "tokens": 2,
       "steps": 10,
       "parameterCount": 1366,
+      "parameters": {
+        "encoder": 424,
+        "dynamic": 281,
+        "kinematic": 520,
+        "critic": 141,
+        "actor": 705,
+        "total": 1366
+      },
       "widths": {
         "encoder": 20,
         "dynamic": 28,
@@ -190,25 +781,121 @@
         "critic": 1
       },
       "before": {
+        "ppoIterations": 0,
+        "envSteps": 0,
+        "optimizerBatches": 0,
         "cleanMae": 0.2501170128781582,
+        "cleanAllStepMae": 0.2501170128781582,
         "cleanSuccesses": 12,
         "pushMae": 0.2257559166354258,
-        "recoverySteps": 202.5
+        "pushSuccesses": 12,
+        "pushReachedEpisodes": 12,
+        "recoveredEpisodes": 8,
+        "recoverySteps": 202.5,
+        "diagnostics": null
       },
       "after": {
+        "ppoIterations": 10,
+        "envSteps": 7680,
+        "optimizerBatches": 240,
         "cleanMae": 0.36002396615562177,
+        "cleanAllStepMae": 0.36002396615562177,
         "cleanSuccesses": 12,
         "pushMae": 0.3925582274724186,
-        "recoverySteps": 190.41666666666666
+        "pushSuccesses": 12,
+        "pushReachedEpisodes": 12,
+        "recoveredEpisodes": 7,
+        "recoverySteps": 190.41666666666666,
+        "diagnostics": {
+          "rolloutMae": 0.2257667615640506,
+          "clipFraction": 0.016276041666666668,
+          "objectiveClipFraction": 0.009440104166666666,
+          "actionSaturation": 0,
+          "sampleClipFraction": 0,
+          "postUpdateKl": 0.006581041698155738,
+          "postUpdateApproxKl": 0.006991130912867931,
+          "tokenChangeFraction": 0,
+          "actionMeanShiftRms": 0.013767134811095786,
+          "gradEncoder": 0.1893059662912064,
+          "gradDynamic": 1.3701552580348448,
+          "updates": {
+            "encoder": {
+              "preClipNorm": 0.1893059662912064,
+              "postClipNorm": 0.1893059662912064,
+              "updateNorm": 0.000415085013859329,
+              "relativeUpdateNorm": 0.00008835367594711702,
+              "gradClipFraction": 0
+            },
+            "dynamic": {
+              "preClipNorm": 1.3701552580348448,
+              "postClipNorm": 0.5698160266455636,
+              "updateNorm": 0.0007485039913910969,
+              "relativeUpdateNorm": 0.00015486338341287758,
+              "gradClipFraction": 0.6666666666666666
+            },
+            "kinematic": {
+              "preClipNorm": 0.00048125941956433336,
+              "postClipNorm": 0.00048125941956433336,
+              "updateNorm": 0.0005074600004811825,
+              "relativeUpdateNorm": 0.00014598521338420774,
+              "gradClipFraction": 0
+            },
+            "critic": {
+              "preClipNorm": 36.75167454198457,
+              "postClipNorm": 0.9999999999999726,
+              "updateNorm": 0.022135849325739698,
+              "relativeUpdateNorm": 0.0050604112344394,
+              "gradClipFraction": 1
+            }
+          },
+          "maxKlAcrossIterations": 0.010152671539762369,
+          "meanSampleClipAcrossIterations": 0
+        }
       },
       "diagnostics": {
         "rolloutMae": 0.2257667615640506,
-        "clipFraction": 0.009440104166666666,
+        "clipFraction": 0.016276041666666668,
+        "objectiveClipFraction": 0.009440104166666666,
         "actionSaturation": 0,
+        "sampleClipFraction": 0,
+        "postUpdateKl": 0.006581041698155738,
+        "postUpdateApproxKl": 0.006991130912867931,
+        "tokenChangeFraction": 0,
+        "actionMeanShiftRms": 0.013767134811095786,
         "gradEncoder": 0.1893059662912064,
         "gradDynamic": 1.3701552580348448,
-        "encoderUpdateProxy": 0.0000236632457864008,
-        "dynamicUpdateProxy": 0.00027403105160696896
+        "updates": {
+          "encoder": {
+            "preClipNorm": 0.1893059662912064,
+            "postClipNorm": 0.1893059662912064,
+            "updateNorm": 0.000415085013859329,
+            "relativeUpdateNorm": 0.00008835367594711702,
+            "gradClipFraction": 0
+          },
+          "dynamic": {
+            "preClipNorm": 1.3701552580348448,
+            "postClipNorm": 0.5698160266455636,
+            "updateNorm": 0.0007485039913910969,
+            "relativeUpdateNorm": 0.00015486338341287758,
+            "gradClipFraction": 0.6666666666666666
+          },
+          "kinematic": {
+            "preClipNorm": 0.00048125941956433336,
+            "postClipNorm": 0.00048125941956433336,
+            "updateNorm": 0.0005074600004811825,
+            "relativeUpdateNorm": 0.00014598521338420774,
+            "gradClipFraction": 0
+          },
+          "critic": {
+            "preClipNorm": 36.75167454198457,
+            "postClipNorm": 0.9999999999999726,
+            "updateNorm": 0.022135849325739698,
+            "relativeUpdateNorm": 0.0050604112344394,
+            "gradClipFraction": 1
+          }
+        },
+        "maxKlAcrossIterations": 0.010152671539762369,
+        "meanSampleClipAcrossIterations": 0
       }
     },
     {
@@ -217,6 +904,14 @@
       "tokens": 2,
       "steps": 10,
       "parameterCount": 1366,
+      "parameters": {
+        "encoder": 424,
+        "dynamic": 281,
+        "kinematic": 520,
+        "critic": 141,
+        "actor": 705,
+        "total": 1366
+      },
       "widths": {
         "encoder": 20,
         "dynamic": 28,
@@ -231,25 +926,121 @@
         "critic": 1
       },
       "before": {
+        "ppoIterations": 0,
+        "envSteps": 0,
+        "optimizerBatches": 0,
         "cleanMae": 0.2501170128781582,
+        "cleanAllStepMae": 0.2501170128781582,
         "cleanSuccesses": 12,
         "pushMae": 0.2257559166354258,
-        "recoverySteps": 202.5
+        "pushSuccesses": 12,
+        "pushReachedEpisodes": 12,
+        "recoveredEpisodes": 8,
+        "recoverySteps": 202.5,
+        "diagnostics": null
       },
       "after": {
+        "ppoIterations": 10,
+        "envSteps": 7680,
+        "optimizerBatches": 240,
         "cleanMae": 0.3262048551999925,
+        "cleanAllStepMae": 0.3262048551999925,
         "cleanSuccesses": 12,
         "pushMae": 0.35064587727570196,
-        "recoverySteps": 192
+        "pushSuccesses": 12,
+        "pushReachedEpisodes": 12,
+        "recoveredEpisodes": 7,
+        "recoverySteps": 192,
+        "diagnostics": {
+          "rolloutMae": 0.21655301875537644,
+          "clipFraction": 0,
+          "objectiveClipFraction": 0,
+          "actionSaturation": 0,
+          "sampleClipFraction": 0,
+          "postUpdateKl": 0.0014880887202294302,
+          "postUpdateApproxKl": 0.0015832370815451887,
+          "tokenChangeFraction": 0,
+          "actionMeanShiftRms": 0.006546522370129623,
+          "gradEncoder": 0.17532683755970366,
+          "gradDynamic": 1.2262296655587581,
+          "updates": {
+            "encoder": {
+              "preClipNorm": 0.17532683755970366,
+              "postClipNorm": 0.17532683755970366,
+              "updateNorm": 0.0001886087273130079,
+              "relativeUpdateNorm": 0.000040092763752404685,
+              "gradClipFraction": 0
+            },
+            "dynamic": {
+              "preClipNorm": 1.2262296655587581,
+              "postClipNorm": 0.5694126907864385,
+              "updateNorm": 0.00034470322616643646,
+              "relativeUpdateNorm": 0.00007140805186568864,
+              "gradClipFraction": 0.625
+            },
+            "kinematic": {
+              "preClipNorm": 0.0004802679884504208,
+              "postClipNorm": 0.0004802679884504208,
+              "updateNorm": 0.0005037525590799583,
+              "relativeUpdateNorm": 0.00014494598620857458,
+              "gradClipFraction": 0
+            },
+            "critic": {
+              "preClipNorm": 36.986641370621385,
+              "postClipNorm": 0.9999999999999728,
+              "updateNorm": 0.022530135228266048,
+              "relativeUpdateNorm": 0.005144853804249884,
+              "gradClipFraction": 1
+            }
+          },
+          "maxKlAcrossIterations": 0.007891041070112013,
+          "meanSampleClipAcrossIterations": 0
+        }
       },
       "diagnostics": {
         "rolloutMae": 0.21655301875537644,
         "clipFraction": 0,
+        "objectiveClipFraction": 0,
         "actionSaturation": 0,
+        "sampleClipFraction": 0,
+        "postUpdateKl": 0.0014880887202294302,
+        "postUpdateApproxKl": 0.0015832370815451887,
+        "tokenChangeFraction": 0,
+        "actionMeanShiftRms": 0.006546522370129623,
         "gradEncoder": 0.17532683755970366,
         "gradDynamic": 1.2262296655587581,
-        "encoderUpdateProxy": 0.000008766341877985183,
-        "dynamicUpdateProxy": 0.00009809837324470067
+        "updates": {
+          "encoder": {
+            "preClipNorm": 0.17532683755970366,
+            "postClipNorm": 0.17532683755970366,
+            "updateNorm": 0.0001886087273130079,
+            "relativeUpdateNorm": 0.000040092763752404685,
+            "gradClipFraction": 0
+          },
+          "dynamic": {
+            "preClipNorm": 1.2262296655587581,
+            "postClipNorm": 0.5694126907864385,
+            "updateNorm": 0.00034470322616643646,
+            "relativeUpdateNorm": 0.00007140805186568864,
+            "gradClipFraction": 0.625
+          },
+          "kinematic": {
+            "preClipNorm": 0.0004802679884504208,
+            "postClipNorm": 0.0004802679884504208,
+            "updateNorm": 0.0005037525590799583,
+            "relativeUpdateNorm": 0.00014494598620857458,
+            "gradClipFraction": 0
+          },
+          "critic": {
+            "preClipNorm": 36.986641370621385,
+            "postClipNorm": 0.9999999999999728,
+            "updateNorm": 0.022530135228266048,
+            "relativeUpdateNorm": 0.005144853804249884,
+            "gradClipFraction": 1
+          }
+        },
+        "maxKlAcrossIterations": 0.007891041070112013,
+        "meanSampleClipAcrossIterations": 0
       }
     },
     {
@@ -258,6 +1049,14 @@
       "tokens": 2,
       "steps": 10,
       "parameterCount": 1366,
+      "parameters": {
+        "encoder": 424,
+        "dynamic": 281,
+        "kinematic": 520,
+        "critic": 141,
+        "actor": 705,
+        "total": 1366
+      },
       "widths": {
         "encoder": 20,
         "dynamic": 28,
@@ -272,90 +1071,3373 @@
         "critic": 1
       },
       "before": {
+        "ppoIterations": 0,
+        "envSteps": 0,
+        "optimizerBatches": 0,
         "cleanMae": 0.2501170128781582,
+        "cleanAllStepMae": 0.2501170128781582,
         "cleanSuccesses": 12,
         "pushMae": 0.2257559166354258,
-        "recoverySteps": 202.5
+        "pushSuccesses": 12,
+        "pushReachedEpisodes": 12,
+        "recoveredEpisodes": 8,
+        "recoverySteps": 202.5,
+        "diagnostics": null
       },
       "after": {
+        "ppoIterations": 10,
+        "envSteps": 7680,
+        "optimizerBatches": 240,
         "cleanMae": 0.2858010043369193,
+        "cleanAllStepMae": 0.2858010043369193,
         "cleanSuccesses": 12,
         "pushMae": 0.2903787626429683,
-        "recoverySteps": 192.66666666666666
+        "pushSuccesses": 12,
+        "pushReachedEpisodes": 12,
+        "recoveredEpisodes": 7,
+        "recoverySteps": 192.66666666666666,
+        "diagnostics": {
+          "rolloutMae": 0.19045817525599207,
+          "clipFraction": 0,
+          "objectiveClipFraction": 0,
+          "actionSaturation": 0,
+          "sampleClipFraction": 0,
+          "postUpdateKl": 0.00033121343707909033,
+          "postUpdateApproxKl": 0.0003522828801411268,
+          "tokenChangeFraction": 0,
+          "actionMeanShiftRms": 0.003088518574960786,
+          "gradEncoder": 0.1895855773489281,
+          "gradDynamic": 1.2106687043445872,
+          "updates": {
+            "encoder": {
+              "preClipNorm": 0.1895855773489281,
+              "postClipNorm": 0.1895855773489281,
+              "updateNorm": 0.0000977303330195982,
+              "relativeUpdateNorm": 0.000020762889318624264,
+              "gradClipFraction": 0
+            },
+            "dynamic": {
+              "preClipNorm": 1.2106687043445872,
+              "postClipNorm": 0.5564482438040945,
+              "updateNorm": 0.0001642781534349607,
+              "relativeUpdateNorm": 0.00003403906222725294,
+              "gradClipFraction": 0.625
+            },
+            "kinematic": {
+              "preClipNorm": 0.0004798805453842002,
+              "postClipNorm": 0.0004798805453842002,
+              "updateNorm": 0.0005016724851327152,
+              "relativeUpdateNorm": 0.0001443255447756241,
+              "gradClipFraction": 0
+            },
+            "critic": {
+              "preClipNorm": 37.370874153074034,
+              "postClipNorm": 0.999999999999973,
+              "updateNorm": 0.021779195074418833,
+              "relativeUpdateNorm": 0.004965670967807508,
+              "gradClipFraction": 1
+            }
+          },
+          "maxKlAcrossIterations": 0.006970073601174512,
+          "meanSampleClipAcrossIterations": 0
+        }
       },
       "diagnostics": {
         "rolloutMae": 0.19045817525599207,
         "clipFraction": 0,
+        "objectiveClipFraction": 0,
         "actionSaturation": 0,
+        "sampleClipFraction": 0,
+        "postUpdateKl": 0.00033121343707909033,
+        "postUpdateApproxKl": 0.0003522828801411268,
+        "tokenChangeFraction": 0,
+        "actionMeanShiftRms": 0.003088518574960786,
         "gradEncoder": 0.1895855773489281,
         "gradDynamic": 1.2106687043445872,
-        "encoderUpdateProxy": 0.000004739639433723203,
-        "dynamicUpdateProxy": 0.00004842674817378349
+        "updates": {
+          "encoder": {
+            "preClipNorm": 0.1895855773489281,
+            "postClipNorm": 0.1895855773489281,
+            "updateNorm": 0.0000977303330195982,
+            "relativeUpdateNorm": 0.000020762889318624264,
+            "gradClipFraction": 0
+          },
+          "dynamic": {
+            "preClipNorm": 1.2106687043445872,
+            "postClipNorm": 0.5564482438040945,
+            "updateNorm": 0.0001642781534349607,
+            "relativeUpdateNorm": 0.00003403906222725294,
+            "gradClipFraction": 0.625
+          },
+          "kinematic": {
+            "preClipNorm": 0.0004798805453842002,
+            "postClipNorm": 0.0004798805453842002,
+            "updateNorm": 0.0005016724851327152,
+            "relativeUpdateNorm": 0.0001443255447756241,
+            "gradClipFraction": 0
+          },
+          "critic": {
+            "preClipNorm": 37.370874153074034,
+            "postClipNorm": 0.999999999999973,
+            "updateNorm": 0.021779195074418833,
+            "relativeUpdateNorm": 0.004965670967807508,
+            "gradClipFraction": 1
+          }
+        },
+        "maxKlAcrossIterations": 0.006970073601174512,
+        "meanSampleClipAcrossIterations": 0
       }
+    },
+    {
+      "id": "one-actor-005",
+      "label": "1-token actor LR ×0.05",
+      "tokens": 1,
+      "steps": 10,
+      "parameterCount": 1220,
+      "parameters": {
+        "encoder": 382,
+        "dynamic": 225,
+        "kinematic": 472,
+        "critic": 141,
+        "actor": 607,
+        "total": 1220
+      },
+      "widths": {
+        "encoder": 20,
+        "dynamic": 28,
+        "kinematic": 24,
+        "critic": 20
+      },
+      "ppoLrScale": 1,
+      "ppoModuleScales": {
+        "encoder": 0.05,
+        "dynamic": 0.05,
+        "kinematic": 1,
+        "critic": 1
+      },
+      "before": {
+        "ppoIterations": 0,
+        "envSteps": 0,
+        "optimizerBatches": 0,
+        "cleanMae": 0.25936888291006066,
+        "cleanAllStepMae": 0.25936888291006066,
+        "cleanSuccesses": 12,
+        "pushMae": 0.23407850283461654,
+        "pushSuccesses": 12,
+        "pushReachedEpisodes": 12,
+        "recoveredEpisodes": 7,
+        "recoverySteps": 209.41666666666666,
+        "diagnostics": null
+      },
+      "after": {
+        "ppoIterations": 10,
+        "envSteps": 7680,
+        "optimizerBatches": 240,
+        "cleanMae": 0.2535405791590137,
+        "cleanAllStepMae": 0.2535405791590137,
+        "cleanSuccesses": 12,
+        "pushMae": 0.2312631352530268,
+        "pushSuccesses": 12,
+        "pushReachedEpisodes": 12,
+        "recoveredEpisodes": 7,
+        "recoverySteps": 199.41666666666666,
+        "diagnostics": {
+          "rolloutMae": 0.1252881011270032,
+          "clipFraction": 0,
+          "objectiveClipFraction": 0,
+          "actionSaturation": 0,
+          "sampleClipFraction": 0,
+          "postUpdateKl": 0.0007348792834588266,
+          "postUpdateApproxKl": 0.0007471489492090535,
+          "tokenChangeFraction": 0,
+          "actionMeanShiftRms": 0.004600491643684857,
+          "gradEncoder": 0.23055982063952973,
+          "gradDynamic": 1.5123135790898727,
+          "updates": {
+            "encoder": {
+              "preClipNorm": 0.23055982063952973,
+              "postClipNorm": 0.23055982063952973,
+              "updateNorm": 0.000174196266086196,
+              "relativeUpdateNorm": 0.000037006419408671446,
+              "gradClipFraction": 0
+            },
+            "dynamic": {
+              "preClipNorm": 1.5123135790898727,
+              "postClipNorm": 0.6428308808975995,
+              "updateNorm": 0.0001670729208521181,
+              "relativeUpdateNorm": 0.00003452228532579508,
+              "gradClipFraction": 0.75
+            },
+            "kinematic": {
+              "preClipNorm": 0.0009122267118837083,
+              "postClipNorm": 0.0009122267118837083,
+              "updateNorm": 0.0008558680319820617,
+              "relativeUpdateNorm": 0.00030237237601784514,
+              "gradClipFraction": 0
+            },
+            "critic": {
+              "preClipNorm": 35.707011004371815,
+              "postClipNorm": 0.9999999999999717,
+              "updateNorm": 0.016543351624789777,
+              "relativeUpdateNorm": 0.004072027728062787,
+              "gradClipFraction": 1
+            }
+          },
+          "maxKlAcrossIterations": 0.0067831534133631875,
+          "meanSampleClipAcrossIterations": 0
+        }
+      },
+      "diagnostics": {
+        "rolloutMae": 0.1252881011270032,
+        "clipFraction": 0,
+        "objectiveClipFraction": 0,
+        "actionSaturation": 0,
+        "sampleClipFraction": 0,
+        "postUpdateKl": 0.0007348792834588266,
+        "postUpdateApproxKl": 0.0007471489492090535,
+        "tokenChangeFraction": 0,
+        "actionMeanShiftRms": 0.004600491643684857,
+        "gradEncoder": 0.23055982063952973,
+        "gradDynamic": 1.5123135790898727,
+        "updates": {
+          "encoder": {
+            "preClipNorm": 0.23055982063952973,
+            "postClipNorm": 0.23055982063952973,
+            "updateNorm": 0.000174196266086196,
+            "relativeUpdateNorm": 0.000037006419408671446,
+            "gradClipFraction": 0
+          },
+          "dynamic": {
+            "preClipNorm": 1.5123135790898727,
+            "postClipNorm": 0.6428308808975995,
+            "updateNorm": 0.0001670729208521181,
+            "relativeUpdateNorm": 0.00003452228532579508,
+            "gradClipFraction": 0.75
+          },
+          "kinematic": {
+            "preClipNorm": 0.0009122267118837083,
+            "postClipNorm": 0.0009122267118837083,
+            "updateNorm": 0.0008558680319820617,
+            "relativeUpdateNorm": 0.00030237237601784514,
+            "gradClipFraction": 0
+          },
+          "critic": {
+            "preClipNorm": 35.707011004371815,
+            "postClipNorm": 0.9999999999999717,
+            "updateNorm": 0.016543351624789777,
+            "relativeUpdateNorm": 0.004072027728062787,
+            "gradClipFraction": 1
+          }
+        },
+        "maxKlAcrossIterations": 0.0067831534133631875,
+        "meanSampleClipAcrossIterations": 0
+      }
+    }
+  ],
+  "budgetTrajectories": [
+    {
+      "id": "one-default",
+      "label": "1-token default",
+      "checkpoints": [
+        {
+          "ppoIterations": 0,
+          "envSteps": 0,
+          "optimizerBatches": 0,
+          "cleanMae": 0.25936888291006066,
+          "cleanAllStepMae": 0.25936888291006066,
+          "cleanSuccesses": 12,
+          "pushMae": 0.23407850283461654,
+          "pushSuccesses": 12,
+          "pushReachedEpisodes": 12,
+          "recoveredEpisodes": 7,
+          "recoverySteps": 209.41666666666666,
+          "diagnostics": null
+        },
+        {
+          "ppoIterations": 10,
+          "envSteps": 7680,
+          "optimizerBatches": 240,
+          "cleanMae": 0.23763713461216873,
+          "cleanAllStepMae": 0.23763713461216873,
+          "cleanSuccesses": 12,
+          "pushMae": 0.21521852134730193,
+          "pushSuccesses": 12,
+          "pushReachedEpisodes": 12,
+          "recoveredEpisodes": 10,
+          "recoverySteps": 182.58333333333334,
+          "diagnostics": {
+            "rolloutMae": 0.09728136670712323,
+            "clipFraction": 0.0703125,
+            "objectiveClipFraction": 0.037760416666666664,
+            "actionSaturation": 0,
+            "sampleClipFraction": 0,
+            "postUpdateKl": 0.028658350194799852,
+            "postUpdateApproxKl": 0.034048602252890754,
+            "tokenChangeFraction": 0.125,
+            "actionMeanShiftRms": 0.02872908779634738,
+            "gradEncoder": 0.1778036443323537,
+            "gradDynamic": 1.4160856120893823,
+            "updates": {
+              "encoder": {
+                "preClipNorm": 0.1778036443323537,
+                "postClipNorm": 0.1778036443323537,
+                "updateNorm": 0.0017330168162180482,
+                "relativeUpdateNorm": 0.0003674456458377788,
+                "gradClipFraction": 0
+              },
+              "dynamic": {
+                "preClipNorm": 1.4160856120893823,
+                "postClipNorm": 0.6674307917322256,
+                "updateNorm": 0.0022906247842784558,
+                "relativeUpdateNorm": 0.0004770398612874498,
+                "gradClipFraction": 0.9166666666666666
+              },
+              "kinematic": {
+                "preClipNorm": 0.002056261067898232,
+                "postClipNorm": 0.002056261067898232,
+                "updateNorm": 0.005644788328325253,
+                "relativeUpdateNorm": 0.0019463450926321387,
+                "gradClipFraction": 0
+              },
+              "critic": {
+                "preClipNorm": 36.1138087508565,
+                "postClipNorm": 0.9999999999999721,
+                "updateNorm": 0.01790431153014049,
+                "relativeUpdateNorm": 0.00443450918825504,
+                "gradClipFraction": 1
+              }
+            },
+            "maxKlAcrossIterations": 0.031964623144926506,
+            "meanSampleClipAcrossIterations": 0
+          }
+        },
+        {
+          "ppoIterations": 20,
+          "envSteps": 15360,
+          "optimizerBatches": 480,
+          "cleanMae": 0.3825132488560632,
+          "cleanAllStepMae": 0.3825132488560632,
+          "cleanSuccesses": 12,
+          "pushMae": 0.36426244914273603,
+          "pushSuccesses": 12,
+          "pushReachedEpisodes": 12,
+          "recoveredEpisodes": 4,
+          "recoverySteps": 257,
+          "diagnostics": {
+            "rolloutMae": 0.24832574880976319,
+            "clipFraction": 0.08626302083333333,
+            "objectiveClipFraction": 0.048177083333333336,
+            "actionSaturation": 0,
+            "sampleClipFraction": 0,
+            "postUpdateKl": 0.007055932814297348,
+            "postUpdateApproxKl": 0.007062564398193821,
+            "tokenChangeFraction": 0,
+            "actionMeanShiftRms": 0.01425520484075074,
+            "gradEncoder": 0.17492259189045847,
+            "gradDynamic": 1.2417986058911616,
+            "updates": {
+              "encoder": {
+                "preClipNorm": 0.17492259189045847,
+                "postClipNorm": 0.17492259189045847,
+                "updateNorm": 0.002033545939952013,
+                "relativeUpdateNorm": 0.0004316914730113227,
+                "gradClipFraction": 0
+              },
+              "dynamic": {
+                "preClipNorm": 1.2417986058911616,
+                "postClipNorm": 0.6183129714095615,
+                "updateNorm": 0.002477116591032114,
+                "relativeUpdateNorm": 0.0005195699799265535,
+                "gradClipFraction": 0.6666666666666666
+              },
+              "kinematic": {
+                "preClipNorm": 0.0005448086394254202,
+                "postClipNorm": 0.0005448086394254202,
+                "updateNorm": 0.0007523123037134123,
+                "relativeUpdateNorm": 0.00024578519797727557,
+                "gradClipFraction": 0
+              },
+              "critic": {
+                "preClipNorm": 43.701404186409434,
+                "postClipNorm": 0.9999999999999768,
+                "updateNorm": 0.011731843105709744,
+                "relativeUpdateNorm": 0.0019143163437486627,
+                "gradClipFraction": 1
+              }
+            },
+            "maxKlAcrossIterations": 0.031964623144926506,
+            "meanSampleClipAcrossIterations": 0
+          }
+        },
+        {
+          "ppoIterations": 50,
+          "envSteps": 38400,
+          "optimizerBatches": 1200,
+          "cleanMae": 0.6560244166096826,
+          "cleanAllStepMae": 0.6280524204588415,
+          "cleanSuccesses": 7,
+          "pushMae": 0.665382825302503,
+          "pushSuccesses": 0,
+          "pushReachedEpisodes": 12,
+          "recoveredEpisodes": 5,
+          "recoverySteps": 230.5,
+          "diagnostics": {
+            "rolloutMae": 0.20943589608124893,
+            "clipFraction": 0.025390625,
+            "objectiveClipFraction": 0.015299479166666666,
+            "actionSaturation": 0.01953125,
+            "sampleClipFraction": 0.01171875,
+            "postUpdateKl": 0.005337549154080092,
+            "postUpdateApproxKl": 0.004399131914211817,
+            "tokenChangeFraction": 0.125,
+            "actionMeanShiftRms": 0.012398444081315477,
+            "gradEncoder": 0.04051120597509085,
+            "gradDynamic": 0.7364820898097423,
+            "updates": {
+              "encoder": {
+                "preClipNorm": 0.04051120597509085,
+                "postClipNorm": 0.04051120597509085,
+                "updateNorm": 0.0007994677819951435,
+                "relativeUpdateNorm": 0.00016776721308990562,
+                "gradClipFraction": 0
+              },
+              "dynamic": {
+                "preClipNorm": 0.7364820898097423,
+                "postClipNorm": 0.5433147237561954,
+                "updateNorm": 0.002155814515300002,
+                "relativeUpdateNorm": 0.0004489018060587694,
+                "gradClipFraction": 0.375
+              },
+              "kinematic": {
+                "preClipNorm": 0.001670766385297934,
+                "postClipNorm": 0.001670766385297934,
+                "updateNorm": 0.007929080270841958,
+                "relativeUpdateNorm": 0.002912398328515599,
+                "gradClipFraction": 0
+              },
+              "critic": {
+                "preClipNorm": 28.849078115608467,
+                "postClipNorm": 0.9999999999999653,
+                "updateNorm": 0.013040163269744472,
+                "relativeUpdateNorm": 0.0010090231734474115,
+                "gradClipFraction": 1
+              }
+            },
+            "maxKlAcrossIterations": 0.031964623144926506,
+            "meanSampleClipAcrossIterations": 0.0069791666666666665
+          }
+        }
+      ]
+    },
+    {
+      "id": "two-default",
+      "label": "2-token default",
+      "checkpoints": [
+        {
+          "ppoIterations": 0,
+          "envSteps": 0,
+          "optimizerBatches": 0,
+          "cleanMae": 0.2501170128781582,
+          "cleanAllStepMae": 0.2501170128781582,
+          "cleanSuccesses": 12,
+          "pushMae": 0.2257559166354258,
+          "pushSuccesses": 12,
+          "pushReachedEpisodes": 12,
+          "recoveredEpisodes": 8,
+          "recoverySteps": 202.5,
+          "diagnostics": null
+        },
+        {
+          "ppoIterations": 10,
+          "envSteps": 7680,
+          "optimizerBatches": 240,
+          "cleanMae": 0.5068608406344589,
+          "cleanAllStepMae": 0.5068608406344589,
+          "cleanSuccesses": 12,
+          "pushMae": 0.5785114557217416,
+          "pushSuccesses": 12,
+          "pushReachedEpisodes": 12,
+          "recoveredEpisodes": 5,
+          "recoverySteps": 239.33333333333334,
+          "diagnostics": {
+            "rolloutMae": 0.2723067624696904,
+            "clipFraction": 0.058268229166666664,
+            "objectiveClipFraction": 0.032877604166666664,
+            "actionSaturation": 0,
+            "sampleClipFraction": 0,
+            "postUpdateKl": 0.012899880629679264,
+            "postUpdateApproxKl": 0.013525221570095607,
+            "tokenChangeFraction": 0.125,
+            "actionMeanShiftRms": 0.01927476490478581,
+            "gradEncoder": 0.20416176833262067,
+            "gradDynamic": 1.6720323380811906,
+            "updates": {
+              "encoder": {
+                "preClipNorm": 0.20416176833262067,
+                "postClipNorm": 0.20416176833262067,
+                "updateNorm": 0.0013465371958597894,
+                "relativeUpdateNorm": 0.00028675039403973916,
+                "gradClipFraction": 0
+              },
+              "dynamic": {
+                "preClipNorm": 1.6720323380811906,
+                "postClipNorm": 0.6510797209162108,
+                "updateNorm": 0.003250375332119745,
+                "relativeUpdateNorm": 0.0006697332184714561,
+                "gradClipFraction": 0.75
+              },
+              "kinematic": {
+                "preClipNorm": 0.001086174245209277,
+                "postClipNorm": 0.001086174245209277,
+                "updateNorm": 0.005157224912836309,
+                "relativeUpdateNorm": 0.0014921093432240578,
+                "gradClipFraction": 0
+              },
+              "critic": {
+                "preClipNorm": 36.226155216659976,
+                "postClipNorm": 0.9999999999999724,
+                "updateNorm": 0.021424351420785578,
+                "relativeUpdateNorm": 0.004952117229226126,
+                "gradClipFraction": 1
+              }
+            },
+            "maxKlAcrossIterations": 0.014342716390221022,
+            "meanSampleClipAcrossIterations": 0
+          }
+        },
+        {
+          "ppoIterations": 20,
+          "envSteps": 15360,
+          "optimizerBatches": 480,
+          "cleanMae": 0.525658892109554,
+          "cleanAllStepMae": 0.525658892109554,
+          "cleanSuccesses": 12,
+          "pushMae": 0.5786375390190711,
+          "pushSuccesses": 11,
+          "pushReachedEpisodes": 12,
+          "recoveredEpisodes": 4,
+          "recoverySteps": 256.8333333333333,
+          "diagnostics": {
+            "rolloutMae": 0.5748545205370635,
+            "clipFraction": 0.06966145833333333,
+            "objectiveClipFraction": 0.03515625,
+            "actionSaturation": 0,
+            "sampleClipFraction": 0,
+            "postUpdateKl": 0.004551269100235978,
+            "postUpdateApproxKl": 0.005048494486061946,
+            "tokenChangeFraction": 0.125,
+            "actionMeanShiftRms": 0.011448866759937245,
+            "gradEncoder": 0.07350542478037125,
+            "gradDynamic": 1.5376530533198283,
+            "updates": {
+              "encoder": {
+                "preClipNorm": 0.07350542478037125,
+                "postClipNorm": 0.07350542478037125,
+                "updateNorm": 0.0010383267362899878,
+                "relativeUpdateNorm": 0.00022212795368773593,
+                "gradClipFraction": 0
+              },
+              "dynamic": {
+                "preClipNorm": 1.5376530533198283,
+                "postClipNorm": 0.6811717085265694,
+                "updateNorm": 0.003548170935414731,
+                "relativeUpdateNorm": 0.000737491338472378,
+                "gradClipFraction": 0.875
+              },
+              "kinematic": {
+                "preClipNorm": 0.0018816090850740435,
+                "postClipNorm": 0.0018816090850740435,
+                "updateNorm": 0.007068836960099142,
+                "relativeUpdateNorm": 0.0022210191496448866,
+                "gradClipFraction": 0
+              },
+              "critic": {
+                "preClipNorm": 30.40924421073085,
+                "postClipNorm": 0.9999999999999667,
+                "updateNorm": 0.013898508385675726,
+                "relativeUpdateNorm": 0.0018953859370183764,
+                "gradClipFraction": 1
+              }
+            },
+            "maxKlAcrossIterations": 0.024179926452217032,
+            "meanSampleClipAcrossIterations": 0
+          }
+        },
+        {
+          "ppoIterations": 50,
+          "envSteps": 38400,
+          "optimizerBatches": 1200,
+          "cleanMae": 0.5899218588488724,
+          "cleanAllStepMae": 0.7476213581237555,
+          "cleanSuccesses": 8,
+          "pushMae": 0.8040746411378534,
+          "pushSuccesses": 0,
+          "pushReachedEpisodes": 12,
+          "recoveredEpisodes": 5,
+          "recoverySteps": 246.16666666666666,
+          "diagnostics": {
+            "rolloutMae": 0.5669727899567666,
+            "clipFraction": 0.06770833333333333,
+            "objectiveClipFraction": 0.034505208333333336,
+            "actionSaturation": 0.06770833333333333,
+            "sampleClipFraction": 0.044270833333333336,
+            "postUpdateKl": 0.005268975494403502,
+            "postUpdateApproxKl": 0.004761452958101666,
+            "tokenChangeFraction": 0.140625,
+            "actionMeanShiftRms": 0.012318542699476295,
+            "gradEncoder": 0.053950935069516426,
+            "gradDynamic": 0.8836053770757907,
+            "updates": {
+              "encoder": {
+                "preClipNorm": 0.053950935069516426,
+                "postClipNorm": 0.053950935069516426,
+                "updateNorm": 0.0011985946259414168,
+                "relativeUpdateNorm": 0.0002558061035255186,
+                "gradClipFraction": 0
+              },
+              "dynamic": {
+                "preClipNorm": 0.8836053770757907,
+                "postClipNorm": 0.5892247586962601,
+                "updateNorm": 0.0033558211087488534,
+                "relativeUpdateNorm": 0.0006955554439849251,
+                "gradClipFraction": 0.5833333333333334
+              },
+              "kinematic": {
+                "preClipNorm": 0.0009513786657440617,
+                "postClipNorm": 0.0009513786657440617,
+                "updateNorm": 0.007663573971451045,
+                "relativeUpdateNorm": 0.00243779057313187,
+                "gradClipFraction": 0
+              },
+              "critic": {
+                "preClipNorm": 7.836968470464002,
+                "postClipNorm": 0.9999999999998499,
+                "updateNorm": 0.0456039544844715,
+                "relativeUpdateNorm": 0.0034956673449514177,
+                "gradClipFraction": 1
+              }
+            },
+            "maxKlAcrossIterations": 0.034864604336307184,
+            "meanSampleClipAcrossIterations": 0.0009375
+          }
+        }
+      ]
+    },
+    {
+      "id": "two-actor-005",
+      "label": "2-token actor LR ×0.05",
+      "checkpoints": [
+        {
+          "ppoIterations": 0,
+          "envSteps": 0,
+          "optimizerBatches": 0,
+          "cleanMae": 0.2501170128781582,
+          "cleanAllStepMae": 0.2501170128781582,
+          "cleanSuccesses": 12,
+          "pushMae": 0.2257559166354258,
+          "pushSuccesses": 12,
+          "pushReachedEpisodes": 12,
+          "recoveredEpisodes": 8,
+          "recoverySteps": 202.5,
+          "diagnostics": null
+        },
+        {
+          "ppoIterations": 10,
+          "envSteps": 7680,
+          "optimizerBatches": 240,
+          "cleanMae": 0.2858010043369193,
+          "cleanAllStepMae": 0.2858010043369193,
+          "cleanSuccesses": 12,
+          "pushMae": 0.2903787626429683,
+          "pushSuccesses": 12,
+          "pushReachedEpisodes": 12,
+          "recoveredEpisodes": 7,
+          "recoverySteps": 192.66666666666666,
+          "diagnostics": {
+            "rolloutMae": 0.19045817525599207,
+            "clipFraction": 0,
+            "objectiveClipFraction": 0,
+            "actionSaturation": 0,
+            "sampleClipFraction": 0,
+            "postUpdateKl": 0.00033121343707909033,
+            "postUpdateApproxKl": 0.0003522828801411268,
+            "tokenChangeFraction": 0,
+            "actionMeanShiftRms": 0.003088518574960786,
+            "gradEncoder": 0.1895855773489281,
+            "gradDynamic": 1.2106687043445872,
+            "updates": {
+              "encoder": {
+                "preClipNorm": 0.1895855773489281,
+                "postClipNorm": 0.1895855773489281,
+                "updateNorm": 0.0000977303330195982,
+                "relativeUpdateNorm": 0.000020762889318624264,
+                "gradClipFraction": 0
+              },
+              "dynamic": {
+                "preClipNorm": 1.2106687043445872,
+                "postClipNorm": 0.5564482438040945,
+                "updateNorm": 0.0001642781534349607,
+                "relativeUpdateNorm": 0.00003403906222725294,
+                "gradClipFraction": 0.625
+              },
+              "kinematic": {
+                "preClipNorm": 0.0004798805453842002,
+                "postClipNorm": 0.0004798805453842002,
+                "updateNorm": 0.0005016724851327152,
+                "relativeUpdateNorm": 0.0001443255447756241,
+                "gradClipFraction": 0
+              },
+              "critic": {
+                "preClipNorm": 37.370874153074034,
+                "postClipNorm": 0.999999999999973,
+                "updateNorm": 0.021779195074418833,
+                "relativeUpdateNorm": 0.004965670967807508,
+                "gradClipFraction": 1
+              }
+            },
+            "maxKlAcrossIterations": 0.006970073601174512,
+            "meanSampleClipAcrossIterations": 0
+          }
+        },
+        {
+          "ppoIterations": 20,
+          "envSteps": 15360,
+          "optimizerBatches": 480,
+          "cleanMae": 0.2520899065457353,
+          "cleanAllStepMae": 0.2520899065457353,
+          "cleanSuccesses": 12,
+          "pushMae": 0.23317853823952883,
+          "pushSuccesses": 12,
+          "pushReachedEpisodes": 12,
+          "recoveredEpisodes": 8,
+          "recoverySteps": 170.08333333333334,
+          "diagnostics": {
+            "rolloutMae": 0.12660716063119823,
+            "clipFraction": 0,
+            "objectiveClipFraction": 0,
+            "actionSaturation": 0,
+            "sampleClipFraction": 0,
+            "postUpdateKl": 0.00014406237082210114,
+            "postUpdateApproxKl": 0.0001592560352934071,
+            "tokenChangeFraction": 0,
+            "actionMeanShiftRms": 0.0020369085103844288,
+            "gradEncoder": 0.177454651361066,
+            "gradDynamic": 1.0740901995558314,
+            "updates": {
+              "encoder": {
+                "preClipNorm": 0.177454651361066,
+                "postClipNorm": 0.177454651361066,
+                "updateNorm": 0.00013226464804092528,
+                "relativeUpdateNorm": 0.000028093997249454843,
+                "gradClipFraction": 0
+              },
+              "dynamic": {
+                "preClipNorm": 1.0740901995558314,
+                "postClipNorm": 0.6634141098907312,
+                "updateNorm": 0.00014897620560532486,
+                "relativeUpdateNorm": 0.000030879135384441885,
+                "gradClipFraction": 0.875
+              },
+              "kinematic": {
+                "preClipNorm": 0.000376529606016307,
+                "postClipNorm": 0.000376529606016307,
+                "updateNorm": 0.0007396298212286544,
+                "relativeUpdateNorm": 0.00021792354676681007,
+                "gradClipFraction": 0
+              },
+              "critic": {
+                "preClipNorm": 46.290890071012704,
+                "postClipNorm": 0.9999999999999784,
+                "updateNorm": 0.011536649949311287,
+                "relativeUpdateNorm": 0.0016439282106628752,
+                "gradClipFraction": 1
+              }
+            },
+            "maxKlAcrossIterations": 0.006970073601174512,
+            "meanSampleClipAcrossIterations": 0
+          }
+        },
+        {
+          "ppoIterations": 50,
+          "envSteps": 38400,
+          "optimizerBatches": 1200,
+          "cleanMae": 0.23676242547707646,
+          "cleanAllStepMae": 0.23676242547707646,
+          "cleanSuccesses": 12,
+          "pushMae": 0.24120314919780625,
+          "pushSuccesses": 12,
+          "pushReachedEpisodes": 12,
+          "recoveredEpisodes": 9,
+          "recoverySteps": 163.16666666666666,
+          "diagnostics": {
+            "rolloutMae": 0.26653773433520744,
+            "clipFraction": 0,
+            "objectiveClipFraction": 0,
+            "actionSaturation": 0,
+            "sampleClipFraction": 0,
+            "postUpdateKl": 0.000891304122663049,
+            "postUpdateApproxKl": 0.0008632742972108817,
+            "tokenChangeFraction": 0,
+            "actionMeanShiftRms": 0.005066513469112249,
+            "gradEncoder": 0.24738743459379628,
+            "gradDynamic": 1.338526134568182,
+            "updates": {
+              "encoder": {
+                "preClipNorm": 0.24738743459379628,
+                "postClipNorm": 0.24738743459379628,
+                "updateNorm": 0.0001956343746669341,
+                "relativeUpdateNorm": 0.00004154406032342533,
+                "gradClipFraction": 0
+              },
+              "dynamic": {
+                "preClipNorm": 1.338526134568182,
+                "postClipNorm": 0.6315129032864751,
+                "updateNorm": 0.00016532012460230202,
+                "relativeUpdateNorm": 0.00003426679774239412,
+                "gradClipFraction": 0.7083333333333334
+              },
+              "kinematic": {
+                "preClipNorm": 0.000725198130909572,
+                "postClipNorm": 0.000725198130909572,
+                "updateNorm": 0.004095542490460206,
+                "relativeUpdateNorm": 0.001168988678996022,
+                "gradClipFraction": 0
+              },
+              "critic": {
+                "preClipNorm": 28.974143757407926,
+                "postClipNorm": 0.9999999999999654,
+                "updateNorm": 0.013152254633864642,
+                "relativeUpdateNorm": 0.0009846783153941287,
+                "gradClipFraction": 1
+              }
+            },
+            "maxKlAcrossIterations": 0.006970073601174512,
+            "meanSampleClipAcrossIterations": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "one-actor-005",
+      "label": "1-token actor LR ×0.05",
+      "checkpoints": [
+        {
+          "ppoIterations": 0,
+          "envSteps": 0,
+          "optimizerBatches": 0,
+          "cleanMae": 0.25936888291006066,
+          "cleanAllStepMae": 0.25936888291006066,
+          "cleanSuccesses": 12,
+          "pushMae": 0.23407850283461654,
+          "pushSuccesses": 12,
+          "pushReachedEpisodes": 12,
+          "recoveredEpisodes": 7,
+          "recoverySteps": 209.41666666666666,
+          "diagnostics": null
+        },
+        {
+          "ppoIterations": 10,
+          "envSteps": 7680,
+          "optimizerBatches": 240,
+          "cleanMae": 0.2535405791590137,
+          "cleanAllStepMae": 0.2535405791590137,
+          "cleanSuccesses": 12,
+          "pushMae": 0.2312631352530268,
+          "pushSuccesses": 12,
+          "pushReachedEpisodes": 12,
+          "recoveredEpisodes": 7,
+          "recoverySteps": 199.41666666666666,
+          "diagnostics": {
+            "rolloutMae": 0.1252881011270032,
+            "clipFraction": 0,
+            "objectiveClipFraction": 0,
+            "actionSaturation": 0,
+            "sampleClipFraction": 0,
+            "postUpdateKl": 0.0007348792834588266,
+            "postUpdateApproxKl": 0.0007471489492090535,
+            "tokenChangeFraction": 0,
+            "actionMeanShiftRms": 0.004600491643684857,
+            "gradEncoder": 0.23055982063952973,
+            "gradDynamic": 1.5123135790898727,
+            "updates": {
+              "encoder": {
+                "preClipNorm": 0.23055982063952973,
+                "postClipNorm": 0.23055982063952973,
+                "updateNorm": 0.000174196266086196,
+                "relativeUpdateNorm": 0.000037006419408671446,
+                "gradClipFraction": 0
+              },
+              "dynamic": {
+                "preClipNorm": 1.5123135790898727,
+                "postClipNorm": 0.6428308808975995,
+                "updateNorm": 0.0001670729208521181,
+                "relativeUpdateNorm": 0.00003452228532579508,
+                "gradClipFraction": 0.75
+              },
+              "kinematic": {
+                "preClipNorm": 0.0009122267118837083,
+                "postClipNorm": 0.0009122267118837083,
+                "updateNorm": 0.0008558680319820617,
+                "relativeUpdateNorm": 0.00030237237601784514,
+                "gradClipFraction": 0
+              },
+              "critic": {
+                "preClipNorm": 35.707011004371815,
+                "postClipNorm": 0.9999999999999717,
+                "updateNorm": 0.016543351624789777,
+                "relativeUpdateNorm": 0.004072027728062787,
+                "gradClipFraction": 1
+              }
+            },
+            "maxKlAcrossIterations": 0.0067831534133631875,
+            "meanSampleClipAcrossIterations": 0
+          }
+        },
+        {
+          "ppoIterations": 20,
+          "envSteps": 15360,
+          "optimizerBatches": 480,
+          "cleanMae": 0.3055686023083758,
+          "cleanAllStepMae": 0.3055686023083758,
+          "cleanSuccesses": 12,
+          "pushMae": 0.2858182765803194,
+          "pushSuccesses": 12,
+          "pushReachedEpisodes": 12,
+          "recoveredEpisodes": 5,
+          "recoverySteps": 241.33333333333334,
+          "diagnostics": {
+            "rolloutMae": 0.22207611024116347,
+            "clipFraction": 0,
+            "objectiveClipFraction": 0,
+            "actionSaturation": 0,
+            "sampleClipFraction": 0,
+            "postUpdateKl": 0.0007604529924881608,
+            "postUpdateApproxKl": 0.000747240217532283,
+            "tokenChangeFraction": 0,
+            "actionMeanShiftRms": 0.004679855359266889,
+            "gradEncoder": 0.17714852140204532,
+            "gradDynamic": 0.9922476914462531,
+            "updates": {
+              "encoder": {
+                "preClipNorm": 0.17714852140204532,
+                "postClipNorm": 0.17714852140204532,
+                "updateNorm": 0.00021700968270005976,
+                "relativeUpdateNorm": 0.000046143302586923266,
+                "gradClipFraction": 0
+              },
+              "dynamic": {
+                "preClipNorm": 0.9922476914462531,
+                "postClipNorm": 0.643167373983976,
+                "updateNorm": 0.0002941427004415183,
+                "relativeUpdateNorm": 0.000060782263882934515,
+                "gradClipFraction": 0.625
+              },
+              "kinematic": {
+                "preClipNorm": 0.0005667158697855553,
+                "postClipNorm": 0.0005667158697855553,
+                "updateNorm": 0.0007765392746856644,
+                "relativeUpdateNorm": 0.00025263837414870146,
+                "gradClipFraction": 0
+              },
+              "critic": {
+                "preClipNorm": 44.2407124128485,
+                "postClipNorm": 0.9999999999999772,
+                "updateNorm": 0.011330514323707,
+                "relativeUpdateNorm": 0.0018593161148215964,
+                "gradClipFraction": 1
+              }
+            },
+            "maxKlAcrossIterations": 0.0067831534133631875,
+            "meanSampleClipAcrossIterations": 0
+          }
+        },
+        {
+          "ppoIterations": 50,
+          "envSteps": 38400,
+          "optimizerBatches": 1200,
+          "cleanMae": 0.2549996541790514,
+          "cleanAllStepMae": 0.2549996541790514,
+          "cleanSuccesses": 12,
+          "pushMae": 0.23909112380871225,
+          "pushSuccesses": 12,
+          "pushReachedEpisodes": 12,
+          "recoveredEpisodes": 7,
+          "recoverySteps": 208.16666666666666,
+          "diagnostics": {
+            "rolloutMae": 0.12974309511988477,
+            "clipFraction": 0,
+            "objectiveClipFraction": 0,
+            "actionSaturation": 0,
+            "sampleClipFraction": 0,
+            "postUpdateKl": 0.000661520020754143,
+            "postUpdateApproxKl": 0.000592041116812081,
+            "tokenChangeFraction": 0,
+            "actionMeanShiftRms": 0.004364834085932628,
+            "gradEncoder": 0.2214625107799758,
+            "gradDynamic": 1.2333695394805841,
+            "updates": {
+              "encoder": {
+                "preClipNorm": 0.2214625107799758,
+                "postClipNorm": 0.2214625107799758,
+                "updateNorm": 0.0001921266885956632,
+                "relativeUpdateNorm": 0.0000408209260106677,
+                "gradClipFraction": 0
+              },
+              "dynamic": {
+                "preClipNorm": 1.2333695394805841,
+                "postClipNorm": 0.6686943015410609,
+                "updateNorm": 0.0003152830065401197,
+                "relativeUpdateNorm": 0.00006508391302551858,
+                "gradClipFraction": 0.875
+              },
+              "kinematic": {
+                "preClipNorm": 0.0005134540615859204,
+                "postClipNorm": 0.0005134540615859204,
+                "updateNorm": 0.00388783666688056,
+                "relativeUpdateNorm": 0.0013871586196110553,
+                "gradClipFraction": 0
+              },
+              "critic": {
+                "preClipNorm": 33.382901249445446,
+                "postClipNorm": 0.9999999999999697,
+                "updateNorm": 0.009412169175614896,
+                "relativeUpdateNorm": 0.0007420156004381355,
+                "gradClipFraction": 1
+              }
+            },
+            "maxKlAcrossIterations": 0.0067831534133631875,
+            "meanSampleClipAcrossIterations": 0
+          }
+        }
+      ]
     }
   ],
   "tunedTrajectory": [
     {
       "ppoIterations": 0,
+      "envSteps": 0,
+      "optimizerBatches": 0,
       "cleanMae": 0.2501170128781582,
+      "cleanAllStepMae": 0.2501170128781582,
       "cleanSuccesses": 12,
       "pushMae": 0.2257559166354258,
-      "recoverySteps": 202.5
+      "pushSuccesses": 12,
+      "pushReachedEpisodes": 12,
+      "recoveredEpisodes": 8,
+      "recoverySteps": 202.5,
+      "diagnostics": null
     },
     {
       "ppoIterations": 10,
+      "envSteps": 7680,
+      "optimizerBatches": 240,
       "cleanMae": 0.2858010043369193,
+      "cleanAllStepMae": 0.2858010043369193,
       "cleanSuccesses": 12,
       "pushMae": 0.2903787626429683,
+      "pushSuccesses": 12,
+      "pushReachedEpisodes": 12,
+      "recoveredEpisodes": 7,
       "recoverySteps": 192.66666666666666,
       "diagnostics": {
         "rolloutMae": 0.19045817525599207,
         "clipFraction": 0,
+        "objectiveClipFraction": 0,
         "actionSaturation": 0,
+        "sampleClipFraction": 0,
+        "postUpdateKl": 0.00033121343707909033,
+        "postUpdateApproxKl": 0.0003522828801411268,
+        "tokenChangeFraction": 0,
+        "actionMeanShiftRms": 0.003088518574960786,
         "gradEncoder": 0.1895855773489281,
         "gradDynamic": 1.2106687043445872,
-        "encoderUpdateProxy": 0.000004739639433723203,
-        "dynamicUpdateProxy": 0.00004842674817378349
+        "updates": {
+          "encoder": {
+            "preClipNorm": 0.1895855773489281,
+            "postClipNorm": 0.1895855773489281,
+            "updateNorm": 0.0000977303330195982,
+            "relativeUpdateNorm": 0.000020762889318624264,
+            "gradClipFraction": 0
+          },
+          "dynamic": {
+            "preClipNorm": 1.2106687043445872,
+            "postClipNorm": 0.5564482438040945,
+            "updateNorm": 0.0001642781534349607,
+            "relativeUpdateNorm": 0.00003403906222725294,
+            "gradClipFraction": 0.625
+          },
+          "kinematic": {
+            "preClipNorm": 0.0004798805453842002,
+            "postClipNorm": 0.0004798805453842002,
+            "updateNorm": 0.0005016724851327152,
+            "relativeUpdateNorm": 0.0001443255447756241,
+            "gradClipFraction": 0
+          },
+          "critic": {
+            "preClipNorm": 37.370874153074034,
+            "postClipNorm": 0.999999999999973,
+            "updateNorm": 0.021779195074418833,
+            "relativeUpdateNorm": 0.004965670967807508,
+            "gradClipFraction": 1
+          }
+        },
+        "maxKlAcrossIterations": 0.006970073601174512,
+        "meanSampleClipAcrossIterations": 0
       }
     },
     {
       "ppoIterations": 20,
+      "envSteps": 15360,
+      "optimizerBatches": 480,
       "cleanMae": 0.2520899065457353,
+      "cleanAllStepMae": 0.2520899065457353,
       "cleanSuccesses": 12,
       "pushMae": 0.23317853823952883,
+      "pushSuccesses": 12,
+      "pushReachedEpisodes": 12,
+      "recoveredEpisodes": 8,
       "recoverySteps": 170.08333333333334,
       "diagnostics": {
         "rolloutMae": 0.12660716063119823,
         "clipFraction": 0,
+        "objectiveClipFraction": 0,
         "actionSaturation": 0,
+        "sampleClipFraction": 0,
+        "postUpdateKl": 0.00014406237082210114,
+        "postUpdateApproxKl": 0.0001592560352934071,
+        "tokenChangeFraction": 0,
+        "actionMeanShiftRms": 0.0020369085103844288,
         "gradEncoder": 0.177454651361066,
         "gradDynamic": 1.0740901995558314,
-        "encoderUpdateProxy": 0.000004436366284026651,
-        "dynamicUpdateProxy": 0.00004296360798223326
+        "updates": {
+          "encoder": {
+            "preClipNorm": 0.177454651361066,
+            "postClipNorm": 0.177454651361066,
+            "updateNorm": 0.00013226464804092528,
+            "relativeUpdateNorm": 0.000028093997249454843,
+            "gradClipFraction": 0
+          },
+          "dynamic": {
+            "preClipNorm": 1.0740901995558314,
+            "postClipNorm": 0.6634141098907312,
+            "updateNorm": 0.00014897620560532486,
+            "relativeUpdateNorm": 0.000030879135384441885,
+            "gradClipFraction": 0.875
+          },
+          "kinematic": {
+            "preClipNorm": 0.000376529606016307,
+            "postClipNorm": 0.000376529606016307,
+            "updateNorm": 0.0007396298212286544,
+            "relativeUpdateNorm": 0.00021792354676681007,
+            "gradClipFraction": 0
+          },
+          "critic": {
+            "preClipNorm": 46.290890071012704,
+            "postClipNorm": 0.9999999999999784,
+            "updateNorm": 0.011536649949311287,
+            "relativeUpdateNorm": 0.0016439282106628752,
+            "gradClipFraction": 1
+          }
+        },
+        "maxKlAcrossIterations": 0.006970073601174512,
+        "meanSampleClipAcrossIterations": 0
       }
     },
     {
       "ppoIterations": 50,
+      "envSteps": 38400,
+      "optimizerBatches": 1200,
       "cleanMae": 0.23676242547707646,
+      "cleanAllStepMae": 0.23676242547707646,
       "cleanSuccesses": 12,
       "pushMae": 0.24120314919780625,
+      "pushSuccesses": 12,
+      "pushReachedEpisodes": 12,
+      "recoveredEpisodes": 9,
       "recoverySteps": 163.16666666666666,
       "diagnostics": {
         "rolloutMae": 0.26653773433520744,
         "clipFraction": 0,
+        "objectiveClipFraction": 0,
         "actionSaturation": 0,
+        "sampleClipFraction": 0,
+        "postUpdateKl": 0.000891304122663049,
+        "postUpdateApproxKl": 0.0008632742972108817,
+        "tokenChangeFraction": 0,
+        "actionMeanShiftRms": 0.005066513469112249,
         "gradEncoder": 0.24738743459379628,
         "gradDynamic": 1.338526134568182,
-        "encoderUpdateProxy": 0.0000061846858648449075,
-        "dynamicUpdateProxy": 0.00005354104538272728
+        "updates": {
+          "encoder": {
+            "preClipNorm": 0.24738743459379628,
+            "postClipNorm": 0.24738743459379628,
+            "updateNorm": 0.0001956343746669341,
+            "relativeUpdateNorm": 0.00004154406032342533,
+            "gradClipFraction": 0
+          },
+          "dynamic": {
+            "preClipNorm": 1.338526134568182,
+            "postClipNorm": 0.6315129032864751,
+            "updateNorm": 0.00016532012460230202,
+            "relativeUpdateNorm": 0.00003426679774239412,
+            "gradClipFraction": 0.7083333333333334
+          },
+          "kinematic": {
+            "preClipNorm": 0.000725198130909572,
+            "postClipNorm": 0.000725198130909572,
+            "updateNorm": 0.004095542490460206,
+            "relativeUpdateNorm": 0.001168988678996022,
+            "gradClipFraction": 0
+          },
+          "critic": {
+            "preClipNorm": 28.974143757407926,
+            "postClipNorm": 0.9999999999999654,
+            "updateNorm": 0.013152254633864642,
+            "relativeUpdateNorm": 0.0009846783153941287,
+            "gradClipFraction": 1
+          }
+        },
+        "maxKlAcrossIterations": 0.006970073601174512,
+        "meanSampleClipAcrossIterations": 0
       }
     }
   ],
+  "pairedSeedStudy": {
+    "seeds": [
+      17011,
+      27011,
+      37011
+    ],
+    "modelInitializationReplicates": 1,
+    "randomness": "paired PPO rollout/reset/shuffle seeds, not independent model initialization; trajectories can diverge after different actions or terminations",
+    "evaluationSeeds": {
+      "clean": 18181,
+      "push": 19191
+    },
+    "budgets": [
+      10,
+      50
+    ],
+    "selection": "actor scales 1 and 0.05 declared before these trials, from the earlier exploratory sweep; no selection on these evaluation episodes",
+    "uncertainty": "sample standard deviation over three PPO runs conditional on fixed bootstrap; not a confidence interval and not a general token-ranking claim",
+    "runs": [
+      {
+        "seed": 17011,
+        "arms": [
+          {
+            "id": "one-default",
+            "label": "1 token · actor ×1",
+            "parameters": {
+              "encoder": 382,
+              "dynamic": 225,
+              "kinematic": 472,
+              "critic": 141,
+              "actor": 607,
+              "total": 1220
+            },
+            "checkpoints": [
+              {
+                "ppoIterations": 0,
+                "envSteps": 0,
+                "optimizerBatches": 0,
+                "cleanMae": 0.2125966975225159,
+                "cleanAllStepMae": 0.2125966975225159,
+                "cleanSuccesses": 12,
+                "pushMae": 0.2605076642947937,
+                "pushSuccesses": 12,
+                "pushReachedEpisodes": 12,
+                "recoveredEpisodes": 7,
+                "recoverySteps": 202.08333333333334,
+                "diagnostics": null
+              },
+              {
+                "ppoIterations": 10,
+                "envSteps": 7680,
+                "optimizerBatches": 240,
+                "cleanMae": 0.29801671128344825,
+                "cleanAllStepMae": 0.29801671128344825,
+                "cleanSuccesses": 12,
+                "pushMae": 0.41273361011989657,
+                "pushSuccesses": 12,
+                "pushReachedEpisodes": 12,
+                "recoveredEpisodes": 3,
+                "recoverySteps": 286.25,
+                "diagnostics": {
+                  "rolloutMae": 0.5319979540625658,
+                  "clipFraction": 0.043619791666666664,
+                  "objectiveClipFraction": 0.023763020833333332,
+                  "actionSaturation": 0,
+                  "sampleClipFraction": 0,
+                  "postUpdateKl": 0.0040294115498079874,
+                  "postUpdateApproxKl": 0.004299944270521353,
+                  "tokenChangeFraction": 0,
+                  "actionMeanShiftRms": 0.010772513756522667,
+                  "gradEncoder": 0.2562100066848088,
+                  "gradDynamic": 1.2322268978275879,
+                  "updates": {
+                    "encoder": {
+                      "preClipNorm": 0.2562100066848088,
+                      "postClipNorm": 0.2562100066848088,
+                      "updateNorm": 0.0015211483938119624,
+                      "relativeUpdateNorm": 0.0003232247801881403,
+                      "gradClipFraction": 0
+                    },
+                    "dynamic": {
+                      "preClipNorm": 1.2322268978275879,
+                      "postClipNorm": 0.6300026421496433,
+                      "updateNorm": 0.0027097676063333885,
+                      "relativeUpdateNorm": 0.0005532969725706272,
+                      "gradClipFraction": 0.7916666666666666
+                    },
+                    "kinematic": {
+                      "preClipNorm": 0.000588616595386862,
+                      "postClipNorm": 0.000588616595386862,
+                      "updateNorm": 0.004676712677583509,
+                      "relativeUpdateNorm": 0.0016254412132693198,
+                      "gradClipFraction": 0
+                    },
+                    "critic": {
+                      "preClipNorm": 27.12385805075347,
+                      "postClipNorm": 0.9999999999999635,
+                      "updateNorm": 0.013509986177231146,
+                      "relativeUpdateNorm": 0.003128870046481253,
+                      "gradClipFraction": 1
+                    }
+                  },
+                  "maxKlAcrossIterations": 0.10279141564803823,
+                  "meanSampleClipAcrossIterations": 0
+                }
+              },
+              {
+                "ppoIterations": 50,
+                "envSteps": 38400,
+                "optimizerBatches": 1200,
+                "cleanMae": 0.45596480298203473,
+                "cleanAllStepMae": 0.45596480298203473,
+                "cleanSuccesses": 12,
+                "pushMae": 0.5513666052236036,
+                "pushSuccesses": 12,
+                "pushReachedEpisodes": 12,
+                "recoveredEpisodes": 4,
+                "recoverySteps": 255,
+                "diagnostics": {
+                  "rolloutMae": 0.6380364019254291,
+                  "clipFraction": 0.056640625,
+                  "objectiveClipFraction": 0.029622395833333332,
+                  "actionSaturation": 0,
+                  "sampleClipFraction": 0,
+                  "postUpdateKl": 0.002348360782092675,
+                  "postUpdateApproxKl": 0.0021177653963507063,
+                  "tokenChangeFraction": 0,
+                  "actionMeanShiftRms": 0.008223915765878748,
+                  "gradEncoder": 0.10012211143115624,
+                  "gradDynamic": 1.2585634323969133,
+                  "updates": {
+                    "encoder": {
+                      "preClipNorm": 0.10012211143115624,
+                      "postClipNorm": 0.10012211143115624,
+                      "updateNorm": 0.0015206043079064727,
+                      "relativeUpdateNorm": 0.0003206438040220765,
+                      "gradClipFraction": 0
+                    },
+                    "dynamic": {
+                      "preClipNorm": 1.2585634323969133,
+                      "postClipNorm": 0.6341767692632106,
+                      "updateNorm": 0.002258931406690683,
+                      "relativeUpdateNorm": 0.0004616372607653739,
+                      "gradClipFraction": 0.7916666666666666
+                    },
+                    "kinematic": {
+                      "preClipNorm": 0.0009465449119131892,
+                      "postClipNorm": 0.0009465449119131892,
+                      "updateNorm": 0.007891512776933741,
+                      "relativeUpdateNorm": 0.002828503347390894,
+                      "gradClipFraction": 0
+                    },
+                    "critic": {
+                      "preClipNorm": 13.352714904322385,
+                      "postClipNorm": 0.9999999999999226,
+                      "updateNorm": 0.017761768632634404,
+                      "relativeUpdateNorm": 0.0013492680757173261,
+                      "gradClipFraction": 1
+                    }
+                  },
+                  "maxKlAcrossIterations": 0.10893864029554444,
+                  "meanSampleClipAcrossIterations": 0
+                }
+              }
+            ]
+          },
+          {
+            "id": "two-default",
+            "label": "2 tokens · actor ×1",
+            "parameters": {
+              "encoder": 424,
+              "dynamic": 281,
+              "kinematic": 520,
+              "critic": 141,
+              "actor": 705,
+              "total": 1366
+            },
+            "checkpoints": [
+              {
+                "ppoIterations": 0,
+                "envSteps": 0,
+                "optimizerBatches": 0,
+                "cleanMae": 0.22612047574345906,
+                "cleanAllStepMae": 0.22612047574345906,
+                "cleanSuccesses": 12,
+                "pushMae": 0.2566376240414368,
+                "pushSuccesses": 12,
+                "pushReachedEpisodes": 12,
+                "recoveredEpisodes": 7,
+                "recoverySteps": 192.75,
+                "diagnostics": null
+              },
+              {
+                "ppoIterations": 10,
+                "envSteps": 7680,
+                "optimizerBatches": 240,
+                "cleanMae": 0.24958646424405084,
+                "cleanAllStepMae": 0.24958646424405084,
+                "cleanSuccesses": 12,
+                "pushMae": 0.34912981709288626,
+                "pushSuccesses": 12,
+                "pushReachedEpisodes": 12,
+                "recoveredEpisodes": 4,
+                "recoverySteps": 263.75,
+                "diagnostics": {
+                  "rolloutMae": 0.3273385750978503,
+                  "clipFraction": 0.054036458333333336,
+                  "objectiveClipFraction": 0.028645833333333332,
+                  "actionSaturation": 0,
+                  "sampleClipFraction": 0,
+                  "postUpdateKl": 0.00498891448121209,
+                  "postUpdateApproxKl": 0.0050603453616316655,
+                  "tokenChangeFraction": 0.375,
+                  "actionMeanShiftRms": 0.01198668999594584,
+                  "gradEncoder": 0.28997875940956225,
+                  "gradDynamic": 1.2947760681550051,
+                  "updates": {
+                    "encoder": {
+                      "preClipNorm": 0.28997875940956225,
+                      "postClipNorm": 0.28864000469916845,
+                      "updateNorm": 0.0033901983654576616,
+                      "relativeUpdateNorm": 0.0007223669552820409,
+                      "gradClipFraction": 0.041666666666666664
+                    },
+                    "dynamic": {
+                      "preClipNorm": 1.2947760681550051,
+                      "postClipNorm": 0.6701530592131761,
+                      "updateNorm": 0.0037210224276478347,
+                      "relativeUpdateNorm": 0.0007648760741461959,
+                      "gradClipFraction": 0.875
+                    },
+                    "kinematic": {
+                      "preClipNorm": 0.0010218462289449484,
+                      "postClipNorm": 0.0010218462289449484,
+                      "updateNorm": 0.0105502395566131,
+                      "relativeUpdateNorm": 0.0030282162732483907,
+                      "gradClipFraction": 0
+                    },
+                    "critic": {
+                      "preClipNorm": 34.48701135360418,
+                      "postClipNorm": 0.999999999999971,
+                      "updateNorm": 0.013510113493344779,
+                      "relativeUpdateNorm": 0.00313010312381358,
+                      "gradClipFraction": 1
+                    }
+                  },
+                  "maxKlAcrossIterations": 0.00909564309107094,
+                  "meanSampleClipAcrossIterations": 0
+                }
+              },
+              {
+                "ppoIterations": 50,
+                "envSteps": 38400,
+                "optimizerBatches": 1200,
+                "cleanMae": 0.45828357697396904,
+                "cleanAllStepMae": 0.5333403971913971,
+                "cleanSuccesses": 11,
+                "pushMae": 0.9108693028531091,
+                "pushSuccesses": 11,
+                "pushReachedEpisodes": 12,
+                "recoveredEpisodes": 4,
+                "recoverySteps": 255,
+                "diagnostics": {
+                  "rolloutMae": 0.8890487640097521,
+                  "clipFraction": 0.0859375,
+                  "objectiveClipFraction": 0.046549479166666664,
+                  "actionSaturation": 0,
+                  "sampleClipFraction": 0,
+                  "postUpdateKl": 0.005296020350862181,
+                  "postUpdateApproxKl": 0.005014581274816534,
+                  "tokenChangeFraction": 0,
+                  "actionMeanShiftRms": 0.012350116845796675,
+                  "gradEncoder": 0.15478712627994787,
+                  "gradDynamic": 1.4398693228379364,
+                  "updates": {
+                    "encoder": {
+                      "preClipNorm": 0.15478712627994787,
+                      "postClipNorm": 0.15478712627994787,
+                      "updateNorm": 0.002203779041648464,
+                      "relativeUpdateNorm": 0.00045898639254248673,
+                      "gradClipFraction": 0
+                    },
+                    "dynamic": {
+                      "preClipNorm": 1.4398693228379364,
+                      "postClipNorm": 0.6281897565371896,
+                      "updateNorm": 0.0026812607257491114,
+                      "relativeUpdateNorm": 0.0005546862642218925,
+                      "gradClipFraction": 0.75
+                    },
+                    "kinematic": {
+                      "preClipNorm": 0.0006625492174250425,
+                      "postClipNorm": 0.0006625492174250425,
+                      "updateNorm": 0.009415182903412773,
+                      "relativeUpdateNorm": 0.003089459620381206,
+                      "gradClipFraction": 0
+                    },
+                    "critic": {
+                      "preClipNorm": 2.4789856028228394,
+                      "postClipNorm": 0.9767287198709385,
+                      "updateNorm": 0.02192658846783031,
+                      "relativeUpdateNorm": 0.0015708342977138786,
+                      "gradClipFraction": 0.9166666666666666
+                    }
+                  },
+                  "maxKlAcrossIterations": 0.06833936834803582,
+                  "meanSampleClipAcrossIterations": 0
+                }
+              }
+            ]
+          },
+          {
+            "id": "one-actor-005",
+            "label": "1 token · actor ×0.05",
+            "parameters": {
+              "encoder": 382,
+              "dynamic": 225,
+              "kinematic": 472,
+              "critic": 141,
+              "actor": 607,
+              "total": 1220
+            },
+            "checkpoints": [
+              {
+                "ppoIterations": 0,
+                "envSteps": 0,
+                "optimizerBatches": 0,
+                "cleanMae": 0.2125966975225159,
+                "cleanAllStepMae": 0.2125966975225159,
+                "cleanSuccesses": 12,
+                "pushMae": 0.2605076642947937,
+                "pushSuccesses": 12,
+                "pushReachedEpisodes": 12,
+                "recoveredEpisodes": 7,
+                "recoverySteps": 202.08333333333334,
+                "diagnostics": null
+              },
+              {
+                "ppoIterations": 10,
+                "envSteps": 7680,
+                "optimizerBatches": 240,
+                "cleanMae": 0.23639116727500917,
+                "cleanAllStepMae": 0.23639116727500917,
+                "cleanSuccesses": 12,
+                "pushMae": 0.2865559305540212,
+                "pushSuccesses": 12,
+                "pushReachedEpisodes": 12,
+                "recoveredEpisodes": 6,
+                "recoverySteps": 214.58333333333334,
+                "diagnostics": {
+                  "rolloutMae": 0.32502355597997445,
+                  "clipFraction": 0,
+                  "objectiveClipFraction": 0,
+                  "actionSaturation": 0,
+                  "sampleClipFraction": 0,
+                  "postUpdateKl": 0.00015010954840276195,
+                  "postUpdateApproxKl": 0.00015135653376142629,
+                  "tokenChangeFraction": 0,
+                  "actionMeanShiftRms": 0.0020792198041572093,
+                  "gradEncoder": 0.2396960939267173,
+                  "gradDynamic": 1.15285062500668,
+                  "updates": {
+                    "encoder": {
+                      "preClipNorm": 0.2396960939267173,
+                      "postClipNorm": 0.2396960939267173,
+                      "updateNorm": 0.00011291041495285455,
+                      "relativeUpdateNorm": 0.000023979028841533567,
+                      "gradClipFraction": 0
+                    },
+                    "dynamic": {
+                      "preClipNorm": 1.15285062500668,
+                      "postClipNorm": 0.6181689295426847,
+                      "updateNorm": 0.00015162217119967,
+                      "relativeUpdateNorm": 0.0000313147864488361,
+                      "gradClipFraction": 0.7083333333333334
+                    },
+                    "kinematic": {
+                      "preClipNorm": 0.0006068271458197766,
+                      "postClipNorm": 0.0006068271458197766,
+                      "updateNorm": 0.0009812530563401208,
+                      "relativeUpdateNorm": 0.0003131295741074342,
+                      "gradClipFraction": 0
+                    },
+                    "critic": {
+                      "preClipNorm": 35.30226820567515,
+                      "postClipNorm": 0.9999999999999716,
+                      "updateNorm": 0.016620389655832866,
+                      "relativeUpdateNorm": 0.0035178678742700848,
+                      "gradClipFraction": 1
+                    }
+                  },
+                  "maxKlAcrossIterations": 0.004515290142983216,
+                  "meanSampleClipAcrossIterations": 0
+                }
+              },
+              {
+                "ppoIterations": 50,
+                "envSteps": 38400,
+                "optimizerBatches": 1200,
+                "cleanMae": 0.22034174324333614,
+                "cleanAllStepMae": 0.22034174324333614,
+                "cleanSuccesses": 12,
+                "pushMae": 0.2653631115156283,
+                "pushSuccesses": 12,
+                "pushReachedEpisodes": 12,
+                "recoveredEpisodes": 6,
+                "recoverySteps": 209.58333333333334,
+                "diagnostics": {
+                  "rolloutMae": 0.3215447194379573,
+                  "clipFraction": 0,
+                  "objectiveClipFraction": 0,
+                  "actionSaturation": 0,
+                  "sampleClipFraction": 0,
+                  "postUpdateKl": 0.000023288212294317662,
+                  "postUpdateApproxKl": 0.000021784047175418333,
+                  "tokenChangeFraction": 0,
+                  "actionMeanShiftRms": 0.0008189630724741802,
+                  "gradEncoder": 0.2787741380887068,
+                  "gradDynamic": 1.2498605847165136,
+                  "updates": {
+                    "encoder": {
+                      "preClipNorm": 0.2787741380887068,
+                      "postClipNorm": 0.2787741380887068,
+                      "updateNorm": 0.00012186162710708542,
+                      "relativeUpdateNorm": 0.000025816862434575413,
+                      "gradClipFraction": 0
+                    },
+                    "dynamic": {
+                      "preClipNorm": 1.2498605847165136,
+                      "postClipNorm": 0.6165535781315084,
+                      "updateNorm": 0.00012218586684566824,
+                      "relativeUpdateNorm": 0.00002521488142333588,
+                      "gradClipFraction": 0.7083333333333334
+                    },
+                    "kinematic": {
+                      "preClipNorm": 0.0007832191791366604,
+                      "postClipNorm": 0.0007832191791366604,
+                      "updateNorm": 0.00346954970782329,
+                      "relativeUpdateNorm": 0.0011617101400708035,
+                      "gradClipFraction": 0
+                    },
+                    "critic": {
+                      "preClipNorm": 29.06504358769905,
+                      "postClipNorm": 0.9999999999999654,
+                      "updateNorm": 0.02160642632357748,
+                      "relativeUpdateNorm": 0.0016384216268369764,
+                      "gradClipFraction": 1
+                    }
+                  },
+                  "maxKlAcrossIterations": 0.00502063450441963,
+                  "meanSampleClipAcrossIterations": 0
+                }
+              }
+            ]
+          },
+          {
+            "id": "two-actor-005",
+            "label": "2 tokens · actor ×0.05",
+            "parameters": {
+              "encoder": 424,
+              "dynamic": 281,
+              "kinematic": 520,
+              "critic": 141,
+              "actor": 705,
+              "total": 1366
+            },
+            "checkpoints": [
+              {
+                "ppoIterations": 0,
+                "envSteps": 0,
+                "optimizerBatches": 0,
+                "cleanMae": 0.22612047574345906,
+                "cleanAllStepMae": 0.22612047574345906,
+                "cleanSuccesses": 12,
+                "pushMae": 0.2566376240414368,
+                "pushSuccesses": 12,
+                "pushReachedEpisodes": 12,
+                "recoveredEpisodes": 7,
+                "recoverySteps": 192.75,
+                "diagnostics": null
+              },
+              {
+                "ppoIterations": 10,
+                "envSteps": 7680,
+                "optimizerBatches": 240,
+                "cleanMae": 0.24074257392209367,
+                "cleanAllStepMae": 0.24074257392209367,
+                "cleanSuccesses": 12,
+                "pushMae": 0.2804722853777269,
+                "pushSuccesses": 12,
+                "pushReachedEpisodes": 12,
+                "recoveredEpisodes": 6,
+                "recoverySteps": 212.58333333333334,
+                "diagnostics": {
+                  "rolloutMae": 0.3122194883462765,
+                  "clipFraction": 0,
+                  "objectiveClipFraction": 0,
+                  "actionSaturation": 0,
+                  "sampleClipFraction": 0,
+                  "postUpdateKl": 0.00011886930765948342,
+                  "postUpdateApproxKl": 0.00012146762777711562,
+                  "tokenChangeFraction": 0,
+                  "actionMeanShiftRms": 0.0018502529720535825,
+                  "gradEncoder": 0.22676148447013256,
+                  "gradDynamic": 1.1415207971197885,
+                  "updates": {
+                    "encoder": {
+                      "preClipNorm": 0.22676148447013256,
+                      "postClipNorm": 0.22676148447013256,
+                      "updateNorm": 0.00012128488595816066,
+                      "relativeUpdateNorm": 0.000025763241890938842,
+                      "gradClipFraction": 0
+                    },
+                    "dynamic": {
+                      "preClipNorm": 1.1415207971197885,
+                      "postClipNorm": 0.6136559461511516,
+                      "updateNorm": 0.00014849739755431085,
+                      "relativeUpdateNorm": 0.00003077269178993033,
+                      "gradClipFraction": 0.75
+                    },
+                    "kinematic": {
+                      "preClipNorm": 0.0005166194255217942,
+                      "postClipNorm": 0.0005166194255217942,
+                      "updateNorm": 0.0009966133550924534,
+                      "relativeUpdateNorm": 0.00028468650691495617,
+                      "gradClipFraction": 0
+                    },
+                    "critic": {
+                      "preClipNorm": 35.195022741976096,
+                      "postClipNorm": 0.9999999999999716,
+                      "updateNorm": 0.01662840564631246,
+                      "relativeUpdateNorm": 0.003696984954159672,
+                      "gradClipFraction": 1
+                    }
+                  },
+                  "maxKlAcrossIterations": 0.002035041455092597,
+                  "meanSampleClipAcrossIterations": 0
+                }
+              },
+              {
+                "ppoIterations": 50,
+                "envSteps": 38400,
+                "optimizerBatches": 1200,
+                "cleanMae": 0.22932720578520352,
+                "cleanAllStepMae": 0.22932720578520352,
+                "cleanSuccesses": 12,
+                "pushMae": 0.25797047493130987,
+                "pushSuccesses": 12,
+                "pushReachedEpisodes": 12,
+                "recoveredEpisodes": 7,
+                "recoverySteps": 204.16666666666666,
+                "diagnostics": {
+                  "rolloutMae": 0.3052796221382958,
+                  "clipFraction": 0,
+                  "objectiveClipFraction": 0,
+                  "actionSaturation": 0,
+                  "sampleClipFraction": 0,
+                  "postUpdateKl": 0.000019900889642020882,
+                  "postUpdateApproxKl": 0.000018635199276207576,
+                  "tokenChangeFraction": 0,
+                  "actionMeanShiftRms": 0.000757063816127942,
+                  "gradEncoder": 0.26211927752634784,
+                  "gradDynamic": 1.2657724189807993,
+                  "updates": {
+                    "encoder": {
+                      "preClipNorm": 0.26211927752634784,
+                      "postClipNorm": 0.26211927752634784,
+                      "updateNorm": 0.00012307444250967664,
+                      "relativeUpdateNorm": 0.00002608425711369458,
+                      "gradClipFraction": 0
+                    },
+                    "dynamic": {
+                      "preClipNorm": 1.2657724189807993,
+                      "postClipNorm": 0.6233196596176135,
+                      "updateNorm": 0.00012585863295751576,
+                      "relativeUpdateNorm": 0.000026062267037067208,
+                      "gradClipFraction": 0.75
+                    },
+                    "kinematic": {
+                      "preClipNorm": 0.0007329452926186091,
+                      "postClipNorm": 0.0007329452926186091,
+                      "updateNorm": 0.003297560468608757,
+                      "relativeUpdateNorm": 0.0009757280138191251,
+                      "gradClipFraction": 0
+                    },
+                    "critic": {
+                      "preClipNorm": 29.90365080939713,
+                      "postClipNorm": 0.9999999999999666,
+                      "updateNorm": 0.021571160314212436,
+                      "relativeUpdateNorm": 0.001654846645837073,
+                      "gradClipFraction": 1
+                    }
+                  },
+                  "maxKlAcrossIterations": 0.002035041455092597,
+                  "meanSampleClipAcrossIterations": 0
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "seed": 27011,
+        "arms": [
+          {
+            "id": "one-default",
+            "label": "1 token · actor ×1",
+            "parameters": {
+              "encoder": 382,
+              "dynamic": 225,
+              "kinematic": 472,
+              "critic": 141,
+              "actor": 607,
+              "total": 1220
+            },
+            "checkpoints": [
+              {
+                "ppoIterations": 0,
+                "envSteps": 0,
+                "optimizerBatches": 0,
+                "cleanMae": 0.2125966975225159,
+                "cleanAllStepMae": 0.2125966975225159,
+                "cleanSuccesses": 12,
+                "pushMae": 0.2605076642947937,
+                "pushSuccesses": 12,
+                "pushReachedEpisodes": 12,
+                "recoveredEpisodes": 7,
+                "recoverySteps": 202.08333333333334,
+                "diagnostics": null
+              },
+              {
+                "ppoIterations": 10,
+                "envSteps": 7680,
+                "optimizerBatches": 240,
+                "cleanMae": 0.18551410020805,
+                "cleanAllStepMae": 0.18551410020805,
+                "cleanSuccesses": 12,
+                "pushMae": 0.3078848682466879,
+                "pushSuccesses": 12,
+                "pushReachedEpisodes": 12,
+                "recoveredEpisodes": 7,
+                "recoverySteps": 205.58333333333334,
+                "diagnostics": {
+                  "rolloutMae": 0.11919872754126472,
+                  "clipFraction": 0.0869140625,
+                  "objectiveClipFraction": 0.051432291666666664,
+                  "actionSaturation": 0,
+                  "sampleClipFraction": 0,
+                  "postUpdateKl": 0.004288559902227375,
+                  "postUpdateApproxKl": 0.0035748363250306513,
+                  "tokenChangeFraction": 0,
+                  "actionMeanShiftRms": 0.01111352892577998,
+                  "gradEncoder": 0.19948260232332424,
+                  "gradDynamic": 1.5755282615136117,
+                  "updates": {
+                    "encoder": {
+                      "preClipNorm": 0.19948260232332424,
+                      "postClipNorm": 0.19948260232332424,
+                      "updateNorm": 0.0029061978243371533,
+                      "relativeUpdateNorm": 0.0006146829014108149,
+                      "gradClipFraction": 0
+                    },
+                    "dynamic": {
+                      "preClipNorm": 1.5755282615136117,
+                      "postClipNorm": 0.6434118568748421,
+                      "updateNorm": 0.0034235050791068798,
+                      "relativeUpdateNorm": 0.0007111005140516914,
+                      "gradClipFraction": 0.7916666666666666
+                    },
+                    "kinematic": {
+                      "preClipNorm": 0.0007230560259736864,
+                      "postClipNorm": 0.0007230560259736864,
+                      "updateNorm": 0.0008545101294980608,
+                      "relativeUpdateNorm": 0.0003047009027825949,
+                      "gradClipFraction": 0
+                    },
+                    "critic": {
+                      "preClipNorm": 38.44401265024268,
+                      "postClipNorm": 0.9999999999999742,
+                      "updateNorm": 0.017286494536931225,
+                      "relativeUpdateNorm": 0.003440201626807409,
+                      "gradClipFraction": 1
+                    }
+                  },
+                  "maxKlAcrossIterations": 0.015797703352815884,
+                  "meanSampleClipAcrossIterations": 0
+                }
+              },
+              {
+                "ppoIterations": 50,
+                "envSteps": 38400,
+                "optimizerBatches": 1200,
+                "cleanMae": 0.192158014604526,
+                "cleanAllStepMae": 0.192158014604526,
+                "cleanSuccesses": 12,
+                "pushMae": 0.25779287069130247,
+                "pushSuccesses": 12,
+                "pushReachedEpisodes": 12,
+                "recoveredEpisodes": 11,
+                "recoverySteps": 210.91666666666666,
+                "diagnostics": {
+                  "rolloutMae": 0.2326883860784802,
+                  "clipFraction": 0.09993489583333333,
+                  "objectiveClipFraction": 0.0546875,
+                  "actionSaturation": 0,
+                  "sampleClipFraction": 0,
+                  "postUpdateKl": 0.004697939466986719,
+                  "postUpdateApproxKl": 0.005044050066398654,
+                  "tokenChangeFraction": 0,
+                  "actionMeanShiftRms": 0.011631881045179988,
+                  "gradEncoder": 0.1016593519077178,
+                  "gradDynamic": 1.4429195359211082,
+                  "updates": {
+                    "encoder": {
+                      "preClipNorm": 0.1016593519077178,
+                      "postClipNorm": 0.1016593519077178,
+                      "updateNorm": 0.0013720447378716882,
+                      "relativeUpdateNorm": 0.00028556699866899365,
+                      "gradClipFraction": 0
+                    },
+                    "dynamic": {
+                      "preClipNorm": 1.4429195359211082,
+                      "postClipNorm": 0.6294805670926403,
+                      "updateNorm": 0.0022508332743720835,
+                      "relativeUpdateNorm": 0.0004578662873124034,
+                      "gradClipFraction": 0.75
+                    },
+                    "kinematic": {
+                      "preClipNorm": 0.0010279521863417085,
+                      "postClipNorm": 0.0010279521863417085,
+                      "updateNorm": 0.00448811248787874,
+                      "relativeUpdateNorm": 0.0017966323693159522,
+                      "gradClipFraction": 0
+                    },
+                    "critic": {
+                      "preClipNorm": 30.793996301672276,
+                      "postClipNorm": 0.9999999999999675,
+                      "updateNorm": 0.01102095808432854,
+                      "relativeUpdateNorm": 0.0008382124496344269,
+                      "gradClipFraction": 1
+                    }
+                  },
+                  "maxKlAcrossIterations": 0.03988330742990006,
+                  "meanSampleClipAcrossIterations": 0
+                }
+              }
+            ]
+          },
+          {
+            "id": "two-default",
+            "label": "2 tokens · actor ×1",
+            "parameters": {
+              "encoder": 424,
+              "dynamic": 281,
+              "kinematic": 520,
+              "critic": 141,
+              "actor": 705,
+              "total": 1366
+            },
+            "checkpoints": [
+              {
+                "ppoIterations": 0,
+                "envSteps": 0,
+                "optimizerBatches": 0,
+                "cleanMae": 0.22612047574345906,
+                "cleanAllStepMae": 0.22612047574345906,
+                "cleanSuccesses": 12,
+                "pushMae": 0.2566376240414368,
+                "pushSuccesses": 12,
+                "pushReachedEpisodes": 12,
+                "recoveredEpisodes": 7,
+                "recoverySteps": 192.75,
+                "diagnostics": null
+              },
+              {
+                "ppoIterations": 10,
+                "envSteps": 7680,
+                "optimizerBatches": 240,
+                "cleanMae": 0.226251046539913,
+                "cleanAllStepMae": 0.226251046539913,
+                "cleanSuccesses": 12,
+                "pushMae": 0.27739729468893054,
+                "pushSuccesses": 12,
+                "pushReachedEpisodes": 12,
+                "recoveredEpisodes": 6,
+                "recoverySteps": 212.75,
+                "diagnostics": {
+                  "rolloutMae": 0.11885562609125162,
+                  "clipFraction": 0.09309895833333333,
+                  "objectiveClipFraction": 0.0537109375,
+                  "actionSaturation": 0,
+                  "sampleClipFraction": 0,
+                  "postUpdateKl": 0.005103301918188076,
+                  "postUpdateApproxKl": 0.004498592406132387,
+                  "tokenChangeFraction": 0.125,
+                  "actionMeanShiftRms": 0.01212332855464277,
+                  "gradEncoder": 0.23023195104110383,
+                  "gradDynamic": 1.4714420172366032,
+                  "updates": {
+                    "encoder": {
+                      "preClipNorm": 0.23023195104110383,
+                      "postClipNorm": 0.23023195104110383,
+                      "updateNorm": 0.002882929080236766,
+                      "relativeUpdateNorm": 0.0006063290115927932,
+                      "gradClipFraction": 0
+                    },
+                    "dynamic": {
+                      "preClipNorm": 1.4714420172366032,
+                      "postClipNorm": 0.6333783692924867,
+                      "updateNorm": 0.0035642324700183975,
+                      "relativeUpdateNorm": 0.0007415533368879099,
+                      "gradClipFraction": 0.7083333333333334
+                    },
+                    "kinematic": {
+                      "preClipNorm": 0.0006665621380284684,
+                      "postClipNorm": 0.0006665621380284684,
+                      "updateNorm": 0.0011515847925150106,
+                      "relativeUpdateNorm": 0.00035324142162819434,
+                      "gradClipFraction": 0
+                    },
+                    "critic": {
+                      "preClipNorm": 38.411731958183076,
+                      "postClipNorm": 0.9999999999999739,
+                      "updateNorm": 0.017377933026584618,
+                      "relativeUpdateNorm": 0.003411847186569779,
+                      "gradClipFraction": 1
+                    }
+                  },
+                  "maxKlAcrossIterations": 0.028643202384084406,
+                  "meanSampleClipAcrossIterations": 0
+                }
+              },
+              {
+                "ppoIterations": 50,
+                "envSteps": 38400,
+                "optimizerBatches": 1200,
+                "cleanMae": 0.2363917631122945,
+                "cleanAllStepMae": 0.2363917631122945,
+                "cleanSuccesses": 12,
+                "pushMae": 0.27151423276249875,
+                "pushSuccesses": 12,
+                "pushReachedEpisodes": 12,
+                "recoveredEpisodes": 8,
+                "recoverySteps": 202.83333333333334,
+                "diagnostics": {
+                  "rolloutMae": 0.3140004112994234,
+                  "clipFraction": 0.032552083333333336,
+                  "objectiveClipFraction": 0.0224609375,
+                  "actionSaturation": 0,
+                  "sampleClipFraction": 0,
+                  "postUpdateKl": 0.004158175870267948,
+                  "postUpdateApproxKl": 0.004540020093119494,
+                  "tokenChangeFraction": 0,
+                  "actionMeanShiftRms": 0.01094328401640553,
+                  "gradEncoder": 0.29082603830269754,
+                  "gradDynamic": 1.1852340331400795,
+                  "updates": {
+                    "encoder": {
+                      "preClipNorm": 0.29082603830269754,
+                      "postClipNorm": 0.28359808656080504,
+                      "updateNorm": 0.0009273564290481041,
+                      "relativeUpdateNorm": 0.00019419948622954137,
+                      "gradClipFraction": 0.041666666666666664
+                    },
+                    "dynamic": {
+                      "preClipNorm": 1.1852340331400795,
+                      "postClipNorm": 0.6312550985770825,
+                      "updateNorm": 0.002525622715407354,
+                      "relativeUpdateNorm": 0.0005117128667767232,
+                      "gradClipFraction": 0.625
+                    },
+                    "kinematic": {
+                      "preClipNorm": 0.000710411702962861,
+                      "postClipNorm": 0.000710411702962861,
+                      "updateNorm": 0.002897417323101627,
+                      "relativeUpdateNorm": 0.0009405265791525842,
+                      "gradClipFraction": 0
+                    },
+                    "critic": {
+                      "preClipNorm": 29.573198820260405,
+                      "postClipNorm": 0.9999999999999661,
+                      "updateNorm": 0.009954908746171403,
+                      "relativeUpdateNorm": 0.0007607287866340495,
+                      "gradClipFraction": 1
+                    }
+                  },
+                  "maxKlAcrossIterations": 0.5344987298329277,
+                  "meanSampleClipAcrossIterations": 0
+                }
+              }
+            ]
+          },
+          {
+            "id": "one-actor-005",
+            "label": "1 token · actor ×0.05",
+            "parameters": {
+              "encoder": 382,
+              "dynamic": 225,
+              "kinematic": 472,
+              "critic": 141,
+              "actor": 607,
+              "total": 1220
+            },
+            "checkpoints": [
+              {
+                "ppoIterations": 0,
+                "envSteps": 0,
+                "optimizerBatches": 0,
+                "cleanMae": 0.2125966975225159,
+                "cleanAllStepMae": 0.2125966975225159,
+                "cleanSuccesses": 12,
+                "pushMae": 0.2605076642947937,
+                "pushSuccesses": 12,
+                "pushReachedEpisodes": 12,
+                "recoveredEpisodes": 7,
+                "recoverySteps": 202.08333333333334,
+                "diagnostics": null
+              },
+              {
+                "ppoIterations": 10,
+                "envSteps": 7680,
+                "optimizerBatches": 240,
+                "cleanMae": 0.21605525898286448,
+                "cleanAllStepMae": 0.21605525898286448,
+                "cleanSuccesses": 12,
+                "pushMae": 0.23183127773553505,
+                "pushSuccesses": 12,
+                "pushReachedEpisodes": 12,
+                "recoveredEpisodes": 9,
+                "recoverySteps": 196.25,
+                "diagnostics": {
+                  "rolloutMae": 0.11593964762264199,
+                  "clipFraction": 0,
+                  "objectiveClipFraction": 0,
+                  "actionSaturation": 0,
+                  "sampleClipFraction": 0,
+                  "postUpdateKl": 0.00030596200911113243,
+                  "postUpdateApproxKl": 0.00033361698078703314,
+                  "tokenChangeFraction": 0,
+                  "actionMeanShiftRms": 0.0029684517618449864,
+                  "gradEncoder": 0.19616468245912635,
+                  "gradDynamic": 1.3192243880909948,
+                  "updates": {
+                    "encoder": {
+                      "preClipNorm": 0.19616468245912635,
+                      "postClipNorm": 0.19616468245912635,
+                      "updateNorm": 0.00020183330748162938,
+                      "relativeUpdateNorm": 0.000042866685116578784,
+                      "gradClipFraction": 0
+                    },
+                    "dynamic": {
+                      "preClipNorm": 1.3192243880909948,
+                      "postClipNorm": 0.6246481043171309,
+                      "updateNorm": 0.0002845593350173588,
+                      "relativeUpdateNorm": 0.00005881019428767245,
+                      "gradClipFraction": 0.6666666666666666
+                    },
+                    "kinematic": {
+                      "preClipNorm": 0.0007308954271180953,
+                      "postClipNorm": 0.0007308954271180953,
+                      "updateNorm": 0.000959563908996037,
+                      "relativeUpdateNorm": 0.00034215792699123355,
+                      "gradClipFraction": 0
+                    },
+                    "critic": {
+                      "preClipNorm": 38.906554642647954,
+                      "postClipNorm": 0.9999999999999746,
+                      "updateNorm": 0.018823272807657204,
+                      "relativeUpdateNorm": 0.003581582890154474,
+                      "gradClipFraction": 1
+                    }
+                  },
+                  "maxKlAcrossIterations": 0.004906752916453779,
+                  "meanSampleClipAcrossIterations": 0
+                }
+              },
+              {
+                "ppoIterations": 50,
+                "envSteps": 38400,
+                "optimizerBatches": 1200,
+                "cleanMae": 0.25574126336568154,
+                "cleanAllStepMae": 0.25574126336568154,
+                "cleanSuccesses": 12,
+                "pushMae": 0.20159909510544496,
+                "pushSuccesses": 12,
+                "pushReachedEpisodes": 12,
+                "recoveredEpisodes": 10,
+                "recoverySteps": 130.08333333333334,
+                "diagnostics": {
+                  "rolloutMae": 0.31659212191779246,
+                  "clipFraction": 0,
+                  "objectiveClipFraction": 0,
+                  "actionSaturation": 0,
+                  "sampleClipFraction": 0,
+                  "postUpdateKl": 0.000769161419161981,
+                  "postUpdateApproxKl": 0.0008117221128214301,
+                  "tokenChangeFraction": 0,
+                  "actionMeanShiftRms": 0.0047065750681217254,
+                  "gradEncoder": 0.16356198093296329,
+                  "gradDynamic": 1.1689832606445356,
+                  "updates": {
+                    "encoder": {
+                      "preClipNorm": 0.16356198093296329,
+                      "postClipNorm": 0.16356198093296329,
+                      "updateNorm": 0.00008617112134831115,
+                      "relativeUpdateNorm": 0.000018297514925834862,
+                      "gradClipFraction": 0
+                    },
+                    "dynamic": {
+                      "preClipNorm": 1.1689832606445356,
+                      "postClipNorm": 0.5919179375282574,
+                      "updateNorm": 0.00017614069877870428,
+                      "relativeUpdateNorm": 0.00003632798092947927,
+                      "gradClipFraction": 0.5416666666666666
+                    },
+                    "kinematic": {
+                      "preClipNorm": 0.0009703926730249109,
+                      "postClipNorm": 0.0009703926730249109,
+                      "updateNorm": 0.002872418629468077,
+                      "relativeUpdateNorm": 0.0010446331918228114,
+                      "gradClipFraction": 0
+                    },
+                    "critic": {
+                      "preClipNorm": 28.211582075009748,
+                      "postClipNorm": 0.9999999999999645,
+                      "updateNorm": 0.011710221832439862,
+                      "relativeUpdateNorm": 0.0007864645898047582,
+                      "gradClipFraction": 1
+                    }
+                  },
+                  "maxKlAcrossIterations": 0.004906752916453779,
+                  "meanSampleClipAcrossIterations": 0
+                }
+              }
+            ]
+          },
+          {
+            "id": "two-actor-005",
+            "label": "2 tokens · actor ×0.05",
+            "parameters": {
+              "encoder": 424,
+              "dynamic": 281,
+              "kinematic": 520,
+              "critic": 141,
+              "actor": 705,
+              "total": 1366
+            },
+            "checkpoints": [
+              {
+                "ppoIterations": 0,
+                "envSteps": 0,
+                "optimizerBatches": 0,
+                "cleanMae": 0.22612047574345906,
+                "cleanAllStepMae": 0.22612047574345906,
+                "cleanSuccesses": 12,
+                "pushMae": 0.2566376240414368,
+                "pushSuccesses": 12,
+                "pushReachedEpisodes": 12,
+                "recoveredEpisodes": 7,
+                "recoverySteps": 192.75,
+                "diagnostics": null
+              },
+              {
+                "ppoIterations": 10,
+                "envSteps": 7680,
+                "optimizerBatches": 240,
+                "cleanMae": 0.2360097828305641,
+                "cleanAllStepMae": 0.2360097828305641,
+                "cleanSuccesses": 12,
+                "pushMae": 0.25454431012897233,
+                "pushSuccesses": 12,
+                "pushReachedEpisodes": 12,
+                "recoveredEpisodes": 7,
+                "recoverySteps": 205.66666666666666,
+                "diagnostics": {
+                  "rolloutMae": 0.13190698020116304,
+                  "clipFraction": 0,
+                  "objectiveClipFraction": 0,
+                  "actionSaturation": 0,
+                  "sampleClipFraction": 0,
+                  "postUpdateKl": 0.000278933715593562,
+                  "postUpdateApproxKl": 0.00030523830311383573,
+                  "tokenChangeFraction": 0,
+                  "actionMeanShiftRms": 0.0028343060895207814,
+                  "gradEncoder": 0.1768365643392039,
+                  "gradDynamic": 1.304520284720862,
+                  "updates": {
+                    "encoder": {
+                      "preClipNorm": 0.1768365643392039,
+                      "postClipNorm": 0.1768365643392039,
+                      "updateNorm": 0.0002089031138060567,
+                      "relativeUpdateNorm": 0.000044380378663264304,
+                      "gradClipFraction": 0
+                    },
+                    "dynamic": {
+                      "preClipNorm": 1.304520284720862,
+                      "postClipNorm": 0.61206768595991,
+                      "updateNorm": 0.0002826754318632154,
+                      "relativeUpdateNorm": 0.00005860693058030073,
+                      "gradClipFraction": 0.6666666666666666
+                    },
+                    "kinematic": {
+                      "preClipNorm": 0.0006445826370287408,
+                      "postClipNorm": 0.0006445826370287408,
+                      "updateNorm": 0.000852586837436756,
+                      "relativeUpdateNorm": 0.0002611600360223842,
+                      "gradClipFraction": 0
+                    },
+                    "critic": {
+                      "preClipNorm": 38.69057308089736,
+                      "postClipNorm": 0.9999999999999742,
+                      "updateNorm": 0.018524503758684526,
+                      "relativeUpdateNorm": 0.0035341089632756513,
+                      "gradClipFraction": 1
+                    }
+                  },
+                  "maxKlAcrossIterations": 0.018841584712508158,
+                  "meanSampleClipAcrossIterations": 0
+                }
+              },
+              {
+                "ppoIterations": 50,
+                "envSteps": 38400,
+                "optimizerBatches": 1200,
+                "cleanMae": 0.2695692850834963,
+                "cleanAllStepMae": 0.2695692850834963,
+                "cleanSuccesses": 12,
+                "pushMae": 0.22929922069598282,
+                "pushSuccesses": 12,
+                "pushReachedEpisodes": 12,
+                "recoveredEpisodes": 10,
+                "recoverySteps": 150.91666666666666,
+                "diagnostics": {
+                  "rolloutMae": 0.33874693492010977,
+                  "clipFraction": 0,
+                  "objectiveClipFraction": 0,
+                  "actionSaturation": 0,
+                  "sampleClipFraction": 0,
+                  "postUpdateKl": 0.0008081575618723922,
+                  "postUpdateApproxKl": 0.0008571798648454465,
+                  "tokenChangeFraction": 0,
+                  "actionMeanShiftRms": 0.004824410614979294,
+                  "gradEncoder": 0.14443822300063472,
+                  "gradDynamic": 1.0993025153542795,
+                  "updates": {
+                    "encoder": {
+                      "preClipNorm": 0.14443822300063472,
+                      "postClipNorm": 0.14443822300063472,
+                      "updateNorm": 0.00006347961615546594,
+                      "relativeUpdateNorm": 0.000013484436237827064,
+                      "gradClipFraction": 0
+                    },
+                    "dynamic": {
+                      "preClipNorm": 1.0993025153542795,
+                      "postClipNorm": 0.5633795862907909,
+                      "updateNorm": 0.00019818870726948679,
+                      "relativeUpdateNorm": 0.00004102470059468165,
+                      "gradClipFraction": 0.5416666666666666
+                    },
+                    "kinematic": {
+                      "preClipNorm": 0.0010416321300462964,
+                      "postClipNorm": 0.0010416321300462964,
+                      "updateNorm": 0.002403047579533288,
+                      "relativeUpdateNorm": 0.000739830372013239,
+                      "gradClipFraction": 0
+                    },
+                    "critic": {
+                      "preClipNorm": 27.494036539789608,
+                      "postClipNorm": 0.9999999999999636,
+                      "updateNorm": 0.01154307691128842,
+                      "relativeUpdateNorm": 0.000752246403254466,
+                      "gradClipFraction": 1
+                    }
+                  },
+                  "maxKlAcrossIterations": 0.024290434823525022,
+                  "meanSampleClipAcrossIterations": 0
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "seed": 37011,
+        "arms": [
+          {
+            "id": "one-default",
+            "label": "1 token · actor ×1",
+            "parameters": {
+              "encoder": 382,
+              "dynamic": 225,
+              "kinematic": 472,
+              "critic": 141,
+              "actor": 607,
+              "total": 1220
+            },
+            "checkpoints": [
+              {
+                "ppoIterations": 0,
+                "envSteps": 0,
+                "optimizerBatches": 0,
+                "cleanMae": 0.2125966975225159,
+                "cleanAllStepMae": 0.2125966975225159,
+                "cleanSuccesses": 12,
+                "pushMae": 0.2605076642947937,
+                "pushSuccesses": 12,
+                "pushReachedEpisodes": 12,
+                "recoveredEpisodes": 7,
+                "recoverySteps": 202.08333333333334,
+                "diagnostics": null
+              },
+              {
+                "ppoIterations": 10,
+                "envSteps": 7680,
+                "optimizerBatches": 240,
+                "cleanMae": 0.2965123516579721,
+                "cleanAllStepMae": 0.2965123516579721,
+                "cleanSuccesses": 12,
+                "pushMae": 0.3975653044725442,
+                "pushSuccesses": 12,
+                "pushReachedEpisodes": 12,
+                "recoveredEpisodes": 4,
+                "recoverySteps": 255.41666666666666,
+                "diagnostics": {
+                  "rolloutMae": 0.44952278740782886,
+                  "clipFraction": 0.09342447916666667,
+                  "objectiveClipFraction": 0.053385416666666664,
+                  "actionSaturation": 0,
+                  "sampleClipFraction": 0,
+                  "postUpdateKl": 0.014504909574255593,
+                  "postUpdateApproxKl": 0.014330274293958977,
+                  "tokenChangeFraction": 0,
+                  "actionMeanShiftRms": 0.02043872294783999,
+                  "gradEncoder": 0.1320183795290642,
+                  "gradDynamic": 1.5913805585843475,
+                  "updates": {
+                    "encoder": {
+                      "preClipNorm": 0.1320183795290642,
+                      "postClipNorm": 0.1320183795290642,
+                      "updateNorm": 0.002475780269128588,
+                      "relativeUpdateNorm": 0.0005230789828194014,
+                      "gradClipFraction": 0
+                    },
+                    "dynamic": {
+                      "preClipNorm": 1.5913805585843475,
+                      "postClipNorm": 0.6619106978536179,
+                      "updateNorm": 0.0020507800231673945,
+                      "relativeUpdateNorm": 0.0004231640832660205,
+                      "gradClipFraction": 0.875
+                    },
+                    "kinematic": {
+                      "preClipNorm": 0.0009344787103354643,
+                      "postClipNorm": 0.0009344787103354643,
+                      "updateNorm": 0.0009989740265091598,
+                      "relativeUpdateNorm": 0.00033222097249832806,
+                      "gradClipFraction": 0
+                    },
+                    "critic": {
+                      "preClipNorm": 32.49542842839325,
+                      "postClipNorm": 0.9999999999999689,
+                      "updateNorm": 0.01652511000737733,
+                      "relativeUpdateNorm": 0.0034600151212090488,
+                      "gradClipFraction": 1
+                    }
+                  },
+                  "maxKlAcrossIterations": 0.014504909574255593,
+                  "meanSampleClipAcrossIterations": 0
+                }
+              },
+              {
+                "ppoIterations": 50,
+                "envSteps": 38400,
+                "optimizerBatches": 1200,
+                "cleanMae": 0.30049246908666016,
+                "cleanAllStepMae": 0.30049246908666016,
+                "cleanSuccesses": 12,
+                "pushMae": 0.39901780535959697,
+                "pushSuccesses": 12,
+                "pushReachedEpisodes": 12,
+                "recoveredEpisodes": 4,
+                "recoverySteps": 255.41666666666666,
+                "diagnostics": {
+                  "rolloutMae": 0.29825374131566373,
+                  "clipFraction": 0.019856770833333332,
+                  "objectiveClipFraction": 0.0146484375,
+                  "actionSaturation": 0,
+                  "sampleClipFraction": 0,
+                  "postUpdateKl": 0.001933292936548779,
+                  "postUpdateApproxKl": 0.0019519467566378023,
+                  "tokenChangeFraction": 0,
+                  "actionMeanShiftRms": 0.007461825284245458,
+                  "gradEncoder": 0.11548792172648374,
+                  "gradDynamic": 1.1419671178675226,
+                  "updates": {
+                    "encoder": {
+                      "preClipNorm": 0.11548792172648374,
+                      "postClipNorm": 0.11548792172648374,
+                      "updateNorm": 0.0009837623114770811,
+                      "relativeUpdateNorm": 0.00020823283511326409,
+                      "gradClipFraction": 0
+                    },
+                    "dynamic": {
+                      "preClipNorm": 1.1419671178675226,
+                      "postClipNorm": 0.5953843886708329,
+                      "updateNorm": 0.001503432500667923,
+                      "relativeUpdateNorm": 0.00030254032380742127,
+                      "gradClipFraction": 0.625
+                    },
+                    "kinematic": {
+                      "preClipNorm": 0.0006831912600767389,
+                      "postClipNorm": 0.0006831912600767389,
+                      "updateNorm": 0.0023926333242860363,
+                      "relativeUpdateNorm": 0.0008627503137931825,
+                      "gradClipFraction": 0
+                    },
+                    "critic": {
+                      "preClipNorm": 28.35471274199098,
+                      "postClipNorm": 0.9999999999999646,
+                      "updateNorm": 0.013160775050384778,
+                      "relativeUpdateNorm": 0.0009208757004173751,
+                      "gradClipFraction": 1
+                    }
+                  },
+                  "maxKlAcrossIterations": 0.014504909574255593,
+                  "meanSampleClipAcrossIterations": 0
+                }
+              }
+            ]
+          },
+          {
+            "id": "two-default",
+            "label": "2 tokens · actor ×1",
+            "parameters": {
+              "encoder": 424,
+              "dynamic": 281,
+              "kinematic": 520,
+              "critic": 141,
+              "actor": 705,
+              "total": 1366
+            },
+            "checkpoints": [
+              {
+                "ppoIterations": 0,
+                "envSteps": 0,
+                "optimizerBatches": 0,
+                "cleanMae": 0.22612047574345906,
+                "cleanAllStepMae": 0.22612047574345906,
+                "cleanSuccesses": 12,
+                "pushMae": 0.2566376240414368,
+                "pushSuccesses": 12,
+                "pushReachedEpisodes": 12,
+                "recoveredEpisodes": 7,
+                "recoverySteps": 192.75,
+                "diagnostics": null
+              },
+              {
+                "ppoIterations": 10,
+                "envSteps": 7680,
+                "optimizerBatches": 240,
+                "cleanMae": 0.25489713825011834,
+                "cleanAllStepMae": 0.25489713825011834,
+                "cleanSuccesses": 12,
+                "pushMae": 0.2983860002327411,
+                "pushSuccesses": 12,
+                "pushReachedEpisodes": 12,
+                "recoveredEpisodes": 7,
+                "recoverySteps": 238.16666666666666,
+                "diagnostics": {
+                  "rolloutMae": 0.4172956751730283,
+                  "clipFraction": 0.14778645833333334,
+                  "objectiveClipFraction": 0.08365885416666667,
+                  "actionSaturation": 0,
+                  "sampleClipFraction": 0,
+                  "postUpdateKl": 0.038123065052919375,
+                  "postUpdateApproxKl": 0.036623284375327546,
+                  "tokenChangeFraction": 0.25,
+                  "actionMeanShiftRms": 0.03313524216788038,
+                  "gradEncoder": 0.1975750881891305,
+                  "gradDynamic": 1.8075293473985783,
+                  "updates": {
+                    "encoder": {
+                      "preClipNorm": 0.1975750881891305,
+                      "postClipNorm": 0.1975750881891305,
+                      "updateNorm": 0.0022352263338028667,
+                      "relativeUpdateNorm": 0.0004756119440308809,
+                      "gradClipFraction": 0
+                    },
+                    "dynamic": {
+                      "preClipNorm": 1.8075293473985783,
+                      "postClipNorm": 0.6905151125347867,
+                      "updateNorm": 0.004062849084231204,
+                      "relativeUpdateNorm": 0.0008451142786547989,
+                      "gradClipFraction": 0.9166666666666666
+                    },
+                    "kinematic": {
+                      "preClipNorm": 0.0010409014436588288,
+                      "postClipNorm": 0.0010409014436588288,
+                      "updateNorm": 0.006930612993783687,
+                      "relativeUpdateNorm": 0.0022077396358727306,
+                      "gradClipFraction": 0
+                    },
+                    "critic": {
+                      "preClipNorm": 33.25953807060039,
+                      "postClipNorm": 0.9999999999999701,
+                      "updateNorm": 0.017390689353433752,
+                      "relativeUpdateNorm": 0.003789976375310263,
+                      "gradClipFraction": 1
+                    }
+                  },
+                  "maxKlAcrossIterations": 0.038123065052919375,
+                  "meanSampleClipAcrossIterations": 0
+                }
+              },
+              {
+                "ppoIterations": 50,
+                "envSteps": 38400,
+                "optimizerBatches": 1200,
+                "cleanMae": 0.4463798189881369,
+                "cleanAllStepMae": 0.4463798189881369,
+                "cleanSuccesses": 12,
+                "pushMae": 0.5030591753413363,
+                "pushSuccesses": 12,
+                "pushReachedEpisodes": 12,
+                "recoveredEpisodes": 4,
+                "recoverySteps": 273.6666666666667,
+                "diagnostics": {
+                  "rolloutMae": 0.6002395853849956,
+                  "clipFraction": 0.043294270833333336,
+                  "objectiveClipFraction": 0.021809895833333332,
+                  "actionSaturation": 0,
+                  "sampleClipFraction": 0,
+                  "postUpdateKl": 0.001554025684886031,
+                  "postUpdateApproxKl": 0.0016264173757284657,
+                  "tokenChangeFraction": 0,
+                  "actionMeanShiftRms": 0.006689988021268625,
+                  "gradEncoder": 0.13632699921933938,
+                  "gradDynamic": 1.4602887642488829,
+                  "updates": {
+                    "encoder": {
+                      "preClipNorm": 0.13632699921933938,
+                      "postClipNorm": 0.13632699921933938,
+                      "updateNorm": 0.002135895277385873,
+                      "relativeUpdateNorm": 0.00045184780590631733,
+                      "gradClipFraction": 0
+                    },
+                    "dynamic": {
+                      "preClipNorm": 1.4602887642488829,
+                      "postClipNorm": 0.620908997212198,
+                      "updateNorm": 0.0021806303764000173,
+                      "relativeUpdateNorm": 0.00044962887129402276,
+                      "gradClipFraction": 0.6666666666666666
+                    },
+                    "kinematic": {
+                      "preClipNorm": 0.0010998575411050693,
+                      "postClipNorm": 0.0010998575411050693,
+                      "updateNorm": 0.004808894563138834,
+                      "relativeUpdateNorm": 0.0016378657695119384,
+                      "gradClipFraction": 0
+                    },
+                    "critic": {
+                      "preClipNorm": 13.532079812794658,
+                      "postClipNorm": 0.9999999999999246,
+                      "updateNorm": 0.012662393923730699,
+                      "relativeUpdateNorm": 0.0008014945243049154,
+                      "gradClipFraction": 1
+                    }
+                  },
+                  "maxKlAcrossIterations": 0.038123065052919375,
+                  "meanSampleClipAcrossIterations": 0
+                }
+              }
+            ]
+          },
+          {
+            "id": "one-actor-005",
+            "label": "1 token · actor ×0.05",
+            "parameters": {
+              "encoder": 382,
+              "dynamic": 225,
+              "kinematic": 472,
+              "critic": 141,
+              "actor": 607,
+              "total": 1220
+            },
+            "checkpoints": [
+              {
+                "ppoIterations": 0,
+                "envSteps": 0,
+                "optimizerBatches": 0,
+                "cleanMae": 0.2125966975225159,
+                "cleanAllStepMae": 0.2125966975225159,
+                "cleanSuccesses": 12,
+                "pushMae": 0.2605076642947937,
+                "pushSuccesses": 12,
+                "pushReachedEpisodes": 12,
+                "recoveredEpisodes": 7,
+                "recoverySteps": 202.08333333333334,
+                "diagnostics": null
+              },
+              {
+                "ppoIterations": 10,
+                "envSteps": 7680,
+                "optimizerBatches": 240,
+                "cleanMae": 0.2571193475712553,
+                "cleanAllStepMae": 0.2571193475712553,
+                "cleanSuccesses": 12,
+                "pushMae": 0.296435279228119,
+                "pushSuccesses": 12,
+                "pushReachedEpisodes": 12,
+                "recoveredEpisodes": 6,
+                "recoverySteps": 213.08333333333334,
+                "diagnostics": {
+                  "rolloutMae": 0.33213081425989793,
+                  "clipFraction": 0,
+                  "objectiveClipFraction": 0,
+                  "actionSaturation": 0,
+                  "sampleClipFraction": 0,
+                  "postUpdateKl": 0.0017369891877174392,
+                  "postUpdateApproxKl": 0.0017107696839123155,
+                  "tokenChangeFraction": 0,
+                  "actionMeanShiftRms": 0.007072855760317908,
+                  "gradEncoder": 0.22382983349144925,
+                  "gradDynamic": 1.7886670011942931,
+                  "updates": {
+                    "encoder": {
+                      "preClipNorm": 0.22382983349144925,
+                      "postClipNorm": 0.22382983349144925,
+                      "updateNorm": 0.0003094886569646718,
+                      "relativeUpdateNorm": 0.0000657754521938722,
+                      "gradClipFraction": 0
+                    },
+                    "dynamic": {
+                      "preClipNorm": 1.7886670011942931,
+                      "postClipNorm": 0.6680748735646463,
+                      "updateNorm": 0.00024544268720813286,
+                      "relativeUpdateNorm": 0.000050681882640054806,
+                      "gradClipFraction": 0.7916666666666666
+                    },
+                    "kinematic": {
+                      "preClipNorm": 0.0010034139452733738,
+                      "postClipNorm": 0.0010034139452733738,
+                      "updateNorm": 0.0015897895133976448,
+                      "relativeUpdateNorm": 0.0005361789113080837,
+                      "gradClipFraction": 0
+                    },
+                    "critic": {
+                      "preClipNorm": 35.26255371544004,
+                      "postClipNorm": 0.9999999999999717,
+                      "updateNorm": 0.018110704516830733,
+                      "relativeUpdateNorm": 0.0034692122588402593,
+                      "gradClipFraction": 1
+                    }
+                  },
+                  "maxKlAcrossIterations": 0.01740994262351006,
+                  "meanSampleClipAcrossIterations": 0
+                }
+              },
+              {
+                "ppoIterations": 50,
+                "envSteps": 38400,
+                "optimizerBatches": 1200,
+                "cleanMae": 0.2704530043135448,
+                "cleanAllStepMae": 0.2704530043135448,
+                "cleanSuccesses": 12,
+                "pushMae": 0.2706768147501191,
+                "pushSuccesses": 12,
+                "pushReachedEpisodes": 12,
+                "recoveredEpisodes": 6,
+                "recoverySteps": 205.83333333333334,
+                "diagnostics": {
+                  "rolloutMae": 0.3250819584523828,
+                  "clipFraction": 0,
+                  "objectiveClipFraction": 0,
+                  "actionSaturation": 0,
+                  "sampleClipFraction": 0,
+                  "postUpdateKl": 0.0003134227184339375,
+                  "postUpdateApproxKl": 0.0003152076567400946,
+                  "tokenChangeFraction": 0,
+                  "actionMeanShiftRms": 0.003004425783889062,
+                  "gradEncoder": 0.13444774610977153,
+                  "gradDynamic": 1.1117239685353761,
+                  "updates": {
+                    "encoder": {
+                      "preClipNorm": 0.13444774610977153,
+                      "postClipNorm": 0.13444774610977153,
+                      "updateNorm": 0.00004953500184097333,
+                      "relativeUpdateNorm": 0.000010512328602577058,
+                      "gradClipFraction": 0
+                    },
+                    "dynamic": {
+                      "preClipNorm": 1.1117239685353761,
+                      "postClipNorm": 0.58715900282233,
+                      "updateNorm": 0.00013557291849167945,
+                      "relativeUpdateNorm": 0.00002796532314703632,
+                      "gradClipFraction": 0.5833333333333334
+                    },
+                    "kinematic": {
+                      "preClipNorm": 0.0007296555440030706,
+                      "postClipNorm": 0.0007296555440030706,
+                      "updateNorm": 0.0030216541476451417,
+                      "relativeUpdateNorm": 0.0010741430276837824,
+                      "gradClipFraction": 0
+                    },
+                    "critic": {
+                      "preClipNorm": 28.0596801910571,
+                      "postClipNorm": 0.9999999999999644,
+                      "updateNorm": 0.013303716993171536,
+                      "relativeUpdateNorm": 0.0008779051513795761,
+                      "gradClipFraction": 1
+                    }
+                  },
+                  "maxKlAcrossIterations": 0.01740994262351006,
+                  "meanSampleClipAcrossIterations": 0
+                }
+              }
+            ]
+          },
+          {
+            "id": "two-actor-005",
+            "label": "2 tokens · actor ×0.05",
+            "parameters": {
+              "encoder": 424,
+              "dynamic": 281,
+              "kinematic": 520,
+              "critic": 141,
+              "actor": 705,
+              "total": 1366
+            },
+            "checkpoints": [
+              {
+                "ppoIterations": 0,
+                "envSteps": 0,
+                "optimizerBatches": 0,
+                "cleanMae": 0.22612047574345906,
+                "cleanAllStepMae": 0.22612047574345906,
+                "cleanSuccesses": 12,
+                "pushMae": 0.2566376240414368,
+                "pushSuccesses": 12,
+                "pushReachedEpisodes": 12,
+                "recoveredEpisodes": 7,
+                "recoverySteps": 192.75,
+                "diagnostics": null
+              },
+              {
+                "ppoIterations": 10,
+                "envSteps": 7680,
+                "optimizerBatches": 240,
+                "cleanMae": 0.2554876032633207,
+                "cleanAllStepMae": 0.2554876032633207,
+                "cleanSuccesses": 12,
+                "pushMae": 0.27145847323571587,
+                "pushSuccesses": 12,
+                "pushReachedEpisodes": 12,
+                "recoveredEpisodes": 6,
+                "recoverySteps": 207.58333333333334,
+                "diagnostics": {
+                  "rolloutMae": 0.31381910911854766,
+                  "clipFraction": 0,
+                  "objectiveClipFraction": 0,
+                  "actionSaturation": 0,
+                  "sampleClipFraction": 0,
+                  "postUpdateKl": 0.0016776471508592945,
+                  "postUpdateApproxKl": 0.001652321119494703,
+                  "tokenChangeFraction": 0,
+                  "actionMeanShiftRms": 0.006950988271084028,
+                  "gradEncoder": 0.2262159594097455,
+                  "gradDynamic": 1.800907627243754,
+                  "updates": {
+                    "encoder": {
+                      "preClipNorm": 0.2262159594097455,
+                      "postClipNorm": 0.2262159594097455,
+                      "updateNorm": 0.0003161517570282589,
+                      "relativeUpdateNorm": 0.00006721473762559188,
+                      "gradClipFraction": 0
+                    },
+                    "dynamic": {
+                      "preClipNorm": 1.800907627243754,
+                      "postClipNorm": 0.6669678278474941,
+                      "updateNorm": 0.0002523179849135624,
+                      "relativeUpdateNorm": 0.0000522880303945105,
+                      "gradClipFraction": 0.8333333333333334
+                    },
+                    "kinematic": {
+                      "preClipNorm": 0.0009045916509121612,
+                      "postClipNorm": 0.0009045916509121612,
+                      "updateNorm": 0.0016989215678686255,
+                      "relativeUpdateNorm": 0.0005029275157445991,
+                      "gradClipFraction": 0
+                    },
+                    "critic": {
+                      "preClipNorm": 35.782211412903585,
+                      "postClipNorm": 0.999999999999972,
+                      "updateNorm": 0.017862025982549844,
+                      "relativeUpdateNorm": 0.0036354640203337452,
+                      "gradClipFraction": 1
+                    }
+                  },
+                  "maxKlAcrossIterations": 0.008421110253778907,
+                  "meanSampleClipAcrossIterations": 0
+                }
+              },
+              {
+                "ppoIterations": 50,
+                "envSteps": 38400,
+                "optimizerBatches": 1200,
+                "cleanMae": 0.2602127381153457,
+                "cleanAllStepMae": 0.2602127381153457,
+                "cleanSuccesses": 12,
+                "pushMae": 0.24272486956302733,
+                "pushSuccesses": 12,
+                "pushReachedEpisodes": 12,
+                "recoveredEpisodes": 9,
+                "recoverySteps": 180,
+                "diagnostics": {
+                  "rolloutMae": 0.30874961654185024,
+                  "clipFraction": 0,
+                  "objectiveClipFraction": 0,
+                  "actionSaturation": 0,
+                  "sampleClipFraction": 0,
+                  "postUpdateKl": 0.0003306975956251668,
+                  "postUpdateApproxKl": 0.0003325475246616462,
+                  "tokenChangeFraction": 0,
+                  "actionMeanShiftRms": 0.003086112563404777,
+                  "gradEncoder": 0.14997469127036783,
+                  "gradDynamic": 1.151531569380701,
+                  "updates": {
+                    "encoder": {
+                      "preClipNorm": 0.14997469127036783,
+                      "postClipNorm": 0.14997469127036783,
+                      "updateNorm": 0.000057856779367303336,
+                      "relativeUpdateNorm": 0.000012283337808487501,
+                      "gradClipFraction": 0
+                    },
+                    "dynamic": {
+                      "preClipNorm": 1.151531569380701,
+                      "postClipNorm": 0.6022547108422759,
+                      "updateNorm": 0.00014585696764141955,
+                      "relativeUpdateNorm": 0.000030203836733234625,
+                      "gradClipFraction": 0.625
+                    },
+                    "kinematic": {
+                      "preClipNorm": 0.0006443873869435708,
+                      "postClipNorm": 0.0006443873869435708,
+                      "updateNorm": 0.002710508527647921,
+                      "relativeUpdateNorm": 0.0008318920624695772,
+                      "gradClipFraction": 0
+                    },
+                    "critic": {
+                      "preClipNorm": 28.934850698391873,
+                      "postClipNorm": 0.9999999999999654,
+                      "updateNorm": 0.013232953267967916,
+                      "relativeUpdateNorm": 0.0008871523285100199,
+                      "gradClipFraction": 1
+                    }
+                  },
+                  "maxKlAcrossIterations": 0.008421110253778907,
+                  "meanSampleClipAcrossIterations": 0
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "summary": [
+      {
+        "id": "one-default",
+        "label": "1 token · actor ×1",
+        "ppoIterations": 0,
+        "cleanMae": {
+          "n": 3,
+          "mean": 0.2125966975225159,
+          "sampleStd": 0,
+          "min": 0.2125966975225159,
+          "max": 0.2125966975225159
+        },
+        "pushMae": {
+          "n": 3,
+          "mean": 0.2605076642947937,
+          "sampleStd": 0,
+          "min": 0.2605076642947937,
+          "max": 0.2605076642947937
+        },
+        "cleanSuccesses": 36,
+        "pushSuccesses": 36,
+        "episodes": 36
+      },
+      {
+        "id": "one-default",
+        "label": "1 token · actor ×1",
+        "ppoIterations": 10,
+        "cleanMae": {
+          "n": 3,
+          "mean": 0.2600143877164901,
+          "sampleStd": 0.06452352596999693,
+          "min": 0.18551410020805,
+          "max": 0.29801671128344825
+        },
+        "pushMae": {
+          "n": 3,
+          "mean": 0.3727279276130429,
+          "sampleStd": 0.05666556392593611,
+          "min": 0.3078848682466879,
+          "max": 0.41273361011989657
+        },
+        "cleanSuccesses": 36,
+        "pushSuccesses": 36,
+        "episodes": 36
+      },
+      {
+        "id": "one-default",
+        "label": "1 token · actor ×1",
+        "ppoIterations": 50,
+        "cleanMae": {
+          "n": 3,
+          "mean": 0.3162050955577403,
+          "sampleStd": 0.13260343272886524,
+          "min": 0.192158014604526,
+          "max": 0.45596480298203473
+        },
+        "pushMae": {
+          "n": 3,
+          "mean": 0.4027257604248344,
+          "sampleStd": 0.14682198779435207,
+          "min": 0.25779287069130247,
+          "max": 0.5513666052236036
+        },
+        "cleanSuccesses": 36,
+        "pushSuccesses": 36,
+        "episodes": 36
+      },
+      {
+        "id": "two-default",
+        "label": "2 tokens · actor ×1",
+        "ppoIterations": 0,
+        "cleanMae": {
+          "n": 3,
+          "mean": 0.22612047574345906,
+          "sampleStd": 0,
+          "min": 0.22612047574345906,
+          "max": 0.22612047574345906
+        },
+        "pushMae": {
+          "n": 3,
+          "mean": 0.2566376240414368,
+          "sampleStd": 0,
+          "min": 0.2566376240414368,
+          "max": 0.2566376240414368
+        },
+        "cleanSuccesses": 36,
+        "pushSuccesses": 36,
+        "episodes": 36
+      },
+      {
+        "id": "two-default",
+        "label": "2 tokens · actor ×1",
+        "ppoIterations": 10,
+        "cleanMae": {
+          "n": 3,
+          "mean": 0.2435782163446941,
+          "sampleStd": 0.015238895126696945,
+          "min": 0.226251046539913,
+          "max": 0.25489713825011834
+        },
+        "pushMae": {
+          "n": 3,
+          "mean": 0.3083043706715193,
+          "sampleStd": 0.036880472430937276,
+          "min": 0.27739729468893054,
+          "max": 0.34912981709288626
+        },
+        "cleanSuccesses": 36,
+        "pushSuccesses": 36,
+        "episodes": 36
+      },
+      {
+        "id": "two-default",
+        "label": "2 tokens · actor ×1",
+        "ppoIterations": 50,
+        "cleanMae": {
+          "n": 3,
+          "mean": 0.3803517196914668,
+          "sampleStd": 0.12481496980432355,
+          "min": 0.2363917631122945,
+          "max": 0.45828357697396904
+        },
+        "pushMae": {
+          "n": 3,
+          "mean": 0.561814236985648,
+          "sampleStd": 0.3237017830724176,
+          "min": 0.27151423276249875,
+          "max": 0.9108693028531091
+        },
+        "cleanSuccesses": 35,
+        "pushSuccesses": 35,
+        "episodes": 36
+      },
+      {
+        "id": "one-actor-005",
+        "label": "1 token · actor ×0.05",
+        "ppoIterations": 0,
+        "cleanMae": {
+          "n": 3,
+          "mean": 0.2125966975225159,
+          "sampleStd": 0,
+          "min": 0.2125966975225159,
+          "max": 0.2125966975225159
+        },
+        "pushMae": {
+          "n": 3,
+          "mean": 0.2605076642947937,
+          "sampleStd": 0,
+          "min": 0.2605076642947937,
+          "max": 0.2605076642947937
+        },
+        "cleanSuccesses": 36,
+        "pushSuccesses": 36,
+        "episodes": 36
+      },
+      {
+        "id": "one-actor-005",
+        "label": "1 token · actor ×0.05",
+        "ppoIterations": 10,
+        "cleanMae": {
+          "n": 3,
+          "mean": 0.23652192460970967,
+          "sampleStd": 0.02053235656249024,
+          "min": 0.21605525898286448,
+          "max": 0.2571193475712553
+        },
+        "pushMae": {
+          "n": 3,
+          "mean": 0.2716074958392251,
+          "sampleStd": 0.03479958372639447,
+          "min": 0.23183127773553505,
+          "max": 0.296435279228119
+        },
+        "cleanSuccesses": 36,
+        "pushSuccesses": 36,
+        "episodes": 36
+      },
+      {
+        "id": "one-actor-005",
+        "label": "1 token · actor ×0.05",
+        "ppoIterations": 50,
+        "cleanMae": {
+          "n": 3,
+          "mean": 0.2488453369741875,
+          "sampleStd": 0.025757522631443628,
+          "min": 0.22034174324333614,
+          "max": 0.2704530043135448
+        },
+        "pushMae": {
+          "n": 3,
+          "mean": 0.24587967379039743,
+          "sampleStd": 0.03844003247945768,
+          "min": 0.20159909510544496,
+          "max": 0.2706768147501191
+        },
+        "cleanSuccesses": 36,
+        "pushSuccesses": 36,
+        "episodes": 36
+      },
+      {
+        "id": "two-actor-005",
+        "label": "2 tokens · actor ×0.05",
+        "ppoIterations": 0,
+        "cleanMae": {
+          "n": 3,
+          "mean": 0.22612047574345906,
+          "sampleStd": 0,
+          "min": 0.22612047574345906,
+          "max": 0.22612047574345906
+        },
+        "pushMae": {
+          "n": 3,
+          "mean": 0.2566376240414368,
+          "sampleStd": 0,
+          "min": 0.2566376240414368,
+          "max": 0.2566376240414368
+        },
+        "cleanSuccesses": 36,
+        "pushSuccesses": 36,
+        "episodes": 36
+      },
+      {
+        "id": "two-actor-005",
+        "label": "2 tokens · actor ×0.05",
+        "ppoIterations": 10,
+        "cleanMae": {
+          "n": 3,
+          "mean": 0.24407998667199282,
+          "sampleStd": 0.010158745744434686,
+          "min": 0.2360097828305641,
+          "max": 0.2554876032633207
+        },
+        "pushMae": {
+          "n": 3,
+          "mean": 0.2688250229141384,
+          "sampleStd": 0.013163064634505516,
+          "min": 0.25454431012897233,
+          "max": 0.2804722853777269
+        },
+        "cleanSuccesses": 36,
+        "pushSuccesses": 36,
+        "episodes": 36
+      },
+      {
+        "id": "two-actor-005",
+        "label": "2 tokens · actor ×0.05",
+        "ppoIterations": 50,
+        "cleanMae": {
+          "n": 3,
+          "mean": 0.2530364096613485,
+          "sampleStd": 0.021058988677575625,
+          "min": 0.22932720578520352,
+          "max": 0.2695692850834963
+        },
+        "pushMae": {
+          "n": 3,
+          "mean": 0.24333152173010666,
+          "sampleStd": 0.01434525095617209,
+          "min": 0.22929922069598282,
+          "max": 0.25797047493130987
+        },
+        "cleanSuccesses": 36,
+        "pushSuccesses": 36,
+        "episodes": 36
+      }
+    ],
+    "pairedDifferences": [
+      {
+        "actorScale": 1,
+        "ppoIterations": 10,
+        "differences": [
+          {
+            "seed": 17011,
+            "deltaTwoMinusOne": -0.04843024703939741
+          },
+          {
+            "seed": 27011,
+            "deltaTwoMinusOne": 0.04073694633186298
+          },
+          {
+            "seed": 37011,
+            "deltaTwoMinusOne": -0.041615213407853735
+          }
+        ],
+        "summary": {
+          "n": 3,
+          "mean": -0.016436171371796055,
+          "sampleStd": 0.0496304867175117,
+          "min": -0.04843024703939741,
+          "max": 0.04073694633186298
+        }
+      },
+      {
+        "actorScale": 1,
+        "ppoIterations": 50,
+        "differences": [
+          {
+            "seed": 17011,
+            "deltaTwoMinusOne": 0.0023187739919343087
+          },
+          {
+            "seed": 27011,
+            "deltaTwoMinusOne": 0.04423374850776851
+          },
+          {
+            "seed": 37011,
+            "deltaTwoMinusOne": 0.14588734990147673
+          }
+        ],
+        "summary": {
+          "n": 3,
+          "mean": 0.06414662413372652,
+          "sampleStd": 0.07382666157252857,
+          "min": 0.0023187739919343087,
+          "max": 0.14588734990147673
+        }
+      },
+      {
+        "actorScale": 0.05,
+        "ppoIterations": 10,
+        "differences": [
+          {
+            "seed": 17011,
+            "deltaTwoMinusOne": 0.004351406647084499
+          },
+          {
+            "seed": 27011,
+            "deltaTwoMinusOne": 0.019954523847699607
+          },
+          {
+            "seed": 37011,
+            "deltaTwoMinusOne": -0.0016317443079346128
+          }
+        ],
+        "summary": {
+          "n": 3,
+          "mean": 0.007558062062283165,
+          "sampleStd": 0.01114467237901609,
+          "min": -0.0016317443079346128,
+          "max": 0.019954523847699607
+        }
+      },
+      {
+        "actorScale": 0.05,
+        "ppoIterations": 50,
+        "differences": [
+          {
+            "seed": 17011,
+            "deltaTwoMinusOne": 0.008985462541867384
+          },
+          {
+            "seed": 27011,
+            "deltaTwoMinusOne": 0.013828021717814776
+          },
+          {
+            "seed": 37011,
+            "deltaTwoMinusOne": -0.010240266198199122
+          }
+        ],
+        "summary": {
+          "n": 3,
+          "mean": 0.004191072687161013,
+          "sampleStd": 0.012730288738328707,
+          "min": -0.010240266198199122,
+          "max": 0.013828021717814776
+        }
+      }
+    ]
+  },
   "conclusionsSupported": [
-    "Matching total parameter count does not remove the 2-token instability in this toy.",
-    "Freezing the Encoder helps partially but does not remove the gap.",
-    "Reducing the coupled Encoder+Dynamic-Decoder actor update scale improves 2-token stability.",
-    "With actor update scale 0.05 and a longer 50-iteration budget, the 2-token controller recovers clean tracking near 0.237 m.",
-    "These results show optimizer sensitivity in this toy; they do not identify a universal SONIC optimizer or prove a globally optimal token count."
+    "Total-parameter matching does not match actor parameter count or functional capacity. Actor-parameter matching also changes layer widths.",
+    "A raw gradient norm times learning rate is not the actual Adam parameter displacement.",
+    "Matched 10/50 budgets and paired PPO seeds permit conditional comparisons; inspect per-run outcomes and survival rather than require a winner.",
+    "These are small fixed-bootstrap CartPole experiments. They neither isolate token count causally nor prescribe SONIC production hyperparameters."
   ]
 }
