@@ -1,6 +1,6 @@
 {
   "name": "cartpole-sonic",
-  "version": "0.9.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -13,7 +13,9 @@
     "verify:separation": "node scripts/verify_reference_robot_separation.mjs",
     "verify:alignment": "node scripts/verify_alignment.mjs",
     "verify:temporal": "node scripts/verify_temporal_tokens.mjs",
-    "verify:temporal-control": "node scripts/verify_temporal_control.mjs"
+    "verify:temporal-control": "node scripts/verify_temporal_control.mjs",
+    "evaluate:optimization": "node scripts/evaluate_control_optimization.mjs",
+    "verify:optimization": "node scripts/verify_control_optimization.mjs"
   },
   "dependencies": {
     "@mujoco/mujoco": "3.14.0"

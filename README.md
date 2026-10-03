@@ -182,9 +182,10 @@ Training topics additionally highlight, in purple on the top SONIC map, the runt
 
 ### What is actually live?
 
-The UI marks every center view as either:
+The UI marks every center view explicitly as one of three evidence types:
 
-- **LIVE** — values come from the current CartPole/reference/policy state and update with `1 Step` or `Live`
+- **LIVE** — values come from the current CartPole/reference/policy state and update with `1 Step`, `Live`, or a bounded training action
+- **EVIDENCE** — deterministic repository ablations loaded from checked evidence files; not presented as current live training
 - **CONCEPT** — the toy does not contain that mechanism, so the page shows an explanatory diagram instead of inventing fake runtime data
 
 Current concept-only views are intentionally limited to:
@@ -193,7 +194,7 @@ Current concept-only views are intentionally limited to:
 - high-level official task modalities — the toy collapses them to one goal scalar
 - loss/trainability diagrams — explanatory views of optimization structure
 
-VQ, VQ-VAE live values, FSQ, Universal Token, the 1-vs-2 temporal-slot experiment, both Decoder roles, robot tracking, PPO curves, and the two-Encoder alignment experiment all use real toy state/evidence.
+VQ, VQ-VAE live values, FSQ, Universal Token, the 1-vs-2 temporal-slot experiment, both Decoder roles, robot tracking, PPO curves, and the two-Encoder alignment experiment all use real toy state. Optimizer-sensitivity comparisons use checked deterministic **EVIDENCE** snapshots.
 
 ---
 
@@ -552,6 +553,56 @@ https://tinmanlab.github.io/cartpole-sonic/?focus=token&concept=temporal-control
 
 ---
 
+### Why did the 2-token PPO controller destabilize?
+
+The closed-loop experiment above exposed a second question: is the problem caused by **token count**, **parameter count**, **Encoder/token drift**, or simply an **optimizer step that is too aggressive for the larger actor interface**?
+
+`How is this learned? → Optimizer sensitivity` contains a deterministic ablation.
+
+At +10 PPO iterations:
+
+```text
+variant                         params    clean MAE
+1-token default                 1220      0.238 m
+2-token default                 1366      0.507 m
+2-token matched capacity        1220      0.604 m
+2-token freeze Encoder          1366      0.453 m
+2-token actor LR ×0.25          1366      0.360 m
+2-token actor LR ×0.10          1366      0.326 m
+2-token actor LR ×0.05          1366      0.286 m
+```
+
+This rules out several simplistic explanations:
+
+- **parameter count alone is not the cause** — the exactly matched 1220-parameter 2-token model is worse, not fixed
+- **Encoder drift is not the whole cause** — freezing the Encoder helps only partially
+- **action saturation is not the observed cause** — saturation remains 0 in these runs
+- decreasing the **coupled Encoder + Dynamic Decoder actor update scale** progressively stabilizes the 2-token policy
+
+A smaller actor step needs a longer optimization budget. With Encoder and Dynamic Decoder update scales set to `0.05`:
+
+```text
+2-token tuned trajectory
+PPO 0     0.250 m clean MAE
+PPO 10    0.286 m
+PPO 20    0.252 m
+PPO 50    0.237 m
+```
+
+So the supported conclusion is not “one token is better.” It is:
+
+> **In this toy, the larger 2-token policy interface is more sensitive to actor optimization. A gentler Encoder+Dynamic-Decoder update with a longer budget recovers clean tracking.**
+
+The evidence screen also reports raw gradient norms, PPO clip fraction, and an LR-scaled update proxy. Raw gradients alone are not dramatically different; the recoverable factor is the effective coupled actor step.
+
+This remains a CartPole optimizer ablation. It does not prescribe NVIDIA SONIC production hyperparameters and does not prove a globally optimal token count.
+
+Direct link:
+
+https://tinmanlab.github.io/cartpole-sonic/?training=optimizer-sensitivity&depth=mechanism
+
+---
+
 ### Why do different encoders produce a universal token?
 
 FSQ alone does not guarantee that a G1 Encoder, SMPL Encoder, and teleoperation Encoder give the same semantic token.
@@ -588,7 +639,8 @@ These are intentional checkpoints, not extra jargon:
 12. **Where does the reference come from, and is that reference source itself part of the SONIC tracker?**
 13. **How is temporal information compressed into multiple tokens?**
 14. **Which parts exist at deployment, and which exist only during training?**
-15. **What does this CartPole toy preserve, and what humanoid behavior can it not validate?**
+15. **Why can a larger token interface require different actor optimization even when reconstruction improves?**
+16. **What does this CartPole toy preserve, and what humanoid behavior can it not validate?**
 
 If those questions can be answered from the UI without reading source code, the teaching lab is doing its job.
 
@@ -620,6 +672,7 @@ Useful direct links:
 - Robot Control Decoder: https://tinmanlab.github.io/cartpole-sonic/?focus=control-decoder
 - Robot / Feedback: https://tinmanlab.github.io/cartpole-sonic/?focus=robot
 - What learns?: https://tinmanlab.github.io/cartpole-sonic/?training=what-learns
+- Optimizer sensitivity: https://tinmanlab.github.io/cartpole-sonic/?training=optimizer-sensitivity&depth=mechanism
 - Multi-encoder alignment: https://tinmanlab.github.io/cartpole-sonic/?training=alignment
 - PPO: https://tinmanlab.github.io/cartpole-sonic/?training=ppo
 
@@ -723,6 +776,7 @@ temporal_token_control({action:"train", steps:200})
 sonic_focus({node_id:"token", concept_id:"temporal-control"})
 temporal_control_control({action:"select", controller:"two"})
 temporal_control_control({action:"train", steps:10})
+sonic_open_training({topic_id:"optimizer-sensitivity"})
 ```
 
 The map payload also includes the same structured explanations used by the UI: intuition, mechanism, actual SONIC mapping, failure-if-removed, transition-to-next-block, and toy/SONIC data shapes.
@@ -852,8 +906,8 @@ What this toy **does not** reproduce:
 │   ├── student_vq_bootstrap.json
 │   ├── student_fsq_bootstrap.json
 │   └── temporal_control_bootstrap.json
-├── evidence/                  # deterministic evaluation snapshots, including temporal_control_eval.json
-├── scripts/                   # structure and evaluation checks
+├── evidence/                  # deterministic evaluation snapshots, including temporal_control_eval.json and control_optimization_eval.json
+├── scripts/                   # structure, deterministic evaluation, and optimizer-ablation checks
 ├── vendor/mujoco/             # pinned MuJoCo 3.14.0 JS/WASM
 └── media/
     ├── cartpole-sonic-demo.gif

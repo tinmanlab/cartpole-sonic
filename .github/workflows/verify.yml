@@ -24,3 +24,4 @@ jobs:
       - run: npm run verify:alignment
       - run: npm run verify:temporal
       - run: npm run verify:temporal-control
+      - run: npm run verify:optimization

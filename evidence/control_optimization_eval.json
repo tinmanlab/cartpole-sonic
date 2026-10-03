@@ -1,0 +1,361 @@
+{
+  "schema": "cartpole-sonic-control-optimization-ablation/v1",
+  "protocol": {
+    "bootstrap": "matched 300-step teacher imitation",
+    "ppo": "same PPO rollout/batch/epoch settings; variants change only stated width/update scales",
+    "evaluation": "12 deterministic clean + 12 deterministic disturbance episodes"
+  },
+  "variants": [
+    {
+      "id": "one-default",
+      "label": "1-token default",
+      "tokens": 1,
+      "steps": 10,
+      "parameterCount": 1220,
+      "widths": {
+        "encoder": 20,
+        "dynamic": 28,
+        "kinematic": 24,
+        "critic": 20
+      },
+      "ppoLrScale": 1,
+      "ppoModuleScales": {
+        "encoder": 1,
+        "dynamic": 1,
+        "kinematic": 1,
+        "critic": 1
+      },
+      "before": {
+        "cleanMae": 0.25936888291006066,
+        "cleanSuccesses": 12,
+        "pushMae": 0.23407850283461654,
+        "recoverySteps": 209.41666666666666
+      },
+      "after": {
+        "cleanMae": 0.23763713461216873,
+        "cleanSuccesses": 12,
+        "pushMae": 0.21521852134730193,
+        "recoverySteps": 182.58333333333334
+      },
+      "diagnostics": {
+        "rolloutMae": 0.09728136670712323,
+        "clipFraction": 0.037760416666666664,
+        "actionSaturation": 0,
+        "gradEncoder": 0.1778036443323537,
+        "gradDynamic": 1.4160856120893823,
+        "encoderUpdateProxy": 0.00008890182216617686,
+        "dynamicUpdateProxy": 0.001132868489671506
+      }
+    },
+    {
+      "id": "two-default",
+      "label": "2-token default",
+      "tokens": 2,
+      "steps": 10,
+      "parameterCount": 1366,
+      "widths": {
+        "encoder": 20,
+        "dynamic": 28,
+        "kinematic": 24,
+        "critic": 20
+      },
+      "ppoLrScale": 1,
+      "ppoModuleScales": {
+        "encoder": 1,
+        "dynamic": 1,
+        "kinematic": 1,
+        "critic": 1
+      },
+      "before": {
+        "cleanMae": 0.2501170128781582,
+        "cleanSuccesses": 12,
+        "pushMae": 0.2257559166354258,
+        "recoverySteps": 202.5
+      },
+      "after": {
+        "cleanMae": 0.5068608406344589,
+        "cleanSuccesses": 12,
+        "pushMae": 0.5785114557217416,
+        "recoverySteps": 239.33333333333334
+      },
+      "diagnostics": {
+        "rolloutMae": 0.2723067624696904,
+        "clipFraction": 0.032877604166666664,
+        "actionSaturation": 0,
+        "gradEncoder": 0.20416176833262067,
+        "gradDynamic": 1.6720323380811906,
+        "encoderUpdateProxy": 0.00010208088416631034,
+        "dynamicUpdateProxy": 0.0013376258704649526
+      }
+    },
+    {
+      "id": "two-matched-capacity",
+      "label": "2-token matched capacity",
+      "tokens": 2,
+      "steps": 10,
+      "parameterCount": 1220,
+      "widths": {
+        "encoder": 18,
+        "dynamic": 26,
+        "kinematic": 20,
+        "critic": 20
+      },
+      "ppoLrScale": 1,
+      "ppoModuleScales": {
+        "encoder": 1,
+        "dynamic": 1,
+        "kinematic": 1,
+        "critic": 1
+      },
+      "before": {
+        "cleanMae": 0.2896148893987894,
+        "cleanSuccesses": 12,
+        "pushMae": 0.2664203797392076,
+        "recoverySteps": 273.8333333333333
+      },
+      "after": {
+        "cleanMae": 0.6040297217238703,
+        "cleanSuccesses": 12,
+        "pushMae": 0.670319063142674,
+        "recoverySteps": 289.5833333333333
+      },
+      "diagnostics": {
+        "rolloutMae": 0.385952120087311,
+        "clipFraction": 0.007486979166666667,
+        "actionSaturation": 0,
+        "gradEncoder": 0.25317548041143034,
+        "gradDynamic": 1.3955736621416277,
+        "encoderUpdateProxy": 0.00012658774020571516,
+        "dynamicUpdateProxy": 0.0011164589297133023
+      }
+    },
+    {
+      "id": "two-freeze-encoder",
+      "label": "2-token freeze Encoder",
+      "tokens": 2,
+      "steps": 10,
+      "parameterCount": 1366,
+      "widths": {
+        "encoder": 20,
+        "dynamic": 28,
+        "kinematic": 24,
+        "critic": 20
+      },
+      "ppoLrScale": 1,
+      "ppoModuleScales": {
+        "encoder": 0,
+        "dynamic": 1,
+        "kinematic": 1,
+        "critic": 1
+      },
+      "before": {
+        "cleanMae": 0.2501170128781582,
+        "cleanSuccesses": 12,
+        "pushMae": 0.2257559166354258,
+        "recoverySteps": 202.5
+      },
+      "after": {
+        "cleanMae": 0.45294600378146543,
+        "cleanSuccesses": 12,
+        "pushMae": 0.4536862438476847,
+        "recoverySteps": 256.6666666666667
+      },
+      "diagnostics": {
+        "rolloutMae": 0.2435576396438557,
+        "clipFraction": 0.011393229166666666,
+        "actionSaturation": 0,
+        "gradEncoder": 0.15751680485397518,
+        "gradDynamic": 1.2827677479329636,
+        "encoderUpdateProxy": 0,
+        "dynamicUpdateProxy": 0.001026214198346371
+      }
+    },
+    {
+      "id": "two-actor-025",
+      "label": "2-token actor LR ×0.25",
+      "tokens": 2,
+      "steps": 10,
+      "parameterCount": 1366,
+      "widths": {
+        "encoder": 20,
+        "dynamic": 28,
+        "kinematic": 24,
+        "critic": 20
+      },
+      "ppoLrScale": 1,
+      "ppoModuleScales": {
+        "encoder": 0.25,
+        "dynamic": 0.25,
+        "kinematic": 1,
+        "critic": 1
+      },
+      "before": {
+        "cleanMae": 0.2501170128781582,
+        "cleanSuccesses": 12,
+        "pushMae": 0.2257559166354258,
+        "recoverySteps": 202.5
+      },
+      "after": {
+        "cleanMae": 0.36002396615562177,
+        "cleanSuccesses": 12,
+        "pushMae": 0.3925582274724186,
+        "recoverySteps": 190.41666666666666
+      },
+      "diagnostics": {
+        "rolloutMae": 0.2257667615640506,
+        "clipFraction": 0.009440104166666666,
+        "actionSaturation": 0,
+        "gradEncoder": 0.1893059662912064,
+        "gradDynamic": 1.3701552580348448,
+        "encoderUpdateProxy": 0.0000236632457864008,
+        "dynamicUpdateProxy": 0.00027403105160696896
+      }
+    },
+    {
+      "id": "two-actor-01",
+      "label": "2-token actor LR ×0.1",
+      "tokens": 2,
+      "steps": 10,
+      "parameterCount": 1366,
+      "widths": {
+        "encoder": 20,
+        "dynamic": 28,
+        "kinematic": 24,
+        "critic": 20
+      },
+      "ppoLrScale": 1,
+      "ppoModuleScales": {
+        "encoder": 0.1,
+        "dynamic": 0.1,
+        "kinematic": 1,
+        "critic": 1
+      },
+      "before": {
+        "cleanMae": 0.2501170128781582,
+        "cleanSuccesses": 12,
+        "pushMae": 0.2257559166354258,
+        "recoverySteps": 202.5
+      },
+      "after": {
+        "cleanMae": 0.3262048551999925,
+        "cleanSuccesses": 12,
+        "pushMae": 0.35064587727570196,
+        "recoverySteps": 192
+      },
+      "diagnostics": {
+        "rolloutMae": 0.21655301875537644,
+        "clipFraction": 0,
+        "actionSaturation": 0,
+        "gradEncoder": 0.17532683755970366,
+        "gradDynamic": 1.2262296655587581,
+        "encoderUpdateProxy": 0.000008766341877985183,
+        "dynamicUpdateProxy": 0.00009809837324470067
+      }
+    },
+    {
+      "id": "two-actor-005",
+      "label": "2-token actor LR ×0.05",
+      "tokens": 2,
+      "steps": 10,
+      "parameterCount": 1366,
+      "widths": {
+        "encoder": 20,
+        "dynamic": 28,
+        "kinematic": 24,
+        "critic": 20
+      },
+      "ppoLrScale": 1,
+      "ppoModuleScales": {
+        "encoder": 0.05,
+        "dynamic": 0.05,
+        "kinematic": 1,
+        "critic": 1
+      },
+      "before": {
+        "cleanMae": 0.2501170128781582,
+        "cleanSuccesses": 12,
+        "pushMae": 0.2257559166354258,
+        "recoverySteps": 202.5
+      },
+      "after": {
+        "cleanMae": 0.2858010043369193,
+        "cleanSuccesses": 12,
+        "pushMae": 0.2903787626429683,
+        "recoverySteps": 192.66666666666666
+      },
+      "diagnostics": {
+        "rolloutMae": 0.19045817525599207,
+        "clipFraction": 0,
+        "actionSaturation": 0,
+        "gradEncoder": 0.1895855773489281,
+        "gradDynamic": 1.2106687043445872,
+        "encoderUpdateProxy": 0.000004739639433723203,
+        "dynamicUpdateProxy": 0.00004842674817378349
+      }
+    }
+  ],
+  "tunedTrajectory": [
+    {
+      "ppoIterations": 0,
+      "cleanMae": 0.2501170128781582,
+      "cleanSuccesses": 12,
+      "pushMae": 0.2257559166354258,
+      "recoverySteps": 202.5
+    },
+    {
+      "ppoIterations": 10,
+      "cleanMae": 0.2858010043369193,
+      "cleanSuccesses": 12,
+      "pushMae": 0.2903787626429683,
+      "recoverySteps": 192.66666666666666,
+      "diagnostics": {
+        "rolloutMae": 0.19045817525599207,
+        "clipFraction": 0,
+        "actionSaturation": 0,
+        "gradEncoder": 0.1895855773489281,
+        "gradDynamic": 1.2106687043445872,
+        "encoderUpdateProxy": 0.000004739639433723203,
+        "dynamicUpdateProxy": 0.00004842674817378349
+      }
+    },
+    {
+      "ppoIterations": 20,
+      "cleanMae": 0.2520899065457353,
+      "cleanSuccesses": 12,
+      "pushMae": 0.23317853823952883,
+      "recoverySteps": 170.08333333333334,
+      "diagnostics": {
+        "rolloutMae": 0.12660716063119823,
+        "clipFraction": 0,
+        "actionSaturation": 0,
+        "gradEncoder": 0.177454651361066,
+        "gradDynamic": 1.0740901995558314,
+        "encoderUpdateProxy": 0.000004436366284026651,
+        "dynamicUpdateProxy": 0.00004296360798223326
+      }
+    },
+    {
+      "ppoIterations": 50,
+      "cleanMae": 0.23676242547707646,
+      "cleanSuccesses": 12,
+      "pushMae": 0.24120314919780625,
+      "recoverySteps": 163.16666666666666,
+      "diagnostics": {
+        "rolloutMae": 0.26653773433520744,
+        "clipFraction": 0,
+        "actionSaturation": 0,
+        "gradEncoder": 0.24738743459379628,
+        "gradDynamic": 1.338526134568182,
+        "encoderUpdateProxy": 0.0000061846858648449075,
+        "dynamicUpdateProxy": 0.00005354104538272728
+      }
+    }
+  ],
+  "conclusionsSupported": [
+    "Matching total parameter count does not remove the 2-token instability in this toy.",
+    "Freezing the Encoder helps partially but does not remove the gap.",
+    "Reducing the coupled Encoder+Dynamic-Decoder actor update scale improves 2-token stability.",
+    "With actor update scale 0.05 and a longer 50-iteration budget, the 2-token controller recovers clean tracking near 0.237 m.",
+    "These results show optimizer sensitivity in this toy; they do not identify a universal SONIC optimizer or prove a globally optimal token count."
+  ]
+}

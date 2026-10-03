@@ -76,6 +76,7 @@ let temporalControlLoadPromise = null;
 let temporalControlBootstrapSnapshot = null;
 let temporalControlSelected = "one";
 let temporalControlEvidence = null;
+let optimizerEvidence = null;
 const MAX_SIGNAL_HISTORY = 260;
 let signalHistory = [];
 let controlTick = 0;
@@ -1028,6 +1029,65 @@ function renderAlignmentViz(){
   });
 }
 
+function drawOptimizerBars(evidence){
+  const c=$("optimizerBars");if(!c)return;
+  const {ctx,w,h}=beginCanvas(c);
+  ctx.fillStyle="#fff";ctx.fillRect(0,0,w,h);
+  const variants=evidence?.variants||[];
+  const pad={l:132,r:22,t:24,b:24},max=Math.max(.65,...variants.map(v=>v.after?.cleanMae||0)),rowH=(h-pad.t-pad.b)/Math.max(1,variants.length);
+  ctx.fillStyle="#667085";ctx.font="9px system-ui";ctx.textAlign="left";ctx.fillText("clean tracking MAE after +10 PPO ↓",8,13);
+  variants.forEach((v,i)=>{
+    const y=pad.t+i*rowH+rowH*.18,bh=rowH*.62,value=v.after?.cleanMae||0;
+    ctx.fillStyle="#667085";ctx.font="8.5px system-ui";ctx.textAlign="right";ctx.fillText(v.label,pad.l-7,y+bh*.72);
+    ctx.fillStyle=v.id==="one-default"?"#c97b20":v.id==="two-default"?"#315dc9":v.id==="two-matched-capacity"?"#d64f4f":v.id==="two-actor-005"?"#16805d":"#9a88c0";
+    ctx.fillRect(pad.l,y,(w-pad.l-pad.r)*value/max,bh);
+    ctx.fillStyle="#172033";ctx.font="8.5px ui-monospace";ctx.textAlign="left";ctx.fillText(fmt(value,3)+" m",pad.l+(w-pad.l-pad.r)*value/max+5,y+bh*.72);
+  });
+}
+function drawOptimizerTrajectory(evidence){
+  const c=$("optimizerTrajectory");if(!c)return;
+  const {ctx,w,h}=beginCanvas(c);ctx.fillStyle="#fff";ctx.fillRect(0,0,w,h);
+  const pts=evidence?.tunedTrajectory||[],pad={l:48,r:18,t:25,b:30};
+  const maxIter=Math.max(50,...pts.map(x=>x.ppoIterations)),min=.20,max=.32;
+  const X=x=>pad.l+x/maxIter*(w-pad.l-pad.r),Y=v=>h-pad.b-(v-min)/(max-min)*(h-pad.t-pad.b);
+  for(let i=0;i<=3;i++){const v=min+(max-min)*i/3,y=Y(v);ctx.strokeStyle="#f0f2f5";ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(w-pad.r,y);ctx.stroke();ctx.fillStyle="#7b8492";ctx.font="8px ui-monospace";ctx.textAlign="right";ctx.fillText(v.toFixed(2),pad.l-5,y+3);}
+  ctx.strokeStyle="#16805d";ctx.lineWidth=2.4;ctx.beginPath();pts.forEach((p,i)=>{const x=X(p.ppoIterations),y=Y(p.cleanMae);i?ctx.lineTo(x,y):ctx.moveTo(x,y);});ctx.stroke();
+  pts.forEach(p=>{ctx.fillStyle="#16805d";ctx.beginPath();ctx.arc(X(p.ppoIterations),Y(p.cleanMae),3.2,0,Math.PI*2);ctx.fill();ctx.fillStyle="#172033";ctx.font="8px ui-monospace";ctx.textAlign="center";ctx.fillText(fmt(p.cleanMae,3),X(p.ppoIterations),Y(p.cleanMae)-7);});
+  ctx.fillStyle="#667085";ctx.font="9px system-ui";ctx.textAlign="left";ctx.fillText("2-token actor LR×0.05 · longer budget",pad.l,13);ctx.textAlign="right";ctx.fillText("PPO iterations →",w-pad.r,h-8);
+}
+function renderOptimizerEvidenceViz(){
+  const ev=optimizerEvidence;
+  if(!ev){
+    showHtml('<div style="height:100%;display:grid;place-items:center"><div style="text-align:center"><b>Loading deterministic optimization evidence…</b><div style="margin-top:6px;color:#667085;font-size:10px">matched-capacity / encoder-freeze / actor-step ablations</div></div></div>','Evidence is loaded from the repository deterministic evaluation snapshot.');
+    return;
+  }
+  const find=id=>ev.variants.find(v=>v.id===id);
+  const one=find("one-default"),two=find("two-default"),matched=find("two-matched-capacity"),low=find("two-actor-005"),freeze=find("two-freeze-encoder");
+  const tuned50=ev.tunedTrajectory.find(x=>x.ppoIterations===50);
+  const rows=ev.variants.map(v=>{
+    const actorScale=v.ppoModuleScales?.encoder===v.ppoModuleScales?.dynamic?v.ppoModuleScales.encoder:"mixed";
+    return '<tr><td>'+v.label+'</td><td>'+v.parameterCount+'</td><td>'+actorScale+'</td><td>'+fmt(v.after.cleanMae,3)+'</td><td>'+fmt(v.after.pushMae,3)+'</td><td>'+((v.diagnostics.clipFraction||0)*100).toFixed(1)+'%</td><td>'+Number(v.diagnostics.dynamicUpdateProxy||0).toExponential(1)+'</td></tr>';
+  }).join("");
+  showHtml(
+    '<div class="optimizer-wrap">'+
+      '<div class="optimizer-summary">'+
+        '<div class="optimizer-card"><span>parameter count test</span><b>'+matched.parameterCount+' = '+one.parameterCount+'</b><small>matched 2-token still '+fmt(matched.after.cleanMae,3)+' m</small></div>'+
+        '<div class="optimizer-card"><span>freeze Encoder test</span><b>'+fmt(freeze.after.cleanMae,3)+' m</b><small>helps vs '+fmt(two.after.cleanMae,3)+' m, not enough</small></div>'+
+        '<div class="optimizer-card"><span>actor LR ×0.05 · +10</span><b>'+fmt(low.after.cleanMae,3)+' m</b><small>step-size sensitivity</small></div>'+
+        '<div class="optimizer-card"><span>actor LR ×0.05 · +50</span><b>'+fmt(tuned50.cleanMae,3)+' m</b><small>longer gentle optimization</small></div>'+
+      '</div>'+
+      '<div class="optimizer-bottom">'+
+        '<div class="optimizer-left"><div class="optimizer-chart"><canvas id="optimizerBars"></canvas></div><div class="optimizer-chart"><canvas id="optimizerTrajectory"></canvas></div></div>'+
+        '<div class="optimizer-table"><table><thead><tr><th>variant</th><th>params</th><th>actor×</th><th>clean</th><th>push</th><th>clip</th><th>dyn step*</th></tr></thead><tbody>'+rows+'</tbody></table>'+
+          '<div class="optimizer-note"><b>* dyn step</b> = raw Dynamic Decoder gradient norm × nominal LR × module scale. Raw gradient norms alone are similar; the effective actor step changes strongly with scale.<br><br><b>Supported conclusion:</b> parameter count and Encoder drift contribute at most partially. The dominant recoverable factor in this toy is the coupled Encoder+Dynamic-Decoder update scale. This does not prescribe SONIC production hyperparameters.</div>'+
+        '</div>'+
+      '</div>'+
+    '</div>',
+    '<b>EVIDENCE · deterministic optimizer ablation.</b> 2-token instability does not disappear when parameter count is matched or Encoder is frozen. Reducing the coupled Encoder+Dynamic-Decoder actor step stabilizes training; LR×0.05 with a longer 50-iteration budget recovers clean MAE to ≈0.237 m.',
+    ["1-token +10="+fmt(one.after.cleanMae,3)+"m","2-token default +10="+fmt(two.after.cleanMae,3)+"m","matched-cap +10="+fmt(matched.after.cleanMae,3)+"m","2-token tuned +50="+fmt(tuned50.cleanMae,3)+"m"]
+  );
+  requestAnimationFrame(()=>{drawOptimizerBars(ev);drawOptimizerTrajectory(ev);});
+}
 function renderTrainingViz(){
   const c=$("lessonViz"),{ctx,w,h}=beginCanvas(c);
   ctx.fillStyle="#fff";ctx.fillRect(0,0,w,h);const pad={l:62,r:28,t:32,b:50};
@@ -1046,7 +1106,10 @@ function renderTrainingViz(){
 }
 
 function visualizationKind(){
-  if(trainingMode) return ["ppo","alignment"].includes(trainingTopic.id)?"live":"concept";
+  if(trainingMode){
+    if(trainingTopic.id==="optimizer-sensitivity")return "evidence";
+    return ["ppo","alignment"].includes(trainingTopic.id)?"live":"concept";
+  }
   if(focus.id==="task") return "concept";
   if(focus.id==="encoder"&&conceptId==="vae") return "concept";
   return "live";
@@ -1055,8 +1118,8 @@ function renderVisualization(){
   clearViz();
   buildConceptTabs();
   const kind=visualizationKind(),vm=$("vizMode");
-  vm.textContent=kind==="live"?"LIVE · current toy state":"CONCEPT · explanatory, not toy runtime data";
-  vm.className="viz-mode "+(kind==="live"?"live":"concept");
+  vm.textContent=kind==="live"?"LIVE · current toy state":kind==="evidence"?"EVIDENCE · deterministic repo ablation":"CONCEPT · explanatory, not toy runtime data";
+  vm.className="viz-mode "+kind;
   if(trainingMode){
     $("vizTitle").textContent=trainingTopic.title;
     $("vizSub").textContent="Training view · separate from deployment runtime";
@@ -1064,6 +1127,7 @@ function renderVisualization(){
       case "training-flow":renderTrainingFlowViz();break;
       case "learning-graph":renderLearningGraphViz();break;
       case "alignment":renderAlignmentViz();break;
+      case "optimizer-evidence":renderOptimizerEvidenceViz();break;
       case "training":renderTrainingViz();break;
     }
     return;
@@ -1184,6 +1248,7 @@ function guideActionSpec(){
   if(trainingMode){
     if(trainingTopic.id==="ppo")return{label:"+10 PPO iterations",disabled:false};
     if(trainingTopic.id==="alignment")return{label:"Train alignment +50",disabled:false};
+    if(trainingTopic.id==="optimizer-sensitivity")return{label:"Open live closed-loop ablation",disabled:false};
     if(trainingTopic.id==="loss-flow"||trainingTopic.id==="what-learns")return{label:"Run 1 PPO iteration",disabled:false};
     return{label:"Concept only · no fake runtime action",disabled:true};
   }
@@ -1288,11 +1353,17 @@ function renderPreload(){
   renderHeaderState();
 
   const kind=visualizationKind(),vm=$("vizMode");
-  vm.textContent=kind==="live"?"LIVE · waiting for MuJoCo/model":"CONCEPT · explanatory, not toy runtime data";
-  vm.className="viz-mode "+(kind==="live"?"live":"concept");
+  vm.textContent=kind==="live"?"LIVE · waiting for MuJoCo/model":kind==="evidence"?"EVIDENCE · loading deterministic repo ablation":"CONCEPT · explanatory, not toy runtime data";
+  vm.className="viz-mode "+kind;
 
+  if(kind==="evidence"){
+    clearViz();
+    $("vizTitle").textContent=trainingTopic.title;
+    $("vizSub").textContent="Deterministic repository evidence · separate from live browser training";
+    renderOptimizerEvidenceViz();
+  }
   // Concept-only screens do not need the physics model and can be useful immediately.
-  if(kind==="concept"){
+  else if(kind==="concept"){
     clearViz();
     if(trainingMode){
       $("vizTitle").textContent=trainingTopic.title;
@@ -1363,7 +1434,8 @@ function systemSnapshot(){
     training:currentTrainer?{
       ppoIterations:currentTrainer.iter,envSteps:currentTrainer.envSteps,episodes:currentTrainer.episodes,last:currentTrainer.last,
       heldoutEval,heldoutHistory:ppoHeldoutHistory,verifiedReference:ppoReferenceEvidence,
-      alignment:alignmentLab?{...alignmentLab.snapshot(),live:alignmentLab.compare(ref,s,goal)}:null
+      alignment:alignmentLab?{...alignmentLab.snapshot(),live:alignmentLab.compare(ref,s,goal)}:null,
+      optimizerEvidence:optimizerEvidence
     }:null,
     representationLabs:{
       temporalTokens:temporalTokenLab?{
@@ -1429,6 +1501,7 @@ async function init(){
   teacherPromise=loadTeacherPolicy().then(t=>(teacher=t,t)).catch(err=>{console.warn("teacher unavailable",err);return null;});
   fetch("./evidence/ppo_eval.json",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(x=>{ppoReferenceEvidence=x;if(trainingMode&&trainingTopic.id==="ppo"&&!busy)render();}).catch(()=>{});
   fetch("./evidence/temporal_control_eval.json",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(x=>{temporalControlEvidence=x;if(!trainingMode&&focus.id==="token"&&conceptId==="temporal-control"&&!busy)render();}).catch(()=>{});
+  fetch("./evidence/control_optimization_eval.json",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(x=>{optimizerEvidence=x;if(trainingMode&&trainingTopic.id==="optimizer-sensitivity"&&!busy)render();}).catch(()=>{});
   await sim.init(preset);physicsReady=true;$("simPreset").value=preset;resetRobot();
   setBadge("physicsBadge",sim.backend,true);
   currentTrainer=await getTrainer(requiredMode());

@@ -26,6 +26,9 @@ for(const [name,schema] of [["temporal_control_bootstrap.json","cartpole-sonic-t
 const controlEvidenceUrl=new URL("../evidence/temporal_control_eval.json",import.meta.url);
 if(!fs.existsSync(controlEvidenceUrl))throw new Error("missing temporal-control evidence");
 if(JSON.parse(fs.readFileSync(controlEvidenceUrl,"utf8")).schema!=="cartpole-sonic-temporal-control-eval/v1")throw new Error("invalid temporal-control evidence schema");
+const optimizerEvidenceUrl=new URL("../evidence/control_optimization_eval.json",import.meta.url);
+if(!fs.existsSync(optimizerEvidenceUrl))throw new Error("missing optimizer evidence");
+if(JSON.parse(fs.readFileSync(optimizerEvidenceUrl,"utf8")).schema!=="cartpole-sonic-control-optimization-ablation/v1")throw new Error("invalid optimizer evidence schema");
 
 const required=[
   [html,'system-map',"fixed SONIC system map"],
@@ -87,6 +90,10 @@ const required=[
   [temporalControl,'disturbance:true',"disturbance evaluation path"],
   [app,'temporal_control_control',"WebMCP closed-loop temporal control tool"],
   [app,'temporalControlActive()',"shared MuJoCo can be driven by selected ablation controller"],
+  [course,'id:"optimizer-sensitivity"',"optimizer-sensitivity training topic"],
+  [app,'function renderOptimizerEvidenceViz()',"deterministic optimizer evidence visualization"],
+  [app,'EVIDENCE · deterministic repo ablation',"evidence is explicitly distinct from LIVE and CONCEPT"],
+  [app,'optimizerEvidence',"optimizer evidence is exposed in state"],
   [app,'visualizationKind()',"live vs concept visualization is explicit"],
   [app,'sonic_get_map',"semantic WebMCP system-map tool"],
   [app,'sonic_get_state',"semantic WebMCP state tool"],

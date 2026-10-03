@@ -1,4 +1,4 @@
-export const COURSE_VERSION = "2.4";
+export const COURSE_VERSION = "2.5";
 
 export const SONIC_FLOW = [
   {
@@ -185,6 +185,17 @@ export const TRAINING_TOPICS = [
     question:"같은 motion의 서로 다른 표현이 같은 q/action 의미로 수렴하려면 어떤 alignment signal이 필요한가?"
   },
   {
+    id:"optimizer-sensitivity",
+    label:"Optimizer sensitivity",
+    title:"왜 2-token controller는 같은 PPO 설정에서 더 흔들렸을까?",
+    viz:"optimizer-evidence",
+    input:"matched bootstrap controllers + controlled PPO ablations",
+    output:"parameter-count / freeze / actor-step-size evidence",
+    why:"token slot 수를 늘리면 representation capacity뿐 아니라 policy interface와 optimization sensitivity도 바뀔 수 있기 때문이다.",
+    misconception:"2-token이 나빴다는 한 결과만 보고 token 수 자체가 원인이라고 결론내리면 안 된다.",
+    question:"parameter count, Encoder drift, actor learning-rate 중 어떤 요인이 실제 instability를 설명하는가?"
+  },
+  {
     id:"ppo",
     label:"PPO",
     title:"physical tracking controller는 무엇으로 학습되나?",
@@ -309,6 +320,15 @@ export const TRAINING_DETAILS = {
     toyShape:"full 16D → Encoder A(anchor) ; sparse 8D → Encoder B(trainable) → same 2D latent / same FSQ",
     sonicShape:"multiple modality encoders → aligned shared latent → shared FSQ / Universal Token",
     highlights:["encoder","quantizer","token"]
+  },
+  "optimizer-sensitivity":{
+    easy:"2-token이 더 많은 정보를 담을 수 있어도, 같은 크기의 PPO update를 그대로 쓰면 배우는 과정이 더 불안정할 수 있다.",
+    mechanism:"deterministic ablation은 parameter count를 1-token과 정확히 맞춘 2-token model, Encoder freeze, actor update scale 0.25/0.10/0.05를 각각 비교한다. 결과적으로 parameter count와 Encoder drift만으로는 gap이 설명되지 않고, Encoder+Dynamic Decoder의 coupled actor step을 줄일수록 안정화된다.",
+    sonic:"SONIC release의 optimizer가 이 toy와 같다는 뜻은 아니다. 핵심은 representation architecture를 바꾸면 기존 optimizer/hyperparameter를 그대로 재사용해도 된다는 보장이 없다는 것이다.",
+    ifMissing:"representation reconstruction 결과만 보고 실제 policy optimization 난이도를 놓치거나, 모델 크기 하나만을 원인으로 오판할 수 있다.",
+    toyShape:"1-token 1220 params vs 2-token 1366 params; matched-capacity 2-token = 1220 params",
+    sonicShape:"multi-token actor interface + optimizer/hyperparameter must be validated jointly",
+    highlights:["encoder","token","control-decoder","robot"]
   },
   ppo:{
     easy:"robot이 실제로 넘어지지 않고 reference를 따라가게 만드는 시행착오 학습이다.",

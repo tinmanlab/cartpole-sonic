@@ -36,15 +36,24 @@ function gae(data,n,gamma=.99,lambda=.95){
 }
 
 class TemporalControlPolicy {
-  constructor({tokens=1,seed=9001}={}){
+  constructor({tokens=1,seed=9001,widths={}}={}){
     this.tokens=tokens;
     this.tokenDim=2;
     this.latentDim=tokens*this.tokenDim;
+    this.widths={
+      encoder:widths.encoder??20,
+      dynamic:widths.dynamic??28,
+      kinematic:widths.kinematic??24,
+      critic:widths.critic??20,
+    };
     const rng=new RNG(seed);
-    this.encoder=new MLP(rng,REF_DIM,20,this.latentDim,{outScale:.20});
-    this.dynamicDecoder=new MLP(rng,this.latentDim+4,28,1,{outTanh:true,outScale:.08});
-    this.kinematicDecoder=new MLP(rng,this.latentDim,24,REF_DIM,{outTanh:true,outScale:.08});
-    this.critic=new MLP(rng,5,20,1,{outScale:.15});
+    this.encoder=new MLP(rng,REF_DIM,this.widths.encoder,this.latentDim,{outScale:.20});
+    this.dynamicDecoder=new MLP(rng,this.latentDim+4,this.widths.dynamic,1,{outTanh:true,outScale:.08});
+    this.kinematicDecoder=new MLP(rng,this.latentDim,this.widths.kinematic,REF_DIM,{outTanh:true,outScale:.08});
+    this.critic=new MLP(rng,5,this.widths.critic,1,{outScale:.15});
+  }
+  parameterCount(){
+    return this.encoder.p.length+this.dynamicDecoder.p.length+this.kinematicDecoder.p.length+this.critic.p.length;
   }
   quantize(z){
     return{
@@ -66,7 +75,7 @@ class TemporalControlPolicy {
   }
   snapshot(){
     return{
-      tokens:this.tokens,tokenDim:this.tokenDim,
+      tokens:this.tokens,tokenDim:this.tokenDim,widths:{...this.widths},parameterCount:this.parameterCount(),
       encoder:this.encoder.snapshot(),
       dynamicDecoder:this.dynamicDecoder.snapshot(),
       kinematicDecoder:this.kinematicDecoder.snapshot(),
@@ -124,9 +133,16 @@ class ControlEnv {
 }
 
 export class TemporalControlTrainer {
-  constructor(sim,{tokens=1,seed=9101,n=8,horizon=96,epochs=4,batch=128}={}){
+  constructor(sim,{tokens=1,seed=9101,n=8,horizon=96,epochs=4,batch=128,widths={},ppoLrScale=1,ppoModuleScales={}}={}){
     this.sim=sim;this.tokens=tokens;this.seed=seed;this.rng=new RNG(seed+5000);
-    this.policy=new TemporalControlPolicy({tokens,seed});
+    this.widths={...widths};this.ppoLrScale=ppoLrScale;
+    this.ppoModuleScales={
+      encoder:ppoModuleScales.encoder??1,
+      dynamic:ppoModuleScales.dynamic??1,
+      kinematic:ppoModuleScales.kinematic??1,
+      critic:ppoModuleScales.critic??1,
+    };
+    this.policy=new TemporalControlPolicy({tokens,seed,widths});
     this.n=n;this.horizon=horizon;this.epochs=epochs;this.batch=batch;
     this.envs=Array.from({length:n},()=>new ControlEnv(sim,this.rng));
     this.iter=0;this.envSteps=0;this.episodes=0;this.history=[];
@@ -171,12 +187,13 @@ export class TemporalControlTrainer {
     return this.bootstrap;
   }
   collect(){
-    const data=[];let rewardSum=0,trackSum=0;
+    const data=[];let rewardSum=0,trackSum=0,saturation=0;
     for(let t=0;t<this.horizon;t++){
       for(let i=0;i<this.n;i++){
         const e=this.envs[i],s=e.state(),goal=e.goal,ref=e.reference();
         const out=this.policy.forward(s,ref,goal,{sample:true,rng:this.rng});
         const oldLogp=logProbGaussian(out.action,out.mu),oldV=out.value;
+        if(Math.abs(out.mu)>.95)saturation++;
         const step=e.step(out.action),next=this.policy.forward(step.s,e.reference(),goal),nextV=next.value;
         data.push({env:i,state:s.slice(),goal,ref:Array.from(ref),action:out.action,oldLogp,oldV,r:step.r,nextV,done:step.done,terminated:step.terminated});
         rewardSum+=step.r;trackSum+=Math.abs(step.s[0]-e.refContext[0]);this.envSteps++;
@@ -184,11 +201,12 @@ export class TemporalControlTrainer {
       }
     }
     gae(data,this.n);
-    return{data,rewardMean:rewardSum/data.length,trackingMae:trackSum/data.length};
+    return{data,rewardMean:rewardSum/data.length,trackingMae:trackSum/data.length,actionSaturation:saturation/data.length};
   }
   optimize(data){
     const ids=Array.from({length:data.length},(_,i)=>i);
-    let piSum=0,vSum=0,auxSum=0,count=0,clipped=0;
+    let piSum=0,vSum=0,auxSum=0,count=0,clipped=0,gradBatches=0;
+    let gradEncoder=0,gradDynamic=0,gradKinematic=0,gradCritic=0;
     for(let ep=0;ep<this.epochs;ep++){
       for(let i=ids.length-1;i>0;i--){
         const j=Math.floor(this.rng.uniform()*(i+1));[ids[i],ids[j]]=[ids[j],ids[i]];
@@ -216,17 +234,24 @@ export class TemporalControlTrainer {
           const dv=cf.y[0]-qd.ret;this.policy.critic.backward(cf,[dv],GC,1/bs);
           piSum+=-Math.min(ratio*qd.adv,clamp(ratio,.8,1.2)*qd.adv);vSum+=.5*dv*dv;auxSum+=aux;count++;
         }
-        this.policy.encoder.adam(GE,5e-4,.7);
-        this.policy.dynamicDecoder.adam(GD,8e-4,.7);
-        this.policy.kinematicDecoder.adam(GK,8e-4,.7);
-        this.policy.critic.adam(GC,1.5e-3,1.0);
+        gradEncoder+=this.policy.encoder.adam(GE,5e-4*this.ppoLrScale*this.ppoModuleScales.encoder,.7);
+        gradDynamic+=this.policy.dynamicDecoder.adam(GD,8e-4*this.ppoLrScale*this.ppoModuleScales.dynamic,.7);
+        gradKinematic+=this.policy.kinematicDecoder.adam(GK,8e-4*this.ppoLrScale*this.ppoModuleScales.kinematic,.7);
+        gradCritic+=this.policy.critic.adam(GC,1.5e-3*this.ppoLrScale*this.ppoModuleScales.critic,1.0);
+        gradBatches++;
       }
     }
-    return{piLoss:piSum/count,valueLoss:vSum/count,auxLoss:auxSum/count,clipFraction:clipped/count};
+    return{
+      piLoss:piSum/count,valueLoss:vSum/count,auxLoss:auxSum/count,clipFraction:clipped/count,
+      gradEncoder:gradEncoder/Math.max(1,gradBatches),
+      gradDynamic:gradDynamic/Math.max(1,gradBatches),
+      gradKinematic:gradKinematic/Math.max(1,gradBatches),
+      gradCritic:gradCritic/Math.max(1,gradBatches),
+    };
   }
   iteration(){
     const col=this.collect(),opt=this.optimize(col.data);this.iter++;
-    this.last={reward:col.rewardMean,tracking:col.trackingMae,...opt,envSteps:this.envSteps,episodes:this.episodes};
+    this.last={reward:col.rewardMean,tracking:col.trackingMae,actionSaturation:col.actionSaturation,...opt,envSteps:this.envSteps,episodes:this.episodes};
     this.history.push({iter:this.iter,...this.last});if(this.history.length>160)this.history.shift();
     return this.last;
   }
@@ -260,7 +285,8 @@ export class TemporalControlTrainer {
   snapshot(){
     return{
       schema:"cartpole-sonic-temporal-control-trainer/v1",
-      tokens:this.tokens,iter:this.iter,envSteps:this.envSteps,episodes:this.episodes,
+      tokens:this.tokens,widths:{...this.policy.widths},parameterCount:this.policy.parameterCount(),ppoLrScale:this.ppoLrScale,ppoModuleScales:{...this.ppoModuleScales},
+      iter:this.iter,envSteps:this.envSteps,episodes:this.episodes,
       rng:{s:this.rng.s,spare:this.rng.spare},
       bootstrap:this.bootstrap||null,last:this.last,history:this.history.slice(-120),
       policy:this.policy.snapshot(),
