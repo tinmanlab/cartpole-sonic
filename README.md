@@ -120,6 +120,8 @@ VQ-VAE
         ↓
 FSQ
         ↓
+What actually learns?
+        ↓
 Motion token
         ↓
 Dynamic Decoder
@@ -155,10 +157,11 @@ The main path is:
 | 2 | VQ | Why does a learned vector codebook help create discrete symbols? |
 | 3 | VQ-VAE | Why are STE, commitment, and codebook learning needed? |
 | 4 | FSQ | What does FSQ remove from VQ? |
-| 5 | Motion token | What exactly is being tokenized? |
-| 6 | Dynamic Decoder | Why does the token still need proprioception? |
-| 7 | PPO training | What actually trains physical tracking? |
-| 8 | GEAR-SONIC | How do the toy blocks map back to SONIC? |
+| 5 | What learns? | Does FSQ learn? Which modules actually receive parameter updates? |
+| 6 | Motion token | What exactly is being tokenized? |
+| 7 | Dynamic Decoder | Why does the token still need proprioception? |
+| 8 | PPO training | What actually trains physical tracking? |
+| 9 | GEAR-SONIC | How do the toy blocks map back to SONIC? |
 
 `VAE` is shown as an **optional branch from Autoencoder**, then the learner returns to VQ. It is not presented as a prerequisite for FSQ.
 
@@ -283,6 +286,102 @@ PPO training plots redraw after each training iteration.
 
 ---
 
+## What actually learns?
+
+A useful distinction is:
+
+> **FSQ participates in training, but the standard FSQ quantizer itself is not parameter-learned.**
+
+The default SONIC quantizer is `vector_quantize_pytorch.FSQ`, instantiated from a fixed `levels` configuration. It has no learned vector codebook. The rounding operation uses a straight-through estimator (STE), so gradients can pass through the discrete bottleneck to the Encoder.
+
+| Component | Learned? | Main learning signal |
+|---|---:|---|
+| Motion Encoder(s) | **Yes** | PPO through the Dynamic Decoder + reconstruction auxiliary loss + cross-encoder latent-alignment losses |
+| FSQ finite levels / grid | **No** | Fixed hyperparameters; STE provides a surrogate backward path |
+| G1 Dynamic Decoder | **Yes** | PPO physical-tracking objective |
+| G1 Kinematic Decoder | **Yes** | Future-motion reconstruction auxiliary loss |
+| Critic | **Yes** | Value / return loss for PPO |
+| VQ learned codebook (comparison) | **Yes** | Codebook/EMA-style update; this is one of the mechanisms FSQ removes |
+
+The subtle point is that the representation still learns even though FSQ does not:
+
+```text
+loss
+ ↓
+Decoder
+ ↓
+quantized q
+ ↓  STE through round()
+Encoder weights change
+ ↓
+next z is placed more usefully relative to the fixed FSQ bins
+```
+
+So it is better to say:
+
+- “the **Encoder learns to use FSQ**”
+- not “FSQ learns its codebook”
+
+### Actual SONIC token shape
+
+The release configuration uses:
+
+```text
+token_dim = 32 scalar dimensions
+levels per scalar = 32 fixed values
+max_num_tokens = 2
+
+flattened decoder input from tokens = 2 × 32 = 64 values
+```
+
+The implementation config names are slightly confusing: `num_fsq_levels: 32` is assigned to `token_dim`, while `fsq_level_list: 32` is broadcast to 32 scalar dimensions.
+
+The implicit Cartesian-product code space is enormous, but it is **not explicitly stored as a table**. Each scalar is quantized independently.
+
+The SONIC decoder consumes the quantized numeric token vectors; “token” here should not be interpreted as necessarily one integer ID like an LLM vocabulary token.
+
+### Why do different encoders produce a universal token?
+
+FSQ alone does not guarantee that a G1 Encoder, SMPL Encoder, and teleoperation Encoder give the same semantic token.
+
+SONIC trains these encoders with auxiliary latent-alignment losses in addition to physical PPO and reconstruction. The released auxiliary configuration includes G1↔SMPL, G1↔teleop, teleop↔SMPL, and re-encoded SMPL↔G1 alignment terms.
+
+This is a key part of the word **universal**.
+
+Official implementation references:
+
+- [UniversalTokenModule](https://github.com/NVlabs/GR00T-WholeBodyControl/blob/main/gear_sonic/trl/modules/universal_token_modules.py)
+- [SONIC training code](https://github.com/NVlabs/GR00T-WholeBodyControl/blob/main/docs/source/references/training_code.md)
+- [FSQ config](https://github.com/NVlabs/GR00T-WholeBodyControl/blob/main/gear_sonic/config/actor_critic/quantizers/fsq.yaml)
+- [Universal-token config](https://github.com/NVlabs/GR00T-WholeBodyControl/blob/main/gear_sonic/config/actor_critic/universal_token/all_mlp_v1.yaml)
+- [Auxiliary-loss config](https://github.com/NVlabs/GR00T-WholeBodyControl/blob/main/gear_sonic/config/aux_losses/universal_token/g1_recon_and_all_latent.yaml)
+
+---
+
+## Questions the learner should now be able to ask
+
+These are intentional checkpoints, not extra jargon:
+
+1. **Why compress at all?** What information do we want the bottleneck to retain?
+2. **Why reconstruct if the deployment controller does not need reconstruction?**
+3. **What is the difference between latent dimension, FSQ levels per dimension, number of tokens, and flattened token dimension?**
+4. **Does FSQ learn anything? If not, how does gradient reach the Encoder?**
+5. **Why can a fixed quantizer improve during training?**
+6. **Is a SONIC motion token an integer ID or a quantized numeric vector?**
+7. **Why does a motion token not contain the current robot state?**
+8. **Why does the Dynamic Decoder need proprioception in addition to the token?**
+9. **What teaches the Dynamic Decoder: reconstruction or PPO?**
+10. **What teaches the Kinematic Decoder?**
+11. **How do G1, SMPL, and teleop Encoders learn a compatible shared token space?**
+12. **Where does the reference come from, and is that reference source itself part of the SONIC tracker?**
+13. **How is temporal information compressed into multiple tokens?**
+14. **Which parts exist at deployment, and which exist only during training?**
+15. **What does this CartPole toy preserve, and what humanoid behavior can it not validate?**
+
+If those questions can be answered from the UI without reading source code, the teaching lab is doing its job.
+
+---
+
 ## Quick start
 
 ### 1. Fastest: use GitHub Pages
@@ -298,6 +397,7 @@ Useful direct links:
 - VQ: https://tinmanlab.github.io/cartpole-sonic/?lesson=vq
 - VQ-VAE: https://tinmanlab.github.io/cartpole-sonic/?lesson=vqvae
 - FSQ: https://tinmanlab.github.io/cartpole-sonic/?lesson=fsq
+- What learns?: https://tinmanlab.github.io/cartpole-sonic/?lesson=learning-graph
 - Motion token: https://tinmanlab.github.io/cartpole-sonic/?lesson=motion-token
 - Dynamic Decoder: https://tinmanlab.github.io/cartpole-sonic/?lesson=dynamic-decoder
 - PPO training: https://tinmanlab.github.io/cartpole-sonic/?lesson=ppo

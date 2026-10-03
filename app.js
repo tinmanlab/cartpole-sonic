@@ -495,6 +495,41 @@ function renderVqvaeViz(){
     [p?"z=["+fmt(p.z[0],2)+","+fmt(p.z[1],2)+"]":"",p?"q=["+fmt(p.q[0],2)+","+fmt(p.q[1],2)+"]":"","STE","commitment","codebook update"]
   );
 }
+function renderLearningGraphViz(){
+  showHtml(
+    '<div style="height:100%;display:grid;grid-template-rows:auto 1fr;gap:12px">'+
+      '<div class="flow-row" style="padding-top:8px">'+
+        '<div class="flow-box"><strong>Reference</strong><span>training data / command</span></div>'+
+        '<div class="flow-arrow">→</div>'+
+        '<div class="flow-box accent"><strong>Encoder θE</strong><span>LEARNED</span></div>'+
+        '<div class="flow-arrow">→</div>'+
+        '<div class="flow-box"><strong>FSQ</strong><span>FIXED levels<br>STE backward</span></div>'+
+        '<div class="flow-arrow">→</div>'+
+        '<div class="flow-box accent"><strong>Dynamic Decoder θD</strong><span>LEARNED by PPO</span></div>'+
+      '</div>'+
+      '<div style="overflow:auto">'+
+        '<table class="compare-table">'+
+          '<thead><tr><th>Module</th><th>Trainable?</th><th>What teaches it?</th><th>What changes?</th></tr></thead>'+
+          '<tbody>'+
+            '<tr><td><b>Encoder(s)</b></td><td>YES</td><td>PPO + reconstruction + latent alignment</td><td>weights mapping modality/reference → latent z</td></tr>'+
+            '<tr><td><b>FSQ</b></td><td><b>NO</b></td><td>no parameter loss</td><td>nothing; finite levels are fixed. STE only passes gradient through round</td></tr>'+
+            '<tr><td><b>Dynamic Decoder</b></td><td>YES</td><td>PPO tracking objective</td><td>weights mapping token + proprioception → action</td></tr>'+
+            '<tr><td><b>Kinematic Decoder</b></td><td>YES</td><td>future-motion reconstruction auxiliary loss</td><td>weights mapping token → future motion</td></tr>'+
+            '<tr><td><b>VQ codebook</b> (comparison)</td><td>YES</td><td>codebook/EMA style update</td><td>representative vectors move — this is what FSQ removes</td></tr>'+
+          '</tbody>'+
+        '</table>'+
+      '</div>'+
+    '</div>',
+    '<b>핵심:</b> FSQ는 training graph 안에 있지만 자체 codebook/level parameter를 배우지 않는다. PPO·aux loss의 gradient가 STE를 통해 Encoder로 지나가고, Encoder/Decoder가 고정된 discrete grid를 잘 사용하도록 학습된다.',
+    [
+      "toy: 2 scalar dims × 5 fixed levels",
+      "SONIC release: 32 scalar dims × 32 fixed levels × 2 tokens",
+      "flattened motion token = 64 values",
+      "g1_recon coef 0.01 · latent-alignment coefs 1.0",
+      "Critic: learned separately by value loss"
+    ]
+  );
+}
 function renderDecoderViz(){
   const p=preview(),s=state();
   const stateText='['+s.map(v=>fmt(v,2)).join(", ")+']';
@@ -597,6 +632,7 @@ function renderLessonViz(){
     case "vae-branch": renderVaeViz(); break;
     case "latent": renderLatentViz(); break;
     case "vqvae": renderVqvaeViz(); break;
+    case "learning-graph": renderLearningGraphViz(); break;
     case "decoder": renderDecoderViz(); break;
     case "training": renderTrainingViz(); break;
     case "sonic-map": renderSonicMap(); break;
@@ -616,7 +652,7 @@ function renderGuide(){
   $("nextLesson").disabled=!next;
   $("prevLesson").onclick=()=>prev&&navigateLesson(prev);
   $("nextLesson").onclick=()=>next&&navigateLesson(next);
-  $("lessonAction").textContent=lesson.id==="ppo"?"+10 PPO iterations":lesson.id==="dynamic-decoder"?"Push + 1 Step":lesson.id==="motion-token"?"Push robot":lesson.id==="sonic"?"Run live tracking":"Change goal";
+  $("lessonAction").textContent=lesson.id==="ppo"?"+10 PPO iterations":lesson.id==="dynamic-decoder"?"Push + 1 Step":lesson.id==="motion-token"?"Push robot":lesson.id==="learning-graph"?"Run 1 PPO iter":lesson.id==="sonic"?"Run live tracking":"Change goal";
   $("lessonStatus").textContent=busy?"Preparing model…":"mode="+lesson.mode+" · preset="+preset;
 }
 
@@ -665,6 +701,9 @@ async function runLessonAction(){
     case "vae":
       await navigateLesson("vq");
       break;
+    case "learning-graph":
+      await runPPO(1);
+      break;
     case "motion-token":
       pushRobot();
       break;
@@ -695,6 +734,14 @@ function courseSnapshot(){
       outline:getCourseOutline(),
     },
     experiment:{goal,live,preset,mode:lesson.mode,episode:episodeIndex,autoResets:autoResetCount,lastEpisodeEvent},
+    modelSemantics:{
+      encoder:{trainable:true,signals:["PPO","reconstruction auxiliary","cross-encoder latent alignment"]},
+      fsq:{trainable:false,levels:"fixed",gradient:"STE through rounding; no learned vector codebook"},
+      dynamicDecoder:{trainable:true,signals:["PPO tracking objective"]},
+      kinematicDecoder:{trainable:true,signals:["future-motion reconstruction auxiliary loss"]},
+      critic:{trainable:true,signals:["value/return loss"]},
+      releasedTokenShape:{numTokens:2,scalarDimsPerToken:32,fixedLevelsPerScalar:32,flattenedDim:64},
+    },
     signals:{
       semantics:{
         reference:"pre-FSQ desired future motion from planner/reference source",

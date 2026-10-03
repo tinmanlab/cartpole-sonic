@@ -1,10 +1,11 @@
-export const COURSE_VERSION = "1.1";
+export const COURSE_VERSION = "1.2";
 
 export const PRIMARY_PATH = [
   "ae",
   "vq",
   "vqvae",
   "fsq",
+  "learning-graph",
   "motion-token",
   "dynamic-decoder",
   "ppo",
@@ -119,7 +120,7 @@ export const LESSONS = {
     mode: "fsq",
     viz: "latent",
     prerequisites: ["vqvae"],
-    next: "motion-token",
+    next: "learning-graph",
     question: "learned vector codebook 없이 어떻게 discrete representation을 만들까?",
     answer: "저차원 latent의 각 scalar를 finite level로 bound하고 round한다. scalar 조합이 implicit codebook을 만든다.",
     why: "VQ의 learned codebook lookup, dead-code 관리, reseeding 같은 부담을 줄이면서 discrete bottleneck을 유지한다.",
@@ -128,37 +129,63 @@ export const LESSONS = {
       "회색 FSQ grid는 고정되어 있고, 짧은 점선 z→q는 현재 quantization 이동량일 뿐 trajectory가 아님을 확인한다.",
     ],
     try: "Live를 켜고 z history가 실제 reference progression에 따라 움직이는 동안 q가 5×5 finite grid에서 어떻게 바뀌는지 본다.",
-    takeaway: "FSQ = low-dimensional scalar quantization + implicit codebook + STE.",
+    takeaway: "FSQ = fixed finite scalar levels + implicit codebook + STE. FSQ 자체가 codebook을 학습하는 것이 아니라 주변 network가 이 고정 bottleneck을 사용하도록 학습된다.",
     sonic: "GEAR-SONIC universal motion token의 핵심 bottleneck에 대응한다.",
     highlights: ["reference", "encoder", "latent", "quantizer", "token"],
   },
 
+
+  "learning-graph": {
+    id: "learning-graph",
+    step: 5,
+    world: "training",
+    nav: "What learns?",
+    title: "FSQ도 학습될까? 무엇이 실제로 바뀌는가?",
+    mode: "fsq",
+    viz: "learning-graph",
+    prerequisites: ["fsq"],
+    next: "motion-token",
+    question: "Encoder, FSQ, Decoder 중 어떤 파라미터가 loss에 의해 실제로 업데이트될까?",
+    answer: "Encoder와 두 Decoder는 학습된다. FSQ의 finite levels/grid는 고정이다. STE가 round를 가로질러 gradient를 Encoder 쪽으로 전달한다.",
+    why: "FSQ 자체가 배우는 대신 Encoder가 고정 bin을 유용하게 사용하도록 z의 위치를 학습한다. 그래서 quantizer parameter가 없어도 representation은 계속 좋아질 수 있다.",
+    watch: [
+      "PPO: Dynamic Decoder → token → STE → Encoder 경로를 본다.",
+      "Aux: Kinematic Decoder reconstruction과 cross-encoder latent alignment가 Encoder를 추가로 학습시키는지 본다.",
+    ],
+    try: "'Encoder / FSQ / Dynamic Decoder / Kinematic Decoder / VQ codebook' 각각이 학습되는지 말해본다.",
+    takeaway: "FSQ는 training에 참여하지만 자체 parameter는 학습하지 않는다. 주변 network가 fixed discrete bottleneck을 사용하는 법을 배운다.",
+    sonic: "release config는 32 scalar token dimensions, 각 scalar 32 fixed levels, max_num_tokens=2를 사용해 flattened token dimension 64를 만든다.",
+    highlights: ["encoder", "latent", "quantizer", "token", "dynamic", "kinematic", "ppo"],
+  },
+
   "motion-token": {
     id: "motion-token",
-    step: 5,
+    step: 6,
     world: "reference-token",
     nav: "Motion token",
     title: "무엇을 token으로 만드는가?",
     mode: "fsq",
     viz: "reconstruction",
-    prerequisites: ["fsq"],
+    prerequisites: ["learning-graph"],
     next: "dynamic-decoder",
     question: "FSQ가 압축하는 것은 현재 robot state일까, 미래 motion일까?",
-    answer: "미래 motion reference다. 현재 robot state는 token과 별도로 Dynamic Decoder에 들어간다.",
-    why: "원하는 움직임과 현재 몸 상태를 분리해야 같은 motion intent를 여러 실제 상태에서 재사용할 수 있다.",
+    answer: "미래 motion reference다. 현재 robot state는 token과 별도로 Dynamic Decoder에 들어간다. 그리고 SONIC의 token은 LLM의 단일 integer ID라기보다 FSQ로 양자화된 numeric code vector(s)다.",
+    why: "원하는 움직임과 현재 몸 상태를 분리해야 같은 motion intent를 여러 실제 상태에서 재사용할 수 있다. 실제 SONIC은 feature뿐 아니라 future time window도 압축해 여러 token으로 만든다. 또한 G1·SMPL·teleop Encoder가 같은 shared latent/token 의미를 만들도록 alignment loss가 필요하다.",
     watch: [
       "planner reference가 Encoder 입력이고 actual CartPole state는 입력이 아님을 확인한다.",
-      "같은 goal/reference라도 push로 실제 state만 바꾸면 token보다 action이 더 크게 달라지는지 본다.",
+      "같은 goal/reference라도 push로 actual state만 바꾸면 token은 그대로지만 action이 달라지는지 본다.",
+      "dimension, levels-per-scalar, num_tokens, flattened token dimension은 서로 다른 개념임을 구분한다.",
+      "이 CartPole toy는 encoder 하나/2D token 하나지만 실제 SONIC은 여러 modality Encoder와 multiple temporal tokens를 사용한다.",
     ],
-    try: "goal을 고정한 채 Push를 눌러 actual state만 바꿔본다.",
-    takeaway: "motion token = '무엇을 하고 싶은가'의 compact discrete representation.",
-    sonic: "G1 / SMPL / teleop reference가 공유 motion-token space로 들어가는 개념의 최소 예다.",
+    try: "goal을 고정한 채 Push를 눌러 token은 유지되고 state/action만 바뀌는지 확인한 뒤, '다른 modality encoder가 같은 q를 내려면 무엇이 더 필요한가?'를 답해본다.",
+    takeaway: "motion token = '무엇을 하고 싶은가'를 시간축까지 압축한 quantized numeric representation. token 차원·scalar level 수·token 개수는 서로 다르고, universal token은 multi-encoder alignment 학습까지 필요하다.",
+    sonic: "release training은 G1/SMPL/teleop encoder를 shared space로 맞추기 위해 reconstruction과 여러 latent-alignment auxiliary loss를 PPO와 함께 사용한다.",
     highlights: ["reference", "encoder", "quantizer", "token"],
   },
 
   "dynamic-decoder": {
     id: "dynamic-decoder",
-    step: 6,
+    step: 7,
     world: "bridge",
     nav: "Dynamic decoder",
     title: "token만으로 왜 action을 만들 수 없을까?",
@@ -181,7 +208,7 @@ export const LESSONS = {
 
   ppo: {
     id: "ppo",
-    step: 7,
+    step: 8,
     world: "training",
     nav: "PPO training",
     title: "무엇이 실제 physical controller를 학습할까?",
@@ -204,7 +231,7 @@ export const LESSONS = {
 
   sonic: {
     id: "sonic",
-    step: 8,
+    step: 9,
     world: "mapping",
     nav: "GEAR-SONIC",
     title: "CartPole에서 이해한 구조를 GEAR-SONIC으로 되돌리기",
