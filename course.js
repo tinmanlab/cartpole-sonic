@@ -1,4 +1,4 @@
-export const COURSE_VERSION = "2.5";
+export const COURSE_VERSION = "2.6";
 
 export const SONIC_FLOW = [
   {
@@ -190,10 +190,10 @@ export const TRAINING_TOPICS = [
     title:"왜 2-token controller는 같은 PPO 설정에서 더 흔들렸을까?",
     viz:"optimizer-evidence",
     input:"matched bootstrap controllers + controlled PPO ablations",
-    output:"parameter-count / freeze / actor-step-size evidence",
+    output:"paired-seed / matched-budget / actual Adam-step evidence",
     why:"token slot 수를 늘리면 representation capacity뿐 아니라 policy interface와 optimization sensitivity도 바뀔 수 있기 때문이다.",
     misconception:"2-token이 나빴다는 한 결과만 보고 token 수 자체가 원인이라고 결론내리면 안 된다.",
-    question:"parameter count, Encoder drift, actor learning-rate 중 어떤 요인이 실제 instability를 설명하는가?"
+    question:"seed 한 개와 gradient 크기만으로 token 수의 우열이나 원인을 확정할 수 있는가?"
   },
   {
     id:"ppo",
@@ -322,12 +322,12 @@ export const TRAINING_DETAILS = {
     highlights:["encoder","quantizer","token"]
   },
   "optimizer-sensitivity":{
-    easy:"2-token이 더 많은 정보를 담을 수 있어도, 같은 크기의 PPO update를 그대로 쓰면 배우는 과정이 더 불안정할 수 있다.",
-    mechanism:"deterministic ablation은 parameter count를 1-token과 정확히 맞춘 2-token model, Encoder freeze, actor update scale 0.25/0.10/0.05를 각각 비교한다. 결과적으로 parameter count와 Encoder drift만으로는 gap이 설명되지 않고, Encoder+Dynamic Decoder의 coupled actor step을 줄일수록 안정화된다.",
-    sonic:"SONIC release의 optimizer가 이 toy와 같다는 뜻은 아니다. 핵심은 representation architecture를 바꾸면 기존 optimizer/hyperparameter를 그대로 재사용해도 된다는 보장이 없다는 것이다.",
-    ifMissing:"representation reconstruction 결과만 보고 실제 policy optimization 난이도를 놓치거나, 모델 크기 하나만을 원인으로 오판할 수 있다.",
-    toyShape:"1-token 1220 params vs 2-token 1366 params; matched-capacity 2-token = 1220 params",
-    sonicShape:"multi-token actor interface + optimizer/hyperparameter must be validated jointly",
+    easy:"한 번의 학습 결과만으로 token 수의 우열을 정할 수 없다. 같은 학습 횟수에서 여러 PPO 실행을 비교하고, 모델이 실제로 얼마나 바뀌었는지 확인한다.",
+    mechanism:"전체 파라미터와 actor 파라미터를 따로 센다. 같은 bootstrap을 사용한 3개 PPO seed에서 1·2-token과 actor LR ×1/×0.05를 +10/+50회 각각 비교한다. gradient 크기를 이동량으로 간주하지 않고 실제 Adam 가중치 변화, 같은 입력에서의 token 변화율, 정책 분포 변화(KL)를 측정한다.",
+    sonic:"이것은 fixed-bootstrap CartPole 조건부 실험이다. 독립적인 모델 초기화, 전체 motion 데이터, humanoid dynamics까지 검증한 결과가 아니다. 작은 LR이 SONIC에도 최적이라는 결론은 내리지 않는다.",
+    ifMissing:"seed 한 개나 서로 다른 학습 예산을 비교하고, 전체 파라미터 수가 같으면 같은 모델 능력이라고 오해할 수 있다.",
+    toyShape:"total / actor: 1-token 1220 / 607; 2-token 1366 / 705; total-match 1220 / 643; actor-match 1268 / 607",
+    sonicShape:"representation design, optimizer and independent validation are separate questions",
     highlights:["encoder","token","control-decoder","robot"]
   },
   ppo:{
