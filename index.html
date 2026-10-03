@@ -1,0 +1,219 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SONIC 구조로 이해하는 CartPole FSQ Tracker</title>
+<script src="https://unpkg.com/@mcp-b/global@5.1.0/dist/index.iife.js"></script>
+<style>
+:root{font-family:Inter,Pretendard,system-ui,-apple-system,"Segoe UI",sans-serif;color:#172033;background:#f5f6f8;--line:#dde1e7;--muted:#667085;--card:#fff;--blue:#315dc9;--red:#d64f4f;--green:#16805d;--purple:#795fc5}
+*{box-sizing:border-box}body{margin:0}button,input,select{font:inherit}
+.top{height:48px;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:6px 12px;gap:12px}
+.brand{display:flex;gap:10px;align-items:baseline}.brand h1{font-size:17px;margin:0}.brand span{font-size:11px;color:var(--muted)}
+.badges{display:flex;gap:5px}.badge{font-size:10px;border:1px solid var(--line);border-radius:999px;padding:4px 7px;background:#fafbfc;color:#596273}.badge.ok{background:#eff9f4;color:#126b4b;border-color:#b7dcc9}.badge.warn{background:#fff7ec;color:#8a5717;border-color:#efd2a9}
+.grid{max-width:1600px;margin:0 auto;padding:9px;display:grid;grid-template-columns:34fr 43fr 23fr;grid-template-rows:auto auto;gap:9px;align-items:start}
+.card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px;min-width:0;overflow:hidden}.card h2{font-size:14px;margin:0}.card h3{font-size:12px;margin:0}.sub{font-size:10.5px;color:var(--muted);line-height:1.35}.head{display:flex;justify-content:space-between;align-items:center;gap:6px;margin-bottom:6px}.row{display:flex;gap:5px;align-items:center;flex-wrap:wrap}
+button,select{border:1px solid #cfd5df;border-radius:7px;background:#fff;padding:5px 7px;min-height:30px;font-size:11px;cursor:pointer}button.active,button.primary{background:#293f83;border-color:#293f83;color:#fff}
+.goal-card{grid-column:1;grid-row:1}.runtime-card{grid-column:2;grid-row:1}.live-card{grid-column:3;grid-row:1}.reference-card{grid-column:1;grid-row:2}.latent-card{grid-column:2;grid-row:2}.train-card{grid-column:3;grid-row:2}
+.sim{height:205px;border:1px solid #e5e8ed;border-radius:9px;overflow:hidden}.sim canvas{width:100%;height:100%;display:block;background:#fff}
+.goal-row{display:grid;grid-template-columns:1fr auto;gap:7px;align-items:center;margin-top:7px}.goal-row input{width:100%}.goal-value{font:700 12px ui-monospace,monospace;min-width:52px;text-align:right}.quick{display:flex;gap:4px;margin-top:6px}
+.state-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-top:6px}.state{border:1px solid #e5e8ed;border-radius:6px;padding:4px 5px;background:#fafbfc}.state span{display:block;font-size:9px;color:#7b8492}.state output{display:block;font:700 11px ui-monospace,monospace;white-space:nowrap}
+.runtime{display:grid;grid-template-columns:.75fr 16px 1.2fr 16px .8fr 16px .8fr 16px 1.15fr 16px .7fr;gap:2px;align-items:stretch;height:245px}.box{border:1px solid #e2e6ec;border-radius:8px;padding:7px;background:#fbfcfd;min-width:0}.box b{display:block;font-size:11.5px}.box small{display:block;font-size:10px;color:#7b8492;line-height:1.25;margin:2px 0 5px}.arr{display:grid;place-items:center;color:#9da5b0;font-size:16px}.vals{display:grid;gap:2px}.kv{display:flex;justify-content:space-between;gap:4px;font-size:10.25px}.kv span{color:#596273}.kv code{font-size:10.25px;white-space:nowrap}.runtime-foot{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:6px}.training-only{border:1px dashed #b9adcf;border-radius:7px;background:#faf8ff;padding:5px 7px;font-size:9.5px;line-height:1.25;color:#64547f}.training-only b{color:#4f3b78}
+.method{display:grid;grid-template-columns:repeat(3,1fr);gap:4px}.explain{border-left:3px solid #98a2b3;background:#fafbfc;border-radius:0 7px 7px 0;padding:6px 7px;font-size:11px;line-height:1.42;color:#4b5563;margin-top:6px}.control{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:8px}.control #runLive{grid-column:1/-1}.metrics{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:7px}.metric{border:1px solid #e4e8ee;border-radius:6px;padding:5px}.metric span{display:block;font-size:9.5px;color:#7b8492}.metric b{display:block;font:700 11.5px ui-monospace,monospace;margin-top:1px}.status{display:grid;gap:4px;margin-top:7px}.status div{font-size:9.5px;color:#667085;display:flex;gap:5px}.dot{width:7px;height:7px;border-radius:50%;background:#aaa;margin-top:2px;flex:none}.dot.ok{background:#1b9b5b}.dot.bad{background:#cf4a43}
+.ref-plot{height:165px;border:1px solid #e5e8ed;border-radius:8px;overflow:hidden}.ref-plot canvas{width:100%;height:100%;display:block}.frames{display:grid;grid-template-columns:repeat(8,1fr);gap:3px;margin-top:6px}.frame{border:1px solid #e5e8ed;border-radius:5px;padding:4px 2px;text-align:center}.frame b{display:block;font:700 9.5px ui-monospace}.frame span{display:block;font-size:8.5px;color:#7b8492}.concept{margin-top:7px;font-size:10.5px;line-height:1.42;color:#596273;border-left:3px solid #9aa4b2;padding-left:7px}.concept b{color:#172033}
+.latent-layout{display:grid;grid-template-columns:1.25fr .75fr;gap:7px;height:355px}.latent-plot{border:1px solid #e5e8ed;border-radius:8px;overflow:hidden}.latent-plot canvas{width:100%;height:100%;display:block}.token-panel{display:grid;grid-template-rows:auto auto 1fr;gap:6px}.token-step{border:1px solid #e4e7ec;border-radius:7px;padding:6px;background:#fafbfc}.token-step b{display:block;font-size:10.5px;margin-bottom:3px}.token-step code{display:block;font:10px ui-monospace,monospace;margin:2px 0}.token-step p{font-size:10.25px;line-height:1.38;color:#667085;margin:3px 0 0}.important{border-left:3px solid #315dc9;background:#f4f7ff;border-radius:0 7px 7px 0;padding:6px 7px;font-size:10.5px;line-height:1.4;color:#42526b}
+.train-actions{display:flex;gap:4px}.train-flow{display:grid;grid-template-columns:1fr 1fr;gap:4px}.teacher-step{grid-column:1/-1}.train-step{border:1px solid #e4e7ec;border-radius:7px;padding:5px 6px;font-size:10px;line-height:1.32;background:#fafbfc}.train-step b{display:block;font-size:10.5px}.train-step.main{border-color:#a7b9eb;background:#f4f7ff}.train-step.aux{border-style:dashed;border-color:#b8add0;background:#faf8ff}.teacher-step{order:9}.ppo-metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;margin-top:6px}.train-note{font-size:9.5px;line-height:1.32;color:#596273;border-left:3px solid #a2aab5;padding-left:6px;margin-top:6px}
+
+.lesson-nav{height:42px;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:4px;padding:5px 10px;overflow-x:auto;white-space:nowrap}
+.lesson-nav button{min-height:30px;padding:5px 8px;font-size:10.5px;flex:none}
+.lesson-nav button.active{background:#172554;border-color:#172554;color:#fff}
+.lesson-nav .lesson-progress{margin-left:auto;font:10px ui-monospace,monospace;color:#667085;padding:0 4px}
+.lesson-card{display:none;grid-column:1/-1;grid-row:1;border-left:4px solid #315dc9;padding:11px 14px}
+.lesson-card.visible{display:block}
+.lesson-card .lesson-grid{display:grid;grid-template-columns:1.15fr 1fr 1fr;gap:14px;align-items:start}
+.lesson-card h2{font-size:16px;margin:0 0 4px}.lesson-card h3{font-size:11px;margin:0 0 4px;color:#475467}
+.lesson-card p{font-size:11.5px;line-height:1.45;margin:0;color:#4b5563}
+.lesson-card .lesson-chain{font:11.25px ui-monospace,SFMono-Regular,Menlo,monospace;line-height:1.55;background:#f7f9fc;border:1px solid #e3e7ee;border-radius:8px;padding:7px 9px;white-space:pre-line}
+.lesson-card .keep{border-left:3px solid #16805d;padding-left:8px}
+.lesson-card .cut{border-left:3px solid #d97706;padding-left:8px}
+.lesson-card .boundary{font-size:10.5px;color:#667085;margin-top:5px}
+body.lesson-view .grid{grid-template-columns:minmax(300px,.78fr) minmax(0,1.24fr) minmax(0,1.08fr);grid-template-rows:auto auto;align-items:start}
+body.lesson-view[data-panel-count="2"] .grid{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+body.lesson-view .lesson-card{grid-column:1/-1;grid-row:1;align-self:start}
+body.lesson-view .goal-card,body.lesson-view .runtime-card,body.lesson-view .live-card,body.lesson-view .reference-card,body.lesson-view .latent-card,body.lesson-view .train-card{grid-column:auto;grid-row:2;height:auto;align-self:start}
+body.lesson-view .card[data-panel][hidden]{display:none!important}
+body.lesson-view .runtime-foot{margin-top:7px}
+body.lesson-view .train-flow{grid-template-columns:1fr 1fr}
+body.full-view .lesson-card{display:none}
+body.full-view .grid{grid-template-columns:34fr 43fr 23fr;grid-template-rows:auto auto;align-items:start}
+body.full-view .goal-card,body.full-view .runtime-card,body.full-view .live-card,body.full-view .reference-card,body.full-view .latent-card,body.full-view .train-card{height:auto;align-self:start}
+body.full-view .sim{height:180px}
+body.full-view .runtime{height:215px}
+body.full-view .reference-card .ref-plot{height:135px}
+body.full-view .latent-card .latent-layout{height:285px}
+body.full-view .latent-card .token-step{padding:5px}
+body.full-view .latent-card .important{padding:5px 6px}
+body.full-view .live-card .status{display:none}
+body.full-view .train-card .train-note{display:none}
+body.full-view .train-card .train-step{padding:4px 5px;font-size:8.9px;line-height:1.18}
+body.full-view .train-card .train-step b{font-size:9.8px}
+body.full-view .train-card .ppo-metrics{margin-top:4px}
+body.full-view .train-card .metric{padding:4px}
+body.full-view .train-card .metric span{font-size:8.5px}
+body.full-view .train-card .metric b{font-size:10.5px}
+body.full-view .goal-card .quick{margin-top:4px}
+body.full-view .goal-card .state-grid{margin-top:4px}
+body.full-view .reference-card .frames{margin-top:4px}
+body.full-view .reference-card .concept{margin-top:5px}
+body.full-view .card{padding:9px}
+
+
+.box b,.box small,.explain,.train-step,.lesson-card p,.token-step p,.important,.concept{word-break:keep-all;overflow-wrap:anywhere}
+.mini-legend{display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:9.5px;color:#667085;margin:4px 0 6px}
+.mini-legend span{display:inline-flex;align-items:center;gap:4px}
+.legend-dot{width:8px;height:8px;border-radius:50%;display:inline-block;flex:none}
+.legend-line{width:16px;height:0;border-top:2px solid;display:inline-block;flex:none}
+.legend-line.dashed{border-top-style:dashed}
+body.full-view .sim-legend{display:none}
+body[data-lesson="3"] .runtime-card .vals,
+body[data-lesson="4"] .runtime-card .vals,
+body[data-lesson="7"] .runtime-card .vals{display:none}
+
+body[data-lesson="1"] .live-card .control,
+body[data-lesson="1"] .live-card .metrics,
+body[data-lesson="1"] .live-card .status,
+body[data-lesson="2"] .live-card .control,
+body[data-lesson="2"] .live-card .metrics,
+body[data-lesson="2"] .live-card .status,
+body[data-lesson="3"] .live-card .control,
+body[data-lesson="3"] .live-card .metrics,
+body[data-lesson="3"] .live-card .status,
+body[data-lesson="4"] .live-card .control,
+body[data-lesson="4"] .live-card .metrics,
+body[data-lesson="4"] .live-card .status{display:none}
+body[data-lesson="7"] .live-card .method,
+body[data-lesson="7"] .live-card #methodExplain{display:none}
+
+body:not([data-lesson="7"]) .teacher-only{display:none!important}
+body.full-view .teacher-only{display:none!important}
+
+@media(max-width:1250px){
+  body.lesson-view .grid{grid-template-columns:1fr 1fr;grid-template-rows:auto}
+  body.lesson-view .lesson-card{grid-column:1/-1;grid-row:auto;height:auto}
+  body.lesson-view .lesson-card .lesson-grid{grid-template-columns:1fr 1fr;height:auto}
+  body.lesson-view .goal-card,body.lesson-view .runtime-card,body.lesson-view .live-card,body.lesson-view .reference-card,body.lesson-view .latent-card,body.lesson-view .train-card{grid-column:auto;grid-row:auto}
+}
+@media(max-width:800px){
+  .lesson-nav .lesson-progress{display:none}
+  body.lesson-view .lesson-card .lesson-grid{grid-template-columns:1fr}
+  body.lesson-view .grid{grid-template-columns:1fr}
+}
+
+@media(max-width:1250px){.grid{grid-template-columns:1fr 1fr;grid-template-rows:auto}.goal-card,.runtime-card,.live-card,.reference-card,.latent-card,.train-card{grid-column:auto;grid-row:auto}.runtime-card,.latent-card{grid-column:1/-1}}
+@media(max-width:800px){.brand span{display:none}.grid{grid-template-columns:1fr}.runtime-card,.latent-card{grid-column:auto}.runtime{grid-template-columns:1fr;height:auto}.arr{transform:rotate(90deg);height:14px}.state-grid{grid-template-columns:1fr 1fr}.latent-layout{grid-template-columns:1fr;height:auto}.latent-plot{height:280px}}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="brand"><h1>CartPole FSQ Tracker</h1><span>GEAR-SONIC과 같은 제어 흐름, robot만 CartPole</span></div>
+  <div class="badges"><span id="physicsBadge" class="badge">MuJoCo</span><span id="trainBadge" class="badge">PPO</span><span id="webgpuBadge" class="badge">WebGPU</span><span id="mcpBadge" class="badge">WebMCP</span></div>
+</header>
+<nav class="lesson-nav" aria-label="학습 단계">
+  <button data-lesson="0">0 왜 축소?</button>
+  <button data-lesson="1">1 Encoder / AE</button>
+  <button data-lesson="2">2 VAE · VQ</button>
+  <button data-lesson="3">3 VQ-VAE</button>
+  <button data-lesson="4">4 FSQ</button>
+  <button data-lesson="5">5 Motion token</button>
+  <button data-lesson="6">6 Dynamic decoder</button>
+  <button data-lesson="7">7 PPO training</button>
+  <button data-lesson="8">8 전체 SONIC</button>
+  <span id="lessonProgress" class="lesson-progress">0 / 8</span>
+</nav>
+
+<main class="grid">
+<section id="lessonCard" class="card lesson-card">
+  <div class="lesson-grid">
+    <div>
+      <h2 id="lessonTitle">—</h2>
+      <p id="lessonIntro">—</p>
+      <div id="lessonBoundary" class="boundary"></div>
+    </div>
+    <div>
+      <h3 id="lessonWhyTitle">왜 필요한가?</h3>
+      <p id="lessonWhy">—</p>
+      <div id="lessonKeep" class="keep" style="margin-top:8px"><p>—</p></div>
+    </div>
+    <div>
+      <h3>이 단계의 흐름</h3>
+      <div id="lessonChain" class="lesson-chain">—</div>
+      <div id="lessonCut" class="cut" style="margin-top:7px"><p>—</p></div>
+    </div>
+  </div>
+</section>
+<section class="card goal-card" data-panel="goal">
+  <div class="head"><div><h2>① High-level 목표 → Planner</h2><div class="sub">목표 x 하나를 바로 motor에 주지 않고 미래 reference trajectory를 만든다</div></div><select id="simPreset"><option value="playground">Playground</option><option value="long">Long pole</option><option value="heavy">Heavy pole</option></select></div>
+  <div class="sim"><canvas id="cart" width="640" height="320" data-scene-contract="cartpole-v1"></canvas></div>
+  <div class="mini-legend sim-legend"><span><i class="legend-line" style="border-color:#dc5b60"></i>actual robot</span><span><i class="legend-line" style="border-color:#315dc9"></i>planned future</span><span><i class="legend-line dashed" style="border-color:#16805d"></i>goal</span></div>
+  <div class="goal-row"><input id="goal" type="range" min="-1.2" max="1.2" step="0.05" value="0.8"><output id="goalVal" class="goal-value">+0.80 m</output></div>
+  <div class="quick"><button data-goal="-0.8">← -0.8</button><button data-goal="0">center</button><button data-goal="0.8">+0.8 →</button><button id="resetCart">reset robot</button><button id="push">push</button></div>
+  <div class="state-grid"><div class="state"><span>x</span><output id="vX">—</output></div><div class="state"><span>ẋ</span><output id="vXd">—</output></div><div class="state"><span>θ</span><output id="vTh">—</output></div><div class="state"><span>θ̇</span><output id="vThd">—</output></div></div>
+</section>
+
+<section class="card runtime-card" data-panel="runtime">
+  <div class="head"><div><h2>② SONIC-like runtime path</h2><div class="sub">Planner는 upstream reference provider · SONIC tracker 본체는 Encoder → FSQ → Dynamic Decoder</div></div><b id="forceRead" style="font:11px ui-monospace">force —</b></div>
+  <div class="runtime">
+    <div class="box"><b>Goal</b><small>사용자/상위 정책 의도</small><div class="vals"><div class="kv"><span>x*</span><code id="pipeGoal">—</code></div></div></div><div class="arr">→</div>
+    <div class="box"><b>Planner</b><small>앞으로 8 frame reference 생성</small><div class="vals"><div class="kv"><span>ref dim</span><code>8×2=16</code></div><div class="kv"><span>horizon</span><code>0.64 s</code></div><div class="kv"><span>next x*</span><code id="nextRef">—</code></div></div></div><div class="arr">→</div>
+    <div class="box"><b>Encoder</b><small>future reference 16D → latent 2D</small><div id="zVals" class="vals"></div></div><div class="arr">→</div>
+    <div class="box"><b id="quantTitle">FSQ</b><small>latent → discrete token</small><div id="qVals" class="vals"></div></div><div class="arr">→</div>
+    <div class="box"><b>Dynamic Decoder</b><small><b style="display:inline">token + proprioception</b> → action</small><div id="dynVals" class="vals"></div></div><div class="arr">→</div>
+    <div class="box"><b>MuJoCo</b><small>action → next physical state</small><div class="vals"><div class="kv"><span>dt</span><code>10 ms</code></div><div class="kv"><span>motor</span><code>±10 N</code></div></div></div>
+  </div>
+  <div class="runtime-foot"><div class="training-only"><b>Training only · Kinematic Decoder</b><br>token → future reference reconstruction. 실제 control output이 아님.</div><div class="training-only"><b>Training only · Critic</b><br>rollout 가치 추정 → GAE/PPO. deployment에는 없음.</div></div>
+</section>
+
+<section class="card live-card" data-panel="live">
+  <div class="head"><div><h2 id="liveTitle">Live tracker</h2><div id="liveSub" class="sub">학습된 actor로 planner reference를 tracking</div></div></div>
+  <div class="method"><button data-mode="ae">continuous</button><button data-mode="vq">VQ</button><button data-mode="fsq" class="active">FSQ</button></div>
+  <div id="methodExplain" class="explain"></div>
+  <div class="control"><button id="stepPolicy">policy 1 step</button><button id="pushPolicy">+10 PPO iter</button><button id="runLive" class="primary">live tracking OFF</button></div>
+  <div class="metrics"><div class="metric"><span>student force</span><b id="force">—</b></div><div class="metric teacher-only"><span>teacher force</span><b id="teacherForce">—</b></div><div class="metric"><span>token</span><b id="tokenShort">—</b></div><div class="metric"><span>goal error</span><b id="goalErr">—</b></div><div class="metric"><span>action mean</span><b id="mu">—</b></div><div class="metric teacher-only"><span>held-out eval</span><b id="bootstrapEval">—</b></div></div>
+  <div class="status"><div><span id="physicsDot" class="dot"></span><span id="physicsStatus">MuJoCo init</span></div><div><span id="ppoDot" class="dot"></span><span id="ppoStatus">PPO ready</span></div><div><span id="mcpDot" class="dot"></span><span id="mcpStatus">WebMCP init</span></div></div>
+</section>
+
+<section class="card reference-card" data-panel="reference">
+  <div class="head"><div><h2>③ Planner가 Encoder에 실제로 넣는 것</h2><div class="sub">현재 state가 아니라 <b>미래 reference motion</b>이 tokenizer input</div></div></div>
+  <div class="ref-plot"><canvas id="reference" width="520" height="180"></canvas></div>
+  <div class="mini-legend ref-legend"><span><i class="legend-line" style="border-color:#315dc9"></i>planner reference</span><span><i class="legend-line dashed" style="border-color:#795fc5"></i>Kinematic Decoder future-motion recon</span></div>
+  <div id="frames" class="frames"></div>
+  <div class="concept"><b>핵심:</b> Encoder는 “지금 CartPole 상태를 압축하는 관측기”가 아니다. <b>앞으로 어떤 움직임을 원하는지</b>를 압축한다. 현재 robot state는 나중에 Dynamic Decoder가 별도로 받는다.</div>
+</section>
+
+<section class="card latent-card" data-panel="latent">
+  <div class="head"><div><h2 id="latentTitle">④ Encoder → latent z → FSQ token q</h2><div id="latentSub" class="sub">latent는 사람이 의미를 지정한 변수가 아니라, PPO + auxiliary loss가 학습한 내부 motion 좌표</div></div><span id="latentUsage" class="sub">—</span></div>
+  <div class="mini-legend latent-legend"><span><i class="legend-dot" style="background:#9aa3b2"></i>reference sweep</span><span><i class="legend-dot" style="background:#315dc9"></i>encoder z</span><span id="quantizedLegend"><i class="legend-dot" style="background:#d64f4f"></i>quantized q</span><span id="codeLegend"><i class="legend-dot" style="background:#7b8492"></i>code / finite grid</span></div>
+  <div class="latent-layout"><div class="latent-plot"><canvas id="latent" width="620" height="390"></canvas></div><div class="token-panel">
+    <div class="token-step"><b>Encoder output</b><code id="zDetail">z = —</code><p>16개 미래 reference 값을 neural network가 2개 숫자로 요약한다.</p></div>
+    <div class="token-step"><b id="tokenMethod">FSQ transform</b><code id="boundDetail">bound = —</code><code id="qDetail">q = —</code><p id="tokenMethodText">tanh bound → round → normalized finite values.</p></div>
+    <div id="latentImportant" class="important"><b>왜 token인가?</b><br>Dynamic Decoder는 긴 future trajectory 전체가 아니라 이 compact motion representation과 현재 proprioception만 받는다. 그래서 “원하는 움직임”과 “현재 몸 상태”가 분리된다.</div>
+  </div></div>
+</section>
+
+<section class="card train-card" data-panel="train">
+  <div class="head"><div><h2>⑤ 실제 training path</h2><div class="sub">파란 실선=tracking PPO 본체 · 보라 점선=auxiliary / lab-only</div></div><div class="train-actions"><button id="iter1">+1 iter</button><button id="iter10" class="primary">+10 iter</button></div></div>
+  <div class="train-flow">
+    <div class="train-step aux teacher-step teacher-only"><b>0. Frozen teacher bootstrap · lab only</b><span id="teacherSource">loading</span>의 학습된 PPO로 student를 초기화. Native MuJoCo 직접 검증은 <b>균형 안정화는 됨(15/15, 10 s)</b>, ±0.8 m 정밀 tracking은 부족(MAE ≈0.42 m). action imitation MSE <span id="teacherMse">—</span>. <b>SONIC 필수 구성요소는 아니다.</b></div>
+    <div class="train-step main"><b>A. Reference source + MuJoCo rollout</b>Toy는 robot과 독립된 procedural reference clip을 사용한다. SONIC의 BONES-SEED/motion library와 같은 역할이다. 8 env × 96 steps.</div>
+    <div class="train-step main"><b>B. Tracking reward → GAE → PPO</b>reference tracking + upright balance + velocity + action cost. <b>Encoder + Dynamic Decoder</b>를 업데이트한다.</div>
+    <div class="train-step aux"><b>C. Auxiliary reconstruction</b>같은 token을 Kinematic Decoder가 future reference로 복원. <b>Encoder + Kin Decoder</b>에 보조 gradient를 준다.</div>
+    <div class="train-step"><b>D. Critic</b>return/value를 학습해 PPO advantage를 안정화. deployment에서는 제거.</div>
+  </div>
+  <div class="ppo-metrics"><div class="metric"><span>PPO iter</span><b id="iter">0</b></div><div class="metric teacher-only"><span>teacher imitation MSE</span><b id="teacherMseMetric">—</b></div><div class="metric"><span>reward/step</span><b id="reward">—</b></div><div class="metric"><span>tracking MAE</span><b id="trackMae">—</b></div><div class="metric"><span>aux loss</span><b id="auxLoss">—</b></div><div class="metric"><span>policy loss</span><b id="piLoss">—</b></div><div class="metric"><span>iter time</span><b id="iterMs">—</b></div><div class="metric teacher-only"><span>bootstrap eval</span><b id="bootstrapEvalTrain">—</b></div></div>
+
+  <div class="train-note"><b>검증 범위:</b> 50 Hz train/deploy parity에서 teacher bootstrap 후 12/12가 10 s를 완주했다. held-out sweep은 MAE 0.201 m(0 iter) → 0.144 m(20) → 0.142 m(30)까지 개선 후 0.192 m(50)로 악화했다. 즉 <b>PPO는 실제 학습되지만 more-is-better는 아니다.</b></div>
+</section>
+</main>
+<script type="module" src="./app.js"></script>
+</body>
+</html>

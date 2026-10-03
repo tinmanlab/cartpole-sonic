@@ -1,0 +1,15 @@
+{
+  "name": "cartpole-sonic",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "node --check app.js && node --check sonic_toy.js && node --check teacher_policy.js && node --check mujoco_sim.js && node --check webgpu_fsq.js && node scripts/check.mjs",
+    "verify:teacher": "node scripts/evaluate_teacher.mjs",
+    "verify:bootstrap": "node scripts/evaluate_bootstrap.mjs",
+    "verify:ppo": "node scripts/evaluate_ppo.mjs"
+  },
+  "dependencies": {
+    "@mujoco/mujoco": "3.14.0"
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "schema": "teacher-mujoco-eval/v1",
+  "physics": "MuJoCo 3.14.0",
+  "preset": "playground",
+  "horizon_seconds": 10,
+  "teacher": {
+    "source_repo": "tinmanlab/cartpole-ppo",
+    "source_file": "examples/nominal_bam_checkpoint.json",
+    "source_iteration": 240,
+    "trained_profile": "nominal",
+    "source_force_n": 8,
+    "note": "Frozen teacher used only for bootstrap/imitation. It was trained on the tinmanlab planar BAM plant, not native MuJoCo."
+  },
+  "episodes": 15,
+  "survived": 15,
+  "mean_steps": 1000,
+  "mean_mae": 0.2908391305923118,
+  "by_goal": [
+    {
+      "goal": -0.8,
+      "survived": 5,
+      "episodes": 5,
+      "mean_steps": 1000,
+      "mae": 0.4171795875688174
+    },
+    {
+      "goal": 0,
+      "survived": 5,
+      "episodes": 5,
+      "mean_steps": 1000,
+      "mae": 0.033908419781038736
+    },
+    {
+      "goal": 0.8,
+      "survived": 5,
+      "episodes": 5,
+      "mean_steps": 1000,
+      "mae": 0.42142938442707917
+    }
+  ]
+}

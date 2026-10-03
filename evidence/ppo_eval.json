@@ -1,0 +1,67 @@
+{
+  "schema": "sonic-cartpole-ppo-eval/v1",
+  "physics": "MuJoCo 3.14.0",
+  "mode": "fsq",
+  "checkpoints": [
+    {
+      "ppoIterations": 0,
+      "eval": {
+        "episodes": 12,
+        "successes": 12,
+        "meanSteps": 500,
+        "trackingMae": 0.2005587110924337,
+        "allStepTrackingMae": 0.2005587110924337
+      }
+    },
+    {
+      "ppoIterations": 10,
+      "eval": {
+        "episodes": 12,
+        "successes": 12,
+        "meanSteps": 500,
+        "trackingMae": 0.1883806817721894,
+        "allStepTrackingMae": 0.1883806817721894
+      }
+    },
+    {
+      "ppoIterations": 20,
+      "eval": {
+        "episodes": 12,
+        "successes": 12,
+        "meanSteps": 500,
+        "trackingMae": 0.1444388241365592,
+        "allStepTrackingMae": 0.1444388241365592
+      }
+    },
+    {
+      "ppoIterations": 30,
+      "eval": {
+        "episodes": 12,
+        "successes": 12,
+        "meanSteps": 500,
+        "trackingMae": 0.14247279617446917,
+        "allStepTrackingMae": 0.14247279617446917
+      }
+    },
+    {
+      "ppoIterations": 40,
+      "eval": {
+        "episodes": 12,
+        "successes": 12,
+        "meanSteps": 500,
+        "trackingMae": 0.15018338070181664,
+        "allStepTrackingMae": 0.15018338070181664
+      }
+    },
+    {
+      "ppoIterations": 50,
+      "eval": {
+        "episodes": 12,
+        "successes": 12,
+        "meanSteps": 500,
+        "trackingMae": 0.1924165674747114,
+        "allStepTrackingMae": 0.1924165674747114
+      }
+    }
+  ]
+}

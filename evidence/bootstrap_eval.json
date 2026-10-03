@@ -1,0 +1,34 @@
+{
+  "schema": "sonic-cartpole-bootstrap-eval/v1",
+  "physics": "MuJoCo 3.14.0",
+  "mode": "fsq",
+  "before": {
+    "episodes": 12,
+    "successes": 0,
+    "meanSteps": 54.583333333333336,
+    "trackingMae": null,
+    "allStepTrackingMae": 0.14475719929600356
+  },
+  "bootstrap": {
+    "steps": 500,
+    "batch": 256,
+    "actionMse": 0.18686945222956006,
+    "auxMse": 0.011504613607245463,
+    "ms": 5568.774616000001,
+    "teacher": {
+      "source_repo": "tinmanlab/cartpole-ppo",
+      "source_file": "examples/nominal_bam_checkpoint.json",
+      "source_iteration": 240,
+      "trained_profile": "nominal",
+      "source_force_n": 8,
+      "note": "Frozen teacher used only for bootstrap/imitation. It was trained on the tinmanlab planar BAM plant, not native MuJoCo."
+    }
+  },
+  "after": {
+    "episodes": 12,
+    "successes": 12,
+    "meanSteps": 500,
+    "trackingMae": 0.2005587110924337,
+    "allStepTrackingMae": 0.2005587110924337
+  }
+}
