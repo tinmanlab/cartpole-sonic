@@ -16,7 +16,7 @@ export class RNG {
   normal(){if(this.spare!==null){const v=this.spare;this.spare=null;return v;}let x,y,q;do{x=2*this.uniform()-1;y=2*this.uniform()-1;q=x*x+y*y;}while(q===0||q>=1);const k=Math.sqrt(-2*Math.log(q)/q);this.spare=y*k;return x*k;}
 }
 
-class MLP {
+export class MLP {
   constructor(rng,n,h,o,{outTanh=false,outScale=0.1}={}){
     this.n=n;this.h=h;this.o=o;this.outTanh=outTanh;
     this.w1=0;this.b1=h*n;this.w2=this.b1+h;this.b2=this.w2+o*h;

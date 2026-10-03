@@ -1,4 +1,4 @@
-export const COURSE_VERSION = "2.1";
+export const COURSE_VERSION = "2.2";
 
 export const SONIC_FLOW = [
   {
@@ -79,7 +79,6 @@ export const SONIC_FLOW = [
     question:"VQ, VQ-VAE, FSQ는 정확히 무엇이 다른가?",
     action:"live",
     concepts:[
-      {id:"core",label:"Core"},
       {id:"vq",label:"VQ"},
       {id:"vqvae",label:"VQ-VAE"},
       {id:"fsq",label:"FSQ"}
@@ -175,11 +174,11 @@ export const TRAINING_TOPICS = [
     label:"Multi-encoder alignment",
     title:"왜 서로 다른 Encoder가 같은 Universal Token 의미를 만들까?",
     viz:"alignment",
-    input:"G1 / SMPL / teleop representations of related motion",
+    input:"paired representations of the same motion",
     output:"aligned shared latent space",
-    why:"같은 FSQ를 쓴다고 서로 다른 Encoder의 latent 의미가 자동으로 같아지지 않기 때문이다.",
-    misconception:"FSQ 하나만 붙이면 universal token이 자동으로 생기는 것이 아니다.",
-    question:"G1, SMPL, teleop Encoder의 latent를 같은 의미로 맞추는 training signal은 무엇인가?"
+    why:"같은 FSQ를 쓴다고 서로 다른 Encoder의 latent 의미가 자동으로 같아지지 않기 때문이다. 이 toy는 같은 future motion을 16D full trajectory와 8D sparse keypoints라는 두 표현으로 만들어 실제 alignment를 학습한다.",
+    misconception:"FSQ 하나만 붙이면 universal token이 자동으로 생기는 것이 아니다. 또한 이 toy의 두 표현은 G1/SMPL/teleop 자체가 아니라 alignment mechanism을 재현하기 위한 analogue다.",
+    question:"같은 motion의 서로 다른 표현이 같은 q/action 의미로 수렴하려면 어떤 alignment signal이 필요한가?"
   },
   {
     id:"ppo",
@@ -299,12 +298,12 @@ export const TRAINING_DETAILS = {
     highlights:["encoder","quantizer","motion-decoder","control-decoder"]
   },
   alignment:{
-    easy:"서로 다른 언어(G1, SMPL, teleop)로 같은 동작을 말해도 같은 token 의미가 되도록 번역기들을 맞추는 학습이다.",
-    mechanism:"관련 motion sample의 Encoder latent 사이 distance/alignment auxiliary losses를 사용해 modality-specific Encoder outputs를 shared semantic space로 당긴다.",
-    sonic:"공개 auxiliary config는 G1↔SMPL, G1↔teleop, teleop↔SMPL, re-encoded SMPL↔G1 계열 alignment terms를 포함한다. CartPole toy는 Encoder 하나뿐이라 이 부분은 concept-only다.",
-    ifMissing:"같은 FSQ quantizer를 써도 modality마다 q의 의미가 달라질 수 있어 'universal' interface가 성립하지 않는다.",
-    toyShape:"not reproduced (single Encoder)",
-    sonicShape:"multiple modality encoders → aligned latent → shared FSQ/token",
+    easy:"같은 움직임을 서로 다른 표현으로 보더라도 같은 token 의미가 되도록 두 Encoder를 맞추는 학습이다.",
+    mechanism:"toy는 같은 future motion을 full trajectory 16D와 sparse keypoints 8D로 만든다. primary Encoder A를 anchor로 고정하고 secondary Encoder B의 latent가 z_A에 가까워지도록 MSE alignment loss로 실제 학습한다. 같은 FSQ와 같은 Control Decoder를 사용해 token agreement와 action difference도 측정한다.",
+    sonic:"실제 SONIC은 G1/SMPL/teleop 등 여러 modality Encoder를 auxiliary latent-alignment loss로 공동 정렬한다. toy의 frozen-anchor 방식은 mechanism을 안정적으로 보여주기 위한 단순화이며 실제 modality/공동학습을 그대로 재현하지 않는다.",
+    ifMissing:"같은 FSQ quantizer를 써도 Encoder마다 latent 좌표의 의미가 달라져 같은 motion이 다른 q/action으로 해석될 수 있다.",
+    toyShape:"full 16D → Encoder A(anchor) ; sparse 8D → Encoder B(trainable) → same 2D latent / same FSQ",
+    sonicShape:"multiple modality encoders → aligned shared latent → shared FSQ / Universal Token",
     highlights:["encoder","quantizer","token"]
   },
   ppo:{

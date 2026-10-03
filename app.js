@@ -7,6 +7,7 @@ import {
 } from "./sonic_toy.js";
 import { loadTeacherPolicy } from "./teacher_policy.js";
 import { probeWebGPUFSQ } from "./webgpu_fsq.js";
+import { AlignmentLab } from "./alignment_lab.js";
 import {
   COURSE_VERSION,
   SONIC_FLOW,
@@ -66,6 +67,7 @@ let webmcpTools = [];
 let heldoutEval = null;
 let ppoReferenceEvidence = null;
 let ppoHeldoutHistory = [];
+let alignmentLab = null;
 const MAX_SIGNAL_HISTORY = 260;
 let signalHistory = [];
 let controlTick = 0;
@@ -130,6 +132,7 @@ function clearTrainers(){
   currentTrainer=null;
   heldoutEval=null;
   ppoHeldoutHistory=[];
+  alignmentLab=null;
 }
 async function ensureTrainer(){
   currentTrainer=await getTrainer(requiredMode());
@@ -219,7 +222,31 @@ async function runPPO(iterations){
   }
   heldoutEval=currentTrainer.evaluate(12);
   ppoHeldoutHistory.push({iterations:currentTrainer.iter,mae:heldoutEval.trackingMae});
+  alignmentLab=null;
   busy=false;render();
+}
+function ensureAlignmentLab(){
+  if(!currentTrainer)return null;
+  if(!alignmentLab||alignmentLab.policy!==currentTrainer.policy)alignmentLab=new AlignmentLab(currentTrainer.policy);
+  return alignmentLab;
+}
+async function runAlignment(steps=50){
+  if(!currentTrainer||busy)return;
+  const lab=ensureAlignmentLab();if(!lab)return;
+  busy=true;live=false;render();
+  const n=clamp(Math.floor(steps)||1,1,200);
+  for(let i=0;i<n;i++){
+    lab.trainStep();
+    if(i%2===1||i===n-1){
+      render();
+      await new Promise(r=>requestAnimationFrame(r));
+    }
+  }
+  busy=false;render();
+}
+function resetAlignment(){
+  const lab=ensureAlignmentLab();if(!lab)return;
+  lab.reset();render();
 }
 
 function normalizeConcept(){
@@ -272,6 +299,7 @@ async function openTraining(topicId="loss-flow"){
     heldoutEval=currentTrainer.evaluate(12);
     ppoHeldoutHistory=[{iterations:currentTrainer.iter,mae:heldoutEval.trackingMae}];
   }
+  if(trainingTopic.id==="alignment")ensureAlignmentLab();
   updateUrl();render();
 }
 
@@ -632,19 +660,87 @@ function renderLearningGraphViz(){
     ["toy: 2 dims × 5 levels","SONIC: 2 tokens × 32 dims","32 fixed levels/scalar","flattened=64"]
   );
 }
-function renderAlignmentViz(){
-  showHtml(
-    '<div style="height:100%;display:grid;align-items:center"><div class="flow-row">'+
-      '<div class="flow-box"><strong>G1 Encoder</strong><span>robot joint motion</span></div>'+
-      '<div class="flow-box"><strong>SMPL Encoder</strong><span>human body motion</span></div>'+
-      '<div class="flow-box"><strong>Teleop Encoder</strong><span>VR targets</span></div>'+
-      '<div class="flow-arrow">→</div><div class="flow-box accent"><strong>Shared latent meaning</strong><span>alignment losses</span></div>'+
-      '<div class="flow-arrow">→</div><div class="flow-box purple"><strong>Same FSQ / Universal Token</strong><span>shared decoder interface</span></div>'+
-    '</div></div>',
-    '<b>CONCEPT · not toy runtime data.</b> 이 CartPole toy는 Encoder가 하나라 실제 multi-encoder alignment를 재현하지 않는다. 공식 SONIC은 여러 latent-alignment auxiliary loss로 서로 다른 modality Encoder를 같은 의미 공간에 맞춘다.',
-    ["G1↔SMPL","G1↔teleop","teleop↔SMPL","FSQ alone is not enough"]
-  );
+function drawAlignmentCurve(lab){
+  const c=$("alignmentCurve");if(!c)return;
+  const {ctx,w,h}=beginCanvas(c);
+  ctx.fillStyle="#fff";ctx.fillRect(0,0,w,h);
+  const pts=[{step:0,...lab.baseline},...lab.history];
+  const pad={l:48,r:18,t:24,b:28},gap=24,panelH=(h-pad.t-pad.b-gap)/2,maxStep=Math.max(50,...pts.map(x=>x.step));
+
+  // Top: log10 latent MSE.
+  const logs=pts.map(x=>Math.log10(Math.max(x.latentMse,1e-6)));
+  const lo=Math.min(-4,...logs),hi=Math.max(-.5,...logs);
+  const X=x=>pad.l+x/maxStep*(w-pad.l-pad.r);
+  const Ylog=v=>pad.t+(hi-v)/(hi-lo)*panelH;
+  ctx.strokeStyle="#eef0f3";ctx.beginPath();ctx.moveTo(pad.l,pad.t+panelH);ctx.lineTo(w-pad.r,pad.t+panelH);ctx.stroke();
+  ctx.strokeStyle="#315dc9";ctx.lineWidth=2.3;ctx.beginPath();
+  pts.forEach((p,i)=>{const x=X(p.step),y=Ylog(Math.log10(Math.max(p.latentMse,1e-6)));i?ctx.lineTo(x,y):ctx.moveTo(x,y);});ctx.stroke();
+  pts.forEach(p=>{ctx.fillStyle="#315dc9";ctx.beginPath();ctx.arc(X(p.step),Ylog(Math.log10(Math.max(p.latentMse,1e-6))),3.2,0,Math.PI*2);ctx.fill();});
+  ctx.fillStyle="#667085";ctx.font="9.5px system-ui";ctx.textAlign="left";ctx.fillText("log₁₀ latent MSE ↓",pad.l,14);
+
+  // Bottom: token agreement.
+  const top2=pad.t+panelH+gap,Yagree=v=>top2+panelH-(v*panelH);
+  ctx.strokeStyle="#eef0f3";ctx.beginPath();ctx.moveTo(pad.l,top2+panelH);ctx.lineTo(w-pad.r,top2+panelH);ctx.stroke();
+  ctx.strokeStyle="#795fc5";ctx.lineWidth=2.3;ctx.beginPath();
+  pts.forEach((p,i)=>{const x=X(p.step),y=Yagree(p.tokenAgreement);i?ctx.lineTo(x,y):ctx.moveTo(x,y);});ctx.stroke();
+  pts.forEach(p=>{ctx.fillStyle="#795fc5";ctx.beginPath();ctx.arc(X(p.step),Yagree(p.tokenAgreement),3.2,0,Math.PI*2);ctx.fill();});
+  ctx.fillStyle="#667085";ctx.fillText("token agreement ↑",pad.l,top2-6);
+  ctx.textAlign="right";ctx.fillText("alignment steps →",w-pad.r,h-8);
 }
+function renderAlignmentViz(){
+  const lab=ensureAlignmentLab();
+  if(!lab){
+    showHtml('<div style="height:100%;display:grid;place-items:center">Alignment lab unavailable.</div>','Alignment lab requires the FSQ student policy.');
+    return;
+  }
+  const ref=currentReference(),s=state(),cmp=lab.compare(ref,s,goal),snap=lab.snapshot();
+  const b=snap.baseline,c=snap.current;
+  const pct=v=>(v*100).toFixed(1)+"%";
+  showHtml(
+    '<div class="alignment-wrap">'+
+      '<div class="align-lanes">'+
+        '<div class="align-lane anchor">'+
+          '<div class="align-step"><b>Full trajectory</b><span>8×[x,ẋ] = 16D</span></div><div class="align-arrow">→</div>'+
+          '<div class="align-step"><b>Encoder A</b><span>primary anchor · frozen</span></div><div class="align-arrow">→</div>'+
+          '<div class="align-step"><b>zA → FSQ → qA</b><span>z=['+cmp.primary.z.map(v=>fmt(v,2)).join(',')+']<br>q=['+cmp.primary.q.map(v=>fmt(v,2)).join(',')+']</span></div>'+
+        '</div>'+
+        '<div class="align-arrow">↔</div>'+
+        '<div class="align-lane trainable">'+
+          '<div class="align-step"><b>Sparse keypoints</b><span>frames 1,3,6,8 = 8D</span></div><div class="align-arrow">→</div>'+
+          '<div class="align-step"><b>Encoder B</b><span>secondary · trainable</span></div><div class="align-arrow">→</div>'+
+          '<div class="align-step"><b>zB → same FSQ → qB</b><span>z=['+cmp.secondary.z.map(v=>fmt(v,2)).join(',')+']<br>q=['+cmp.secondary.q.map(v=>fmt(v,2)).join(',')+']</span></div>'+
+        '</div>'+
+      '</div>'+
+      '<div class="align-metrics">'+
+        '<div class="align-metric"><span>alignment step</span><b>'+snap.step+'</b><small>secondary Encoder updates</small></div>'+
+        '<div class="align-metric"><span>validation latent MSE ↓</span><b>'+fmt(c.latentMse,5)+'</b><small>before '+fmt(b.latentMse,4)+'</small></div>'+
+        '<div class="align-metric"><span>token agreement ↑</span><b>'+pct(c.tokenAgreement)+'</b><small>before '+pct(b.tokenAgreement)+'</small></div>'+
+        '<div class="align-metric"><span>same-state action MAE ↓</span><b>'+fmt(c.actionMae,4)+' N</b><small>before '+fmt(b.actionMae,3)+' N</small></div>'+
+      '</div>'+
+      '<div class="align-bottom">'+
+        '<div class="align-chart"><canvas id="alignmentCurve"></canvas></div>'+
+        '<div class="align-table">'+
+          '<table><thead><tr><th>current same motion</th><th>Encoder A</th><th>Encoder B</th></tr></thead><tbody>'+
+            '<tr><td>z</td><td>['+cmp.primary.z.map(v=>fmt(v,2)).join(',')+']</td><td>['+cmp.secondary.z.map(v=>fmt(v,2)).join(',')+']</td></tr>'+
+            '<tr><td>FSQ q</td><td>['+cmp.primary.q.map(v=>fmt(v,2)).join(',')+']</td><td>['+cmp.secondary.q.map(v=>fmt(v,2)).join(',')+']</td></tr>'+
+            '<tr><td>force, same state</td><td>'+fmt(cmp.primary.force,3)+' N</td><td>'+fmt(cmp.secondary.force,3)+' N</td></tr>'+
+          '</tbody></table>'+
+          '<div class="align-actions"><button id="alignmentTrainBtn" class="primary">Train +50</button><button id="alignmentResetBtn">Reset unaligned</button></div>'+
+          '<div style="font-size:8.7px;line-height:1.35;color:#667085;margin-top:6px">Toy simplification: Encoder A is a frozen anchor. SONIC aligns multiple modality Encoders jointly; the toy reproduces the alignment mechanism, not the real G1/SMPL/teleop modalities.</div>'+
+        '</div>'+
+      '</div>'+
+    '</div>',
+    '<b>LIVE multi-encoder alignment.</b> 같은 future motion을 16D full trajectory와 8D sparse keypoints로 다르게 표현한다. alignment loss가 Encoder B의 z를 Encoder A에 맞추면 같은 FSQ q와 같은-state action 의미로 수렴한다.',
+    ["alignment step="+snap.step,"latent distance(now)="+fmt(cmp.latentDistance,4),"q same(now)="+(cmp.tokenSame?"YES":"NO"),"force Δ(now)="+fmt(cmp.actionDifference,4)+"N"]
+  );
+  requestAnimationFrame(()=>{
+    drawAlignmentCurve(lab);
+    const train=$("alignmentTrainBtn"),reset=$("alignmentResetBtn");
+    if(train)train.onclick=()=>{void runAlignment(50);};
+    if(reset)reset.onclick=()=>resetAlignment();
+  });
+}
+
 function renderTrainingViz(){
   const c=$("lessonViz"),{ctx,w,h}=beginCanvas(c);
   ctx.fillStyle="#fff";ctx.fillRect(0,0,w,h);const pad={l:62,r:28,t:32,b:50};
@@ -663,7 +759,7 @@ function renderTrainingViz(){
 }
 
 function visualizationKind(){
-  if(trainingMode) return trainingTopic.id==="ppo"?"live":"concept";
+  if(trainingMode) return ["ppo","alignment"].includes(trainingTopic.id)?"live":"concept";
   if(focus.id==="task") return "concept";
   if(focus.id==="encoder"&&conceptId==="vae") return "concept";
   return "live";
@@ -720,7 +816,7 @@ function guideData(){
     return {
       kicker:"TRAINING · "+trainingTopic.label,
       title:trainingTopic.title,
-      map:"Training-only view · runtime map의 보라색 block이 이 topic의 주요 update 대상",
+      map:"Training-only view · 보라색 block = 이 topic의 gradient/representation 경로 (모두 trainable이라는 뜻은 아님)",
       input:trainingTopic.input,output:trainingTopic.output,
       question:trainingTopic.question,concept:null,
       details:TRAINING_DETAILS[trainingTopic.id]||{}
@@ -741,6 +837,15 @@ function guideLiveValues(){
   const p=preview(),s=state(),ref=currentReference();
   const cell=(k,v)=>({k,v:String(v)});
   if(trainingMode){
+    if(trainingTopic.id==="alignment"){
+      const lab=ensureAlignmentLab(),snap=lab?.snapshot();
+      return [
+        cell("align step",snap?.step??0),
+        cell("latent MSE",fmt(snap?.current?.latentMse,5)),
+        cell("token agree",snap?((snap.current.tokenAgreement*100).toFixed(1)+"%"):"—"),
+        cell("action MAE",snap?(fmt(snap.current.actionMae,4)+" N"):"—")
+      ];
+    }
     return [
       cell("PPO iter",currentTrainer?.iter??0),
       cell("rollout MAE",fmt(currentTrainer?.last?.tracking,3)),
@@ -779,6 +884,7 @@ function setGuideDepth(depth){
 function guideActionSpec(){
   if(trainingMode){
     if(trainingTopic.id==="ppo")return{label:"+10 PPO iterations",disabled:false};
+    if(trainingTopic.id==="alignment")return{label:"Train alignment +50",disabled:false};
     if(trainingTopic.id==="loss-flow"||trainingTopic.id==="what-learns")return{label:"Run 1 PPO iteration",disabled:false};
     return{label:"Concept only · no fake runtime action",disabled:true};
   }
@@ -831,13 +937,13 @@ function renderGuide(){
   $("guideSection2").textContent=s2;
 
   const live=guideLiveValues();
-  const hideLive=(guideDepth==="sonic")||(trainingMode&&trainingTopic.id!=="ppo")||(focus.id==="encoder"&&conceptId==="vae")||(focus.id==="quantizer"&&conceptId==="vqvae"&&guideDepth==="mechanism");
+  const hideLive=(guideDepth==="sonic")||(trainingMode&&!["ppo","alignment"].includes(trainingTopic.id))||(focus.id==="encoder"&&conceptId==="vae")||(focus.id==="quantizer"&&conceptId==="vqvae"&&guideDepth==="mechanism");
   $("guideLiveBlock").hidden=hideLive;
   $("guideLive").innerHTML=hideLive?"":live.map(x=>'<div class="live-kv"><span>'+x.k+'</span><b>'+x.v+'</b></div>').join("");
 
   const toyShape=c?.toyShape||d.toyShape||(!trainingMode?focus.toy:"—");
   const sonicShape=c?.sonicShape||d.sonicShape||(!trainingMode?focus.official:"—");
-  $("guideShapeBlock").hidden=(guideDepth==="easy");
+  $("guideShapeBlock").hidden=(guideDepth==="easy")||(trainingMode&&trainingTopic.id==="alignment"&&guideDepth==="mechanism");
   $("guideShape").textContent="toy: "+toyShape+"\nSONIC: "+sonicShape;
   $("guideQuestion").textContent=g.question;
 
@@ -859,6 +965,7 @@ function renderGuide(){
 async function runFocusAction(){
   if(trainingMode){
     if(trainingTopic.id==="ppo")await runPPO(10);
+    else if(trainingTopic.id==="alignment")await runAlignment(50);
     else if(trainingTopic.id==="loss-flow"||trainingTopic.id==="what-learns")await runPPO(1);
     return;
   }
@@ -950,7 +1057,11 @@ function systemSnapshot(){
       critic:{trainable:true,signals:["value/return loss"]},
       releasedTokenShape:{numTokens:2,scalarDimsPerToken:32,fixedLevelsPerScalar:32,flattenedDim:64},
     },
-    training:currentTrainer?{ppoIterations:currentTrainer.iter,envSteps:currentTrainer.envSteps,episodes:currentTrainer.episodes,last:currentTrainer.last,heldoutEval,heldoutHistory:ppoHeldoutHistory,verifiedReference:ppoReferenceEvidence}:null,
+    training:currentTrainer?{
+      ppoIterations:currentTrainer.iter,envSteps:currentTrainer.envSteps,episodes:currentTrainer.episodes,last:currentTrainer.last,
+      heldoutEval,heldoutHistory:ppoHeldoutHistory,verifiedReference:ppoReferenceEvidence,
+      alignment:alignmentLab?{...alignmentLab.snapshot(),live:alignmentLab.compare(ref,s,goal)}:null
+    }:null,
     backends:{physics:physicsReady?sim.backend:null,webgpu:webgpuStatus,webmcp:{mode:webmcpMode,tools:webmcpTools}}
   };
 }
@@ -968,6 +1079,7 @@ async function registerWebMCP(){
     {name:"simulation_control",description:"Control the shared actual MuJoCo robot.",inputSchema:{type:"object",properties:{action:{type:"string",enum:["step","live_on","live_off","push","reset"]},steps:{type:"integer",minimum:1,maximum:100}},required:["action"]},annotations:{readOnlyHint:false},execute:async({action,steps=1})=>{if(action==="step")stepPolicy(steps);else if(action==="live_on"){live=true;render();}else if(action==="live_off"){live=false;render();}else if(action==="push")pushRobot();else if(action==="reset")resetRobot();return systemSnapshot();}},
     {name:"experiment_set_goal",description:"Set the high-level task goal used by the motion generator.",inputSchema:{type:"object",properties:{x:{type:"number",minimum:-1.2,maximum:1.2}},required:["x"]},annotations:{readOnlyHint:false},execute:async({x})=>{setGoal(x);return systemSnapshot();}},
     {name:"training_run",description:"Run bounded PPO iterations on the current student policy.",inputSchema:{type:"object",properties:{iterations:{type:"integer",minimum:1,maximum:30}},required:["iterations"]},annotations:{readOnlyHint:false},execute:async({iterations})=>{await runPPO(iterations);return systemSnapshot();}},
+    {name:"alignment_control",description:"Train or reset the live CartPole multi-encoder alignment lab. The tool first switches to the alignment training view/FSQ student, then aligns a sparse-keypoint Encoder to the frozen full-trajectory Encoder and reports latent/token/action agreement.",inputSchema:{type:"object",properties:{action:{type:"string",enum:["train","reset"]},steps:{type:"integer",minimum:1,maximum:200}},required:["action"]},annotations:{readOnlyHint:false},execute:async({action,steps=50})=>{if(!trainingMode||trainingTopic.id!=="alignment")await openTraining("alignment");if(action==="reset")resetAlignment();else await runAlignment(steps);return systemSnapshot();}},
     {name:"simulation_set_model",description:"Switch native MuJoCo CartPole dynamics/morphology preset.",inputSchema:{type:"object",properties:{preset:{type:"string",enum:["playground","long","heavy"]}},required:["preset"]},annotations:{readOnlyHint:false},execute:async({preset})=>{await changePreset(preset);return systemSnapshot();}}
   ];
   for(const t of tools)await mc.registerTool(t);webmcpTools=tools.map(t=>t.name);renderHeaderState();
@@ -1001,6 +1113,7 @@ async function init(){
   setBadge("physicsBadge",sim.backend,true);
   currentTrainer=await getTrainer(requiredMode());busy=false;
   if(trainingMode&&trainingTopic.id==="ppo"){heldoutEval=currentTrainer.evaluate(12);ppoHeldoutHistory=[{iterations:currentTrainer.iter,mae:heldoutEval.trackingMae}];}
+  if(trainingMode&&trainingTopic.id==="alignment")ensureAlignmentLab();
   updateUrl();render();
   registerWebMCP().then(()=>renderHeaderState()).catch(()=>{});
   probeWebGPUFSQ().then(status=>{webgpuStatus=status;setBadge("webgpuBadge",status.ok?"WebGPU FSQ ✓":status.available?"WebGPU fallback":"WebGPU unavailable",status.ok);}).catch(err=>{webgpuStatus={available:false,ok:false,reason:err.message};setBadge("webgpuBadge","WebGPU unavailable",false);});
@@ -1018,4 +1131,6 @@ window.__cartpoleSonic={
   step:stepPolicy,
   setGoal,
   runPPO,
+  runAlignment,
+  resetAlignment,
 };

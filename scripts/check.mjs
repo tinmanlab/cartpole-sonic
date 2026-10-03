@@ -6,6 +6,7 @@ const course=fs.readFileSync(new URL("../course.js",import.meta.url),"utf8");
 const toy=fs.readFileSync(new URL("../sonic_toy.js",import.meta.url),"utf8");
 const sim=fs.readFileSync(new URL("../mujoco_sim.js",import.meta.url),"utf8");
 const gpu=fs.readFileSync(new URL("../webgpu_fsq.js",import.meta.url),"utf8");
+const alignment=fs.readFileSync(new URL("../alignment_lab.js",import.meta.url),"utf8");
 
 for(const name of ["student_ae_bootstrap.json","student_vq_bootstrap.json","student_fsq_bootstrap.json"]){
   const u=new URL("../assets/"+name,import.meta.url);
@@ -54,7 +55,13 @@ const required=[
   [app,'function renderTokenViz()',"motion token has live visualization"],
   [app,'function renderControlDecoderViz()',"control decoder has live visualization"],
   [app,'function renderRobotTrackingViz()',"robot tracking has live visualization"],
-  [app,'function renderAlignmentViz()',"alignment concept is explicitly visualized"],
+  [app,'function renderAlignmentViz()',"alignment has a dedicated live visualization"],
+  [alignment,'class AlignmentLab',"live secondary-encoder alignment lab"],
+  [alignment,'sparseKeypointReference',"second motion representation"],
+  [alignment,'tokenAgreement',"alignment validates token agreement"],
+  [alignment,'actionMae',"alignment validates same-state action agreement"],
+  [app,'function runAlignment(steps=50)',"bounded live alignment training"],
+  [app,'alignment_control',"WebMCP alignment control tool"],
   [app,'visualizationKind()',"live vs concept visualization is explicit"],
   [app,'sonic_get_map',"semantic WebMCP system-map tool"],
   [app,'sonic_get_state',"semantic WebMCP state tool"],

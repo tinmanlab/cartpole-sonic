@@ -1,16 +1,17 @@
 {
   "name": "cartpole-sonic",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "check": "node --check app.js && node --check course.js && node --check sonic_toy.js && node --check teacher_policy.js && node --check mujoco_sim.js && node --check webgpu_fsq.js && node scripts/check.mjs",
+    "check": "node --check app.js && node --check course.js && node --check alignment_lab.js && node --check sonic_toy.js && node --check teacher_policy.js && node --check mujoco_sim.js && node --check webgpu_fsq.js && node scripts/check.mjs",
     "verify:teacher": "node scripts/evaluate_teacher.mjs",
     "verify:bootstrap": "node scripts/evaluate_bootstrap.mjs",
     "verify:ppo": "node scripts/evaluate_ppo.mjs",
     "generate:checkpoints": "node scripts/generate_student_checkpoints.mjs",
     "verify:checkpoint": "node scripts/verify_checkpoint.mjs",
-    "verify:separation": "node scripts/verify_reference_robot_separation.mjs"
+    "verify:separation": "node scripts/verify_reference_robot_separation.mjs",
+    "verify:alignment": "node scripts/verify_alignment.mjs"
   },
   "dependencies": {
     "@mujoco/mujoco": "3.14.0"

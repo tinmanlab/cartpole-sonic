@@ -21,3 +21,4 @@ jobs:
       - run: npm run verify:ppo
       - run: npm run verify:checkpoint
       - run: npm run verify:separation
+      - run: npm run verify:alignment

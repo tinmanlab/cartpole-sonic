@@ -141,7 +141,7 @@ Instead, click the relevant SONIC block:
 | SONIC block | Contextual explanation |
 |---|---|
 | Encoder(s) | Core Encoder · Autoencoder · **VAE (optional background)** |
-| Quantizer · FSQ | Core · VQ · **VQ-VAE** · FSQ |
+| Quantizer · FSQ | VQ · **VQ-VAE** · FSQ |
 | Universal Token | token shape, numeric-vector meaning, temporal compression |
 | Robot Motion Decoder | live future-motion reconstruction |
 | Robot Control Decoder | live token + proprioception → action |
@@ -190,11 +190,68 @@ The UI marks every center view as either:
 Current concept-only views are intentionally limited to:
 
 - VAE — SONIC does not use a VAE in this runtime path
-- multi-encoder alignment — the CartPole toy has only one motion Encoder
 - high-level official task modalities — the toy collapses them to one goal scalar
 - loss/trainability diagrams — explanatory views of optimization structure
 
-VQ, VQ-VAE live values, FSQ, Universal Token, both Decoder roles, robot tracking, and PPO curves all use real toy state/evidence.
+VQ, VQ-VAE live values, FSQ, Universal Token, both Decoder roles, robot tracking, PPO curves, and the two-Encoder alignment experiment all use real toy state/evidence.
+
+---
+
+## Live multi-encoder alignment
+
+The training view now contains a real alignment experiment rather than a concept-only diagram.
+
+The **same future motion** is represented in two different ways:
+
+```text
+Representation A
+full trajectory
+8 frames × [x, ẋ] = 16D
+        ↓
+Primary Encoder A
+frozen anchor
+
+Representation B
+sparse keypoints
+frames 1,3,6,8 × [x, ẋ] = 8D
+        ↓
+Secondary Encoder B
+trainable
+```
+
+Both outputs pass through the **same fixed FSQ** and then the **same Robot Control Decoder with the same proprioception**.
+
+The toy trains only Encoder B with latent alignment MSE:
+
+```text
+L_align = || z_B - stopgrad(z_A) ||²
+```
+
+and measures three consequences on a deterministic validation set:
+
+- latent MSE ↓
+- FSQ token agreement ↑
+- same-state action MAE ↓
+
+Current deterministic `+50` alignment-step check:
+
+```text
+before
+latent MSE       0.1101
+token agreement  17.2%
+action MAE       0.290 N
+
+after 50 steps
+latent MSE       0.00258
+token agreement  92.2%
+action MAE       0.017 N
+```
+
+This is deliberately a **mechanism analogue**, not a claim that sparse CartPole keypoints reproduce G1/SMPL/teleop modalities. Real SONIC jointly aligns multiple modality Encoders with auxiliary alignment losses; the toy freezes Encoder A so the direction of alignment remains easy to see and stable to reproduce.
+
+Direct link:
+
+https://tinmanlab.github.io/cartpole-sonic/?training=alignment&depth=mechanism
 
 ---
 
@@ -512,6 +569,7 @@ sonic_run_focus_action
 simulation_control
 experiment_set_goal
 training_run
+alignment_control
 simulation_set_model
 ```
 
@@ -530,6 +588,8 @@ sonic_focus({node_id:"quantizer", concept_id:"vqvae"})
 sonic_focus({node_id:"token"})
 sonic_set_explanation_depth({depth:"mechanism"})
 sonic_open_training({topic_id:"what-learns"})
+sonic_open_training({topic_id:"alignment"})
+alignment_control({action:"train", steps:50})
 ```
 
 The map payload also includes the same structured explanations used by the UI: intuition, mechanism, actual SONIC mapping, failure-if-removed, transition-to-next-block, and toy/SONIC data shapes.
@@ -644,6 +704,7 @@ What this toy **does not** reproduce:
 ├── app.js                     # fixed teaching shell + WebMCP orchestration
 ├── course.js                  # canonical SONIC system-map / concept SSOT
 ├── sonic_toy.js               # SONIC-like planner/encoder/token/decoder/PPO
+├── alignment_lab.js           # live two-Encoder representation-alignment experiment
 ├── mujoco_sim.js              # native MuJoCo WASM CartPole wrapper
 ├── webgpu_fsq.js              # WebGPU FSQ parity kernel
 ├── teacher_policy.js          # frozen bootstrap teacher adapter
