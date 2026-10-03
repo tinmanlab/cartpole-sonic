@@ -11,6 +11,8 @@ import {
   COURSE_VERSION,
   SONIC_FLOW,
   TRAINING_TOPICS,
+  RUNTIME_DETAILS,
+  TRAINING_DETAILS,
   CONCEPT_TEXT,
   getNode,
   getTrainingTopic,
@@ -40,6 +42,7 @@ let trainingMode = Boolean(query.get("training") || legacy?.training);
 let focusId = query.get("focus") || legacy?.focus || "task";
 let conceptId = query.get("concept") || legacy?.concept || null;
 let trainingTopicId = query.get("training") || legacy?.training || "loss-flow";
+let guideDepth = ["easy","mechanism","sonic"].includes(query.get("depth")) ? query.get("depth") : "easy";
 let focus = getNode(focusId);
 let trainingTopic = getTrainingTopic(trainingTopicId);
 let preset = ["playground","long","heavy"].includes(query.get("preset")) ? query.get("preset") : "playground";
@@ -235,6 +238,7 @@ function updateUrl(){
     u.searchParams.set("focus",focus.id);
     if(conceptId&&conceptId!=="core")u.searchParams.set("concept",conceptId);else u.searchParams.delete("concept");
   }
+  if(guideDepth!=="easy")u.searchParams.set("depth",guideDepth);else u.searchParams.delete("depth");
   u.searchParams.set("goal",goal.toFixed(2));
   if(preset!=="playground")u.searchParams.set("preset",preset);else u.searchParams.delete("preset");
   history.replaceState(null,"",u);
@@ -274,10 +278,12 @@ async function openTraining(topicId="loss-flow"){
 function buildSystemMap(){
   const host=$("runtimeFlow");host.innerHTML="";
   const topIds=["task","generator","reference","encoder","quantizer","token","control-decoder","robot"];
+  const trainingHits=trainingMode?(TRAINING_DETAILS[trainingTopic.id]?.highlights||[]):[];
   topIds.forEach((id,i)=>{
     const n=getNode(id);
     const b=document.createElement("button");b.className="map-node";
     b.classList.toggle("active",!trainingMode&&focus.id===id);
+    b.classList.toggle("training-hit",trainingMode&&trainingHits.includes(id));
     b.innerHTML='<b>'+n.nav+'</b><span class="official">'+n.official+'</span><span class="toy">toy: '+n.toy+'</span>';
     b.onclick=()=>{void focusNode(id);};host.appendChild(b);
     if(i<topIds.length-1){const a=document.createElement("span");a.className="map-arrow";a.textContent="→";host.appendChild(a);}
@@ -285,6 +291,7 @@ function buildSystemMap(){
   const motion=getNode("motion-decoder");
   const mb=$("motionBranch");
   mb.classList.toggle("active",!trainingMode&&focus.id==="motion-decoder");
+  mb.classList.toggle("training-hit",trainingMode&&trainingHits.includes("motion-decoder"));
   mb.innerHTML='<b>'+motion.nav+'</b><span>official: '+motion.official+' · toy: '+motion.toy+'</span>';
   mb.onclick=()=>{void focusNode("motion-decoder");};
   $("trainingButton").classList.toggle("active",trainingMode);
@@ -702,30 +709,73 @@ function renderVisualization(){
   }
 }
 
+function activeConcept(){
+  if(trainingMode)return null;
+  if(!conceptId||conceptId==="core")return null;
+  if((focus.id==="encoder"||focus.id==="quantizer")&&CONCEPT_TEXT[conceptId])return CONCEPT_TEXT[conceptId];
+  return null;
+}
 function guideData(){
   if(trainingMode){
     return {
       kicker:"TRAINING · "+trainingTopic.label,
       title:trainingTopic.title,
-      map:"Training-only view · not a deployment runtime block",
-      input:trainingTopic.input,output:trainingTopic.output,why:trainingTopic.why,
-      misconception:trainingTopic.misconception,question:trainingTopic.question,concept:null
+      map:"Training-only view · runtime map의 보라색 block이 이 topic의 주요 update 대상",
+      input:trainingTopic.input,output:trainingTopic.output,
+      question:trainingTopic.question,concept:null,
+      details:TRAINING_DETAILS[trainingTopic.id]||{}
     };
   }
-  let concept=null;
-  if(focus.id==="encoder"&&conceptId&&conceptId!=="core")concept=CONCEPT_TEXT[conceptId];
-  if(focus.id==="quantizer"&&conceptId&&conceptId!=="core")concept=CONCEPT_TEXT[conceptId];
+  const concept=activeConcept();
   return {
     kicker:concept?("CONCEPT INSIDE · "+focus.nav):("SONIC SYSTEM BLOCK · "+focus.nav),
     title:concept?concept.title:focus.title,
     map:"Official block: "+focus.official+" · CartPole mapping: "+focus.toy,
     input:focus.input,output:focus.output,
-    why:concept?concept.why:focus.why,
-    misconception:concept?concept.key:focus.misconception,
-    question:focus.question,
-    concept
+    question:concept?.question||focus.question,
+    concept,
+    details:RUNTIME_DETAILS[focus.id]||{}
   };
 }
+function guideLiveValues(){
+  const p=preview(),s=state(),ref=currentReference();
+  const cell=(k,v)=>({k,v:String(v)});
+  if(trainingMode){
+    return [
+      cell("PPO iter",currentTrainer?.iter??0),
+      cell("rollout MAE",fmt(currentTrainer?.last?.tracking,3)),
+      cell("held-out",heldoutEval?fmt(heldoutEval.trackingMae,3)+" m":"—"),
+      cell("representation",requiredMode())
+    ];
+  }
+  switch(focus.id){
+    case "task":
+      return [cell("goal x*",fmt(goal,2)+" m"),cell("Live",live?"ON":"OFF"),cell("episode",episodeIndex),cell("preset",preset)];
+    case "generator":
+      return [cell("planner x",fmt(plannerContext[0],3)+" m"),cell("planner ẋ",fmt(plannerContext[1],3)),cell("ref +80ms",fmt(ref[0]*SONIC_TOY_CONSTANTS.STATE_SCALE[0],3)+" m"),cell("horizon","0.64 s")];
+    case "reference":
+      return [cell("input dim","16"),cell("frame 1 x",fmt(ref[0]*SONIC_TOY_CONSTANTS.STATE_SCALE[0],3)),cell("frame 1 ẋ",fmt(ref[1]*SONIC_TOY_CONSTANTS.STATE_SCALE[1],3)),cell("actual x",fmt(s[0],3))];
+    case "encoder":
+      return [cell("z₁",fmt(p?.z?.[0],3)),cell("z₂",fmt(p?.z?.[1],3)),cell("recon MSE",fmt(reconstructionError(p,ref),4)),cell("mode",requiredMode())];
+    case "quantizer":
+      return [cell("z",p?"["+p.z.map(v=>fmt(v,2)).join(",")+"]":"—"),cell("q",p?"["+p.q.map(v=>fmt(v,2)).join(",")+"]":"—"),cell("mode",requiredMode()),cell("history",signalHistory.length+" samples")];
+    case "token":
+      return [cell("q₁",fmt(p?.q?.[0],2)),cell("q₂",fmt(p?.q?.[1],2)),cell("toy token","2 values"),cell("SONIC release","64 flattened")];
+    case "motion-decoder":
+      return [cell("recon MSE",fmt(reconstructionError(p,ref),4)),cell("recon x₁",fmt((p?.kinRecon?.[0]??NaN)*SONIC_TOY_CONSTANTS.STATE_SCALE[0],3)),cell("target x₁",fmt(ref[0]*SONIC_TOY_CONSTANTS.STATE_SCALE[0],3)),cell("token",p?"["+p.q.map(v=>fmt(v,2)).join(",")+"]":"—")];
+    case "control-decoder":
+      return [cell("token",p?"["+p.q.map(v=>fmt(v,2)).join(",")+"]":"—"),cell("θ",fmt(s[2]*180/Math.PI,1)+"°"),cell("ẋ",fmt(s[1],3)),cell("force",fmt(p?.force,2)+" N")];
+    case "robot":
+      const rx=p?p.ref[0]*SONIC_TOY_CONSTANTS.STATE_SCALE[0]:NaN;
+      return [cell("actual x",fmt(s[0],3)+" m"),cell("ref +80ms",fmt(rx,3)+" m"),cell("|error|",fmt(Math.abs(s[0]-rx),3)+" m"),cell("force",fmt(lastForce,2)+" N")];
+    default:return [];
+  }
+}
+function setGuideDepth(depth){
+  if(!["easy","mechanism","sonic"].includes(depth))return;
+  guideDepth=depth;updateUrl();renderGuide();
+}
+
 function guideActionSpec(){
   if(trainingMode){
     if(trainingTopic.id==="ppo")return{label:"+10 PPO iterations",disabled:false};
@@ -742,18 +792,70 @@ function guideActionSpec(){
   return{label:"Change goal",disabled:false};
 }
 function renderGuide(){
-  const g=guideData();
-  $("guideKicker").textContent=g.kicker;$("guideTitle").textContent=g.title;$("guideMap").textContent=g.map;
-  $("guideInput").textContent=g.input;$("guideOutput").textContent=g.output;$("guideWhy").textContent=g.why;
-  $("guideMisconception").textContent=g.misconception;$("guideQuestion").textContent=g.question;
+  const g=guideData(),d=g.details||{},c=g.concept;
+  $("guideKicker").textContent=g.kicker;
+  $("guideTitle").textContent=g.title;
+  $("guideMap").textContent=g.map;
+  $("guideInput").textContent=g.input;
+  $("guideOutput").textContent=g.output;
+
+  document.querySelectorAll("#guideDepthTabs button").forEach(b=>{
+    b.classList.toggle("active",b.dataset.depth===guideDepth);
+    b.onclick=()=>setGuideDepth(b.dataset.depth);
+  });
+
+  let s1Title="",s1="",s2Title="",s2="";
+  if(guideDepth==="easy"){
+    s1Title="한 줄 이해";
+    s1=c?.short||d.easy||"—";
+    s2Title="없으면 / 다음";
+    const miss=c?.ifMissing||d.ifMissing||"—";
+    const next=(!trainingMode&&!c&&d.next)?(" 다음: "+d.next):"";
+    s2="없으면: "+miss+next;
+  }else if(guideDepth==="mechanism"){
+    s1Title="내부 동작";
+    s1=c?.mechanism||d.mechanism||"—";
+    s2Title="왜 필요한가";
+    s2=c?.why||(!trainingMode?focus.why:trainingTopic.why)||"—";
+  }else{
+    s1Title="SONIC 실제 구조";
+    s1=c?.sonic||d.sonic||"—";
+    s2Title="Toy ↔ SONIC / 주의";
+    const mapping=trainingMode?"training-only topic":("toy: "+focus.toy+" · official: "+focus.official);
+    const warning=c?.key||(!trainingMode?focus.misconception:trainingTopic.misconception)||"—";
+    s2=mapping+" · "+warning;
+  }
+  $("guideSection1Title").textContent=s1Title;
+  $("guideSection1").textContent=s1;
+  $("guideSection2Title").textContent=s2Title;
+  $("guideSection2").textContent=s2;
+
+  const live=guideLiveValues();
+  const hideLive=(guideDepth==="sonic")||(trainingMode&&trainingTopic.id!=="ppo")||(focus.id==="encoder"&&conceptId==="vae")||(focus.id==="quantizer"&&conceptId==="vqvae"&&guideDepth==="mechanism");
+  $("guideLiveBlock").hidden=hideLive;
+  $("guideLive").innerHTML=hideLive?"":live.map(x=>'<div class="live-kv"><span>'+x.k+'</span><b>'+x.v+'</b></div>').join("");
+
+  const toyShape=c?.toyShape||d.toyShape||(!trainingMode?focus.toy:"—");
+  const sonicShape=c?.sonicShape||d.sonicShape||(!trainingMode?focus.official:"—");
+  $("guideShapeBlock").hidden=(guideDepth==="easy");
+  $("guideShape").textContent="toy: "+toyShape+"\nSONIC: "+sonicShape;
+  $("guideQuestion").textContent=g.question;
+
   const note=$("conceptNote");
-  if(g.concept){note.hidden=false;note.innerHTML="<b>"+g.concept.title+"</b>"+g.concept.short+"<br><br><b>왜?</b> "+g.concept.why+"<br><b>핵심:</b> "+g.concept.key;}else{note.hidden=true;note.innerHTML="";}
+  note.hidden=true;note.innerHTML="";
+
   const seq=SONIC_FLOW.map(x=>x.id),idx=seq.indexOf(focus.id);
-  $("prevNode").disabled=trainingMode||idx<=0;$("nextNode").disabled=trainingMode||idx<0||idx>=seq.length-1;
-  $("prevNode").onclick=()=>idx>0&&focusNode(seq[idx-1]);$("nextNode").onclick=()=>idx>=0&&idx<seq.length-1&&focusNode(seq[idx+1]);
-  const action=guideActionSpec();$("focusAction").textContent=action.label;$("focusAction").disabled=action.disabled;
-  $("guideStatus").textContent=(busy?"preparing · ":"")+(trainingMode?"training="+trainingTopic.id:"focus="+focus.id+(conceptId?" · concept="+conceptId:""))+" · mode="+requiredMode()+" · preset="+preset;
+  $("prevNode").disabled=trainingMode||idx<=0;
+  $("nextNode").disabled=trainingMode||idx<0||idx>=seq.length-1;
+  $("prevNode").onclick=()=>idx>0&&focusNode(seq[idx-1]);
+  $("nextNode").onclick=()=>idx>=0&&idx<seq.length-1&&focusNode(seq[idx+1]);
+
+  const action=guideActionSpec();
+  $("focusAction").textContent=action.label;
+  $("focusAction").disabled=action.disabled;
+  $("guideStatus").textContent=(busy?"preparing · ":"")+(trainingMode?"training="+trainingTopic.id:"focus="+focus.id+(conceptId?" · concept="+conceptId:""))+" · depth="+guideDepth+" · mode="+requiredMode()+" · preset="+preset;
 }
+
 async function runFocusAction(){
   if(trainingMode){
     if(trainingTopic.id==="ppo")await runPPO(10);
@@ -819,7 +921,10 @@ function systemSnapshot(){
     system:{
       version:COURSE_VERSION,
       mode:trainingMode?"training":"runtime",
+      explanationDepth:guideDepth,
       focus:trainingMode?null:{node:focus.id,concept:conceptId},
+      focusExplanation:trainingMode?(TRAINING_DETAILS[trainingTopic.id]||null):(RUNTIME_DETAILS[focus.id]||null),
+      conceptExplanation:(!trainingMode&&conceptId&&conceptId!=="core")?(CONCEPT_TEXT[conceptId]||null):null,
       trainingTopic:trainingMode?trainingTopic.id:null,
       outline:getSystemOutline(),
     },
@@ -858,6 +963,7 @@ async function registerWebMCP(){
     {name:"sonic_get_state",description:"Read current SONIC focus, live reference/latent/token/robot/action signals, training evidence, and backend state.",inputSchema:{type:"object",properties:{}},annotations:{readOnlyHint:true},execute:async()=>systemSnapshot()},
     {name:"sonic_focus",description:"Focus one runtime SONIC block and optionally one contextual concept such as AE, VAE, VQ, VQ-VAE, or FSQ.",inputSchema:{type:"object",properties:{node_id:{type:"string",enum:nodeIds},concept_id:{type:"string"}},required:["node_id"]},annotations:{readOnlyHint:false},execute:async({node_id,concept_id=null})=>{await focusNode(node_id,concept_id);return systemSnapshot();}},
     {name:"sonic_open_training",description:"Open a training-only topic without pretending it is part of the deployment runtime graph.",inputSchema:{type:"object",properties:{topic_id:{type:"string",enum:trainingIds}},required:["topic_id"]},annotations:{readOnlyHint:false},execute:async({topic_id})=>{await openTraining(topic_id);return systemSnapshot();}},
+    {name:"sonic_set_explanation_depth",description:"Switch the right-side explanation between easy intuition, internal mechanism, and actual SONIC structure.",inputSchema:{type:"object",properties:{depth:{type:"string",enum:["easy","mechanism","sonic"]}},required:["depth"]},annotations:{readOnlyHint:false},execute:async({depth})=>{setGuideDepth(depth);return systemSnapshot();}},
     {name:"sonic_run_focus_action",description:"Run the canonical experiment for the currently focused block.",inputSchema:{type:"object",properties:{}},annotations:{readOnlyHint:false},execute:async()=>{await runFocusAction();return systemSnapshot();}},
     {name:"simulation_control",description:"Control the shared actual MuJoCo robot.",inputSchema:{type:"object",properties:{action:{type:"string",enum:["step","live_on","live_off","push","reset"]},steps:{type:"integer",minimum:1,maximum:100}},required:["action"]},annotations:{readOnlyHint:false},execute:async({action,steps=1})=>{if(action==="step")stepPolicy(steps);else if(action==="live_on"){live=true;render();}else if(action==="live_off"){live=false;render();}else if(action==="push")pushRobot();else if(action==="reset")resetRobot();return systemSnapshot();}},
     {name:"experiment_set_goal",description:"Set the high-level task goal used by the motion generator.",inputSchema:{type:"object",properties:{x:{type:"number",minimum:-1.2,maximum:1.2}},required:["x"]},annotations:{readOnlyHint:false},execute:async({x})=>{setGoal(x);return systemSnapshot();}},

@@ -154,6 +154,32 @@ This distinction matters:
 - **context concepts** answer “why was this representation method invented?”
 - **training topics** answer “how do the parameters get learned?”
 
+### Every block has the same three explanation depths
+
+The right-hand guide no longer changes its teaching style from block to block.
+
+```text
+쉽게
+  → intuition
+  → why this block exists
+  → what breaks without it
+  → why the next block is needed
+
+내부 동작
+  → calculation / learning mechanism
+  → toy and SONIC data shape
+  → current live values
+
+SONIC 실제
+  → the actual SONIC role
+  → how the CartPole reduction differs
+  → common implementation/conceptual mistakes
+```
+
+The explanation depth is independent of the center visualization. A learner can keep the same live graph while progressively exposing intuition, mechanics, and actual SONIC structure.
+
+Training topics additionally highlight, in purple on the top SONIC map, the runtime modules whose parameters or signals are involved. For example, multi-encoder alignment highlights Encoder → Quantizer → Universal Token, while PPO highlights Encoder → Robot Control Decoder → Robot/physics.
+
 ### What is actually live?
 
 The UI marks every center view as either:
@@ -481,6 +507,7 @@ sonic_get_map
 sonic_get_state
 sonic_focus
 sonic_open_training
+sonic_set_explanation_depth
 sonic_run_focus_action
 simulation_control
 experiment_set_goal
@@ -501,10 +528,13 @@ Examples:
 sonic_focus({node_id:"encoder", concept_id:"ae"})
 sonic_focus({node_id:"quantizer", concept_id:"vqvae"})
 sonic_focus({node_id:"token"})
+sonic_set_explanation_depth({depth:"mechanism"})
 sonic_open_training({topic_id:"what-learns"})
 ```
 
-`sonic_get_state` returns the currently focused system block plus the actual signals:
+The map payload also includes the same structured explanations used by the UI: intuition, mechanism, actual SONIC mapping, failure-if-removed, transition-to-next-block, and toy/SONIC data shapes.
+
+`sonic_get_state` returns the currently focused system block plus the actual signals and current explanation depth:
 
 ```text
 reference       = desired future motion before FSQ

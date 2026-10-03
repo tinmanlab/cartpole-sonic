@@ -16,9 +16,9 @@
 .map-title{display:flex;align-items:center;justify-content:space-between;margin-bottom:5px}.map-title b{font-size:11px}.map-title span{font-size:9px;color:#7b8492}
 .runtime-flow{display:flex;align-items:stretch;gap:4px;height:72px}
 .map-node{flex:1;min-width:0;border:1px solid #dbe0e7;border-radius:8px;background:#fafbfc;padding:6px 7px;text-align:left;cursor:pointer;transition:.12s;overflow:hidden}
-.map-node:hover{border-color:#9db0e5}.map-node.active{border:2px solid var(--blue);background:#f3f6ff;padding:5px 6px}.map-node b{display:block;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.map-node .official{display:block;font-size:8.5px;line-height:1.15;color:#667085;margin-top:2px}.map-node .toy{display:block;font-size:8.5px;line-height:1.15;color:#315dc9;margin-top:3px}.map-arrow{display:grid;place-items:center;flex:0 0 13px;color:#a1a8b3;font-size:14px}
+.map-node:hover{border-color:#9db0e5}.map-node.active{border:2px solid var(--blue);background:#f3f6ff;padding:5px 6px}.map-node.training-hit{border:2px solid var(--purple);background:#faf8ff;padding:5px 6px;box-shadow:0 0 0 2px rgba(121,95,197,.10)}.map-node b{display:block;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.map-node .official{display:block;font-size:8.5px;line-height:1.15;color:#667085;margin-top:2px}.map-node .toy{display:block;font-size:8.5px;line-height:1.15;color:#315dc9;margin-top:3px}.map-arrow{display:grid;place-items:center;flex:0 0 13px;color:#a1a8b3;font-size:14px}
 .map-lower{display:flex;align-items:center;gap:6px;height:51px;margin-top:4px}.motion-branch{margin-left:auto;display:flex;align-items:center;gap:5px}.branch-label{font-size:8.5px;color:#7b8492}.training-button{border:1px dashed #9e8fc2;background:#faf8ff;color:#554374;border-radius:8px;padding:6px 9px;cursor:pointer;font-size:10px;font-weight:700}.training-button.active{background:#5e4b8b;color:#fff;border-style:solid}
-.branch-node{width:205px;border:1px dashed #b8add0;border-radius:8px;background:#faf8ff;padding:5px 7px;cursor:pointer}.branch-node.active{border:2px solid var(--purple);padding:4px 6px}.branch-node b{font-size:9.5px}.branch-node span{display:block;font-size:8.5px;color:#6f6287;margin-top:2px}
+.branch-node{width:205px;border:1px dashed #b8add0;border-radius:8px;background:#faf8ff;padding:5px 7px;cursor:pointer}.feedback-loop{font-size:9px;color:#126b4b;border:1px solid #b7dcc9;background:#eff9f4;border-radius:999px;padding:5px 9px;white-space:nowrap}.branch-node.active{border:2px solid var(--purple);padding:4px 6px}.branch-node.training-hit{border:2px solid var(--purple);background:#f4efff;padding:4px 6px}.branch-node b{font-size:9.5px}.branch-node span{display:block;font-size:8.5px;color:#6f6287;margin-top:2px}
 
 .shell{max-width:1600px;height:706px;margin:0 auto;padding:8px;display:grid;grid-template-columns:420px minmax(560px,1fr) 360px;gap:8px;align-items:start}
 .card{background:#fff;border:1px solid var(--line);border-radius:11px;padding:9px;min-width:0;overflow:hidden;height:690px}
@@ -38,7 +38,7 @@ button,select{border:1px solid #cfd5df;border-radius:7px;background:#fff;padding
 .viz-foot{min-height:78px;padding-top:5px}.viz-caption{font-size:10.2px;line-height:1.36;color:#4b5563}.viz-metrics{display:flex;gap:5px;flex-wrap:wrap;margin-top:4px}.chip{border:1px solid #dfe3e9;border-radius:999px;padding:3px 7px;font:9px ui-monospace,monospace;color:#596273;background:#fafbfc}
 
 .guide-card{display:flex;flex-direction:column}.guide-kicker{font:700 9.5px ui-monospace,monospace;color:var(--blue);margin-bottom:3px}.guide-title{font-size:16px;font-weight:800;line-height:1.23;margin-bottom:5px}
-.guide-map{font-size:9.5px;line-height:1.35;color:#667085;padding:6px 7px;border:1px solid #e6e9ee;border-radius:7px;background:#fafbfc}
+.guide-map{font-size:9.5px;line-height:1.35;color:#667085;padding:6px 7px;border:1px solid #e6e9ee;border-radius:7px;background:#fafbfc}.guide-depth-tabs{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-top:6px}.guide-depth-tabs button{min-height:25px;padding:3px 5px;font-size:9.5px}.guide-live{display:grid;grid-template-columns:1fr 1fr;gap:4px}.live-kv{border:1px solid #e3e6eb;border-radius:6px;padding:5px;background:#fafbfc;min-width:0}.live-kv span{display:block;font-size:8.4px;color:#7b8492}.live-kv b{display:block;font:700 9.7px ui-monospace,monospace;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.guide-shape{font:9.2px/1.35 ui-monospace,monospace;color:#596273;background:#f7f9fc;border:1px solid #e2e6ec;border-radius:6px;padding:6px}
 .guide-block{border-top:1px solid #eceff3;padding-top:7px;margin-top:7px}.guide-block h3{font-size:9px;text-transform:uppercase;letter-spacing:.035em;color:#667085;margin:0 0 4px}.guide-block p{font-size:10.5px;line-height:1.4;color:#394150;margin:0}
 .guide-io{display:grid;grid-template-columns:1fr 22px 1fr;gap:4px;align-items:center}.io-box{border:1px solid #e0e4ea;border-radius:7px;padding:6px;background:#fafbfc;font-size:9.5px;line-height:1.3}.io-arrow{text-align:center;color:#9aa3af}
 .guide-core{border-left:3px solid var(--blue);padding:6px 8px;background:#f4f7ff;border-radius:0 7px 7px 0;font-weight:600}.guide-warn{border-left:3px solid var(--amber);padding:6px 8px;background:#fff8ef;border-radius:0 7px 7px 0}.guide-question{border-left:3px solid var(--green);padding:6px 8px;background:#f2faf6;border-radius:0 7px 7px 0;font-weight:600}
@@ -68,6 +68,7 @@ button,select{border:1px solid #cfd5df;border-radius:7px;background:#fff;padding
     <span class="branch-label">Universal Token also feeds →</span>
     <div id="motionBranch" class="branch-node"><b>Robot Motion Decoder</b><span>toy: Kinematic Decoder · reconstruction</span></div>
     <div style="flex:1"></div>
+    <div class="feedback-loop">Robot proprioception ↺ Robot Control Decoder</div>
     <button id="trainingButton" class="training-button">How is this learned?</button>
   </div>
 </section>
@@ -95,9 +96,12 @@ button,select{border:1px solid #cfd5df;border-radius:7px;background:#fff;padding
     <div id="guideKicker" class="guide-kicker">—</div>
     <div id="guideTitle" class="guide-title">—</div>
     <div id="guideMap" class="guide-map">—</div>
+    <div id="guideDepthTabs" class="guide-depth-tabs"><button data-depth="easy" class="active">쉽게</button><button data-depth="mechanism">내부 동작</button><button data-depth="sonic">SONIC 실제</button></div>
     <div class="guide-block"><h3>Input → Output</h3><div class="guide-io"><div id="guideInput" class="io-box">—</div><div class="io-arrow">→</div><div id="guideOutput" class="io-box">—</div></div></div>
-    <div class="guide-block"><h3>Why this block exists</h3><p id="guideWhy" class="guide-core">—</p></div>
-    <div class="guide-block"><h3>Common misconception</h3><p id="guideMisconception" class="guide-warn">—</p></div>
+    <div class="guide-block"><h3 id="guideSection1Title">핵심</h3><p id="guideSection1" class="guide-core">—</p></div>
+    <div class="guide-block"><h3 id="guideSection2Title">왜 다음 단계가 필요한가</h3><p id="guideSection2" class="guide-warn">—</p></div>
+    <div id="guideLiveBlock" class="guide-block"><h3>Current live values</h3><div id="guideLive" class="guide-live"></div></div>
+    <div id="guideShapeBlock" class="guide-block"><h3>Data shape</h3><div id="guideShape" class="guide-shape">—</div></div>
     <div class="guide-block"><h3>You should be able to answer</h3><p id="guideQuestion" class="guide-question">—</p></div>
     <div id="conceptNote" class="concept-note" hidden></div>
     <div class="guide-actions"><button id="prevNode">← Previous block</button><button id="nextNode">Next block →</button><button id="focusAction" class="primary">Run focus experiment</button></div>

@@ -1,4 +1,4 @@
-export const COURSE_VERSION = "2.0";
+export const COURSE_VERSION = "2.1";
 
 export const SONIC_FLOW = [
   {
@@ -194,35 +194,189 @@ export const TRAINING_TOPICS = [
   }
 ];
 
+
+export const RUNTIME_DETAILS = {
+  task:{
+    easy:"운전자에게서 '어디로 갈지'를 받는 단계다. 아직 robot joint나 force를 결정하지 않는다.",
+    mechanism:"CartPole toy에서는 하나의 scalar goal x*만 사용한다. 이 값은 Motion Generator의 목표가 되며 FSQ나 Dynamic Decoder에 직접 들어가지 않는다.",
+    sonic:"실제 SONIC 앞단은 interactive control, VR, video/VLA 등 서로 다른 task interface가 될 수 있다. 이 단계의 출력 형식은 interface마다 다르며 motor command가 아니다.",
+    ifMissing:"외부 task와 controller 사이의 의미 연결이 사라져 무엇을 수행해야 하는지 지정할 수 없다.",
+    next:"high-level intent만으로는 시간에 따른 자세/속도를 알 수 없으므로 Motion Generator가 future motion으로 확장한다.",
+    toyShape:"1 scalar goal x*",
+    sonicShape:"interface-dependent intent / targets"
+  },
+  generator:{
+    easy:"목표 한 점을 '앞으로 어떻게 움직일지'라는 짧은 계획으로 펼치는 단계다.",
+    mechanism:"toy planner는 plannerContext와 goal에서 critically-damped future trajectory를 만들고 8 future frame의 [x,ẋ]를 출력한다. policy/control은 50 Hz로 진행된다.",
+    sonic:"SONIC에서는 Kinematic Planner, VR toolkit, 다른 motion generator가 이 역할을 맡을 수 있다. generator는 control policy와 분리된 upstream motion source다.",
+    ifMissing:"Encoder는 시간 구조가 없는 goal만 받아 '어떤 속도와 궤적으로' 움직여야 하는지 알 수 없다.",
+    next:"생성된 future motion을 Encoder가 읽을 수 있는 구조화된 Motion Reference로 전달한다.",
+    toyShape:"8 future frames × [x,ẋ]",
+    sonicShape:"generator-dependent future motion representation"
+  },
+  reference:{
+    easy:"앞으로 몇 순간 동안 원하는 움직임을 적어 둔 짧은 motion script다.",
+    mechanism:"toy에서는 8 frame × 2 feature = 16D vector다. 각 frame은 future x와 ẋ를 포함하고 실제 CartPole proprioception은 포함하지 않는다.",
+    sonic:"실제 SONIC은 robot motion, human/SMPL motion, VR keypoint+leg target 등 modality별 motion representation을 Encoder 입력으로 사용한다.",
+    ifMissing:"Encoder가 'desired future motion' 대신 현재 상태나 단일 goal만 보게 되어 motion intent와 robot state의 분리가 무너진다.",
+    next:"16D 이상의 긴 reference를 compact shared representation으로 만들기 위해 Encoder가 필요하다.",
+    toyShape:"16D = 8 × 2",
+    sonicShape:"modality-specific future motion features × time"
+  },
+  encoder:{
+    easy:"긴 motion script를 downstream에서 다루기 쉬운 작은 latent 좌표로 요약하는 단계다.",
+    mechanism:"toy MLP Encoder는 16D reference를 2D continuous z로 압축한다. Encoder weight는 PPO, reconstruction auxiliary, 그리고 실제 SONIC에서는 cross-encoder alignment gradient를 받을 수 있다.",
+    sonic:"실제 SONIC은 Robot/G1, Human/SMPL, teleop 계열 등 여러 Encoder를 사용하고 같은 semantic latent/token space로 정렬한다. toy의 2D는 시각화를 위한 의도적 축소다.",
+    ifMissing:"각 modality의 큰 원본 reference를 decoder가 직접 처리해야 하고, shared compact interface를 만들기 어렵다.",
+    next:"Encoder output z는 아직 continuous이므로 Quantizer가 finite/discrete representation으로 바꾼다.",
+    toyShape:"16D → 2D z",
+    sonicShape:"modality-specific input → 32 scalar dims per token (release configuration)"
+  },
+  quantizer:{
+    easy:"연속적으로 움직이는 latent를 정해진 '칸'에 놓아 제한된 motion 표현으로 만드는 단계다.",
+    mechanism:"VQ는 z 전체와 가장 가까운 learned vector code를 고른다. FSQ는 각 scalar를 fixed finite level에 bound→round하고 STE로 backward gradient를 통과시킨다. toy FSQ는 2 scalar × 5 levels다.",
+    sonic:"release 계열 config는 token당 32 scalar dims, scalar당 32 fixed levels, 최대 2 tokens를 사용한다. FSQ의 finite levels는 trainable codebook이 아니다.",
+    ifMissing:"latent가 완전히 continuous라 modality 사이 shared discrete bottleneck의 제약이 사라지고 universal token interface가 덜 규격화된다.",
+    next:"Quantizer output q를 downstream decoder가 사용할 공통 Universal Token representation으로 해석한다.",
+    toyShape:"z∈R² → q∈{5 levels}²",
+    sonicShape:"2 tokens × 32 scalar dims, 32 fixed levels/scalar"
+  },
+  token:{
+    easy:"'어떤 움직임을 원하는가'를 짧게 전달하는 공통 motion message다.",
+    mechanism:"token은 FSQ/VQ output numeric vector(s)다. toy는 q₁,q₂ 두 scalar를 사용한다. token에는 actual robot state가 포함되지 않으며 proprioception은 별도로 Control Decoder에 들어간다.",
+    sonic:"release 구조는 2 temporal tokens × 32 scalar dims = 64 flattened numeric values를 control decoder interface로 사용한다. universal 의미는 FSQ만이 아니라 multi-encoder alignment 학습까지 필요하다.",
+    ifMissing:"decoder가 다시 원래 modality별 reference를 직접 이해해야 해서 하나의 공통 control interface를 만들기 어렵다.",
+    next:"같은 token은 두 용도로 해석된다: motion information을 복원하는 Motion Decoder와 실제 action을 만드는 Control Decoder.",
+    toyShape:"1 token × 2 scalar values",
+    sonicShape:"2 temporal tokens × 32 scalar dims = 64 flattened values"
+  },
+  "motion-decoder":{
+    easy:"token을 다시 future motion으로 풀어 보고, token이 원하는 움직임 정보를 잃지 않았는지 검사하는 decoder다.",
+    mechanism:"toy Kinematic Decoder는 q에서 16D future [x,ẋ] reconstruction을 출력하고 reconstruction MSE auxiliary signal을 제공한다.",
+    sonic:"공식 SONIC의 Robot Motion Decoder 역할과 대응시키되, 이 CartPole 구현에서는 Kinematic Decoder를 training auxiliary path로 사용한다. physical motor action은 별도 Control Decoder가 낸다.",
+    ifMissing:"token이 control reward에 필요한 최소 정보만 남기고 motion semantic을 잃어도 이를 직접 제약할 reconstruction signal이 없다.",
+    next:"future motion을 복원하는 것만으로 robot을 안정적으로 움직일 수 없으므로 actual proprioception을 포함한 Robot Control Decoder가 필요하다.",
+    toyShape:"q(2D) → future reconstruction(16D)",
+    sonicShape:"universal token → robot-motion representation"
+  },
+  "control-decoder":{
+    easy:"'원하는 움직임(token)'과 '지금 몸 상태(proprioception)'를 합쳐 바로 실행할 action을 만드는 controller다.",
+    mechanism:"toy Dynamic Decoder는 q₁,q₂ + normalized [x,ẋ,θ,θ̇] 4D를 받아 scalar force를 출력한다. Push는 q/reference를 유지하고 state만 바꿔 decoder가 다른 action을 내는지 검증한다.",
+    sonic:"공식 G1 dynamic decoder는 token_flattened + proprioception → action 구조다. 이 경로가 physical tracking PPO의 핵심 policy path다.",
+    ifMissing:"token만 보는 open-loop decoder는 같은 motion intent라도 실제 robot이 넘어지거나 밀렸을 때 correction을 만들 수 없다.",
+    next:"action은 실제 physics에 적용되고 measured state가 다시 feedback되어 closed loop가 완성된다.",
+    toyShape:"q(2D)+state(4D) → force(1D)",
+    sonicShape:"flattened token + robot proprioception → whole-body action"
+  },
+  robot:{
+    easy:"controller가 낸 action을 실제 dynamics에 적용하고 결과를 다시 센서 state로 돌려주는 단계다.",
+    mechanism:"toy는 native MuJoCo 10 ms physics를 사용하고 50 Hz policy action을 두 physics step 동안 hold한다. x,ẋ,θ,θ̇가 다음 Control Decoder proprioception이 된다.",
+    sonic:"실제 deployment에서는 humanoid body, actuator, contact, sensors가 이 closed-loop plant를 구성한다. 이 toy는 multi-contact/sim2real을 재현하지 않는다.",
+    ifMissing:"physics feedback이 없으면 reference tracking이 실제로 되는지 검증할 수 없고 disturbance correction도 불가능하다.",
+    next:"feedback state가 다시 Robot Control Decoder 입력으로 돌아가며 loop가 반복된다.",
+    toyShape:"force → MuJoCo → 4D measured state",
+    sonicShape:"whole-body action → robot/contact dynamics → measured proprioception"
+  }
+};
+
+export const TRAINING_DETAILS = {
+  "loss-flow":{
+    easy:"SONIC에는 두 종류의 선생이 있다: 실제로 잘 움직이게 만드는 PPO와, representation을 잘 정리하는 auxiliary loss.",
+    mechanism:"총 update는 physical rollout의 PPO objective와 reconstruction/alignment auxiliary terms를 함께 사용한다. 각각 gradient가 도달하는 module이 다르다.",
+    sonic:"release training은 PPO와 token reconstruction / cross-encoder latent-alignment auxiliary losses를 결합한다.",
+    ifMissing:"PPO만 있으면 representation semantic이 약해질 수 있고, aux만 있으면 실제 physics tracking 능력을 학습할 수 없다.",
+    toyShape:"PPO + reconstruction aux",
+    sonicShape:"PPO + weighted reconstruction/alignment auxiliaries",
+    highlights:["encoder","quantizer","token","motion-decoder","control-decoder","robot"]
+  },
+  "what-learns":{
+    easy:"FSQ 칸 자체가 배우는 것이 아니라 Encoder/Decoder가 그 고정 칸을 잘 쓰는 법을 배운다.",
+    mechanism:"Encoder, Dynamic Decoder, Kinematic Decoder, Critic은 trainable parameter를 가진다. FSQ levels는 fixed hyperparameter이고 round backward는 STE가 대리한다.",
+    sonic:"release FSQ는 learned VQ codebook 대신 fixed scalar levels를 사용한다. Encoder가 PPO/auxiliary gradient를 받아 bin 사용을 바꾼다.",
+    ifMissing:"FSQ와 VQ의 핵심 차이를 놓치고 'FSQ codebook이 학습된다'는 잘못된 모델을 갖게 된다.",
+    toyShape:"trainable MLPs around fixed FSQ",
+    sonicShape:"multiple trainable encoders/decoders around fixed FSQ",
+    highlights:["encoder","quantizer","motion-decoder","control-decoder"]
+  },
+  alignment:{
+    easy:"서로 다른 언어(G1, SMPL, teleop)로 같은 동작을 말해도 같은 token 의미가 되도록 번역기들을 맞추는 학습이다.",
+    mechanism:"관련 motion sample의 Encoder latent 사이 distance/alignment auxiliary losses를 사용해 modality-specific Encoder outputs를 shared semantic space로 당긴다.",
+    sonic:"공개 auxiliary config는 G1↔SMPL, G1↔teleop, teleop↔SMPL, re-encoded SMPL↔G1 계열 alignment terms를 포함한다. CartPole toy는 Encoder 하나뿐이라 이 부분은 concept-only다.",
+    ifMissing:"같은 FSQ quantizer를 써도 modality마다 q의 의미가 달라질 수 있어 'universal' interface가 성립하지 않는다.",
+    toyShape:"not reproduced (single Encoder)",
+    sonicShape:"multiple modality encoders → aligned latent → shared FSQ/token",
+    highlights:["encoder","quantizer","token"]
+  },
+  ppo:{
+    easy:"robot이 실제로 넘어지지 않고 reference를 따라가게 만드는 시행착오 학습이다.",
+    mechanism:"MuJoCo rollout에서 tracking/balance/action cost reward를 모아 GAE advantage와 PPO ratio/clipping으로 Encoder+Dynamic Decoder policy를 update한다. Critic은 value loss로 학습된다.",
+    sonic:"실제 SONIC은 대규모 병렬 humanoid physics tracking PPO를 사용한다. toy의 작은 PPO는 역할만 보존한다.",
+    ifMissing:"representation을 잘 복원해도 실제 dynamics, disturbance, balance에 맞는 action을 내는 법을 배우지 못한다.",
+    toyShape:"8 env × 96 control steps / iteration",
+    sonicShape:"large-scale parallel humanoid tracking rollouts",
+    highlights:["encoder","control-decoder","robot"]
+  }
+};
+
 export const CONCEPT_TEXT = {
   ae:{
     title:"Autoencoder — bottleneck이 정보를 보존하는지 확인",
     short:"Encoder가 입력을 작은 z로 압축하고 Decoder가 입력을 복원한다.",
     why:"작은 latent가 motion 정보를 잃지 않았는지 reconstruction error로 확인한다.",
+    mechanism:"x → Encoder → z → Decoder → x̂, 그리고 reconstruction loss ||x-x̂||²로 Encoder/Decoder를 같이 학습한다.",
+    sonic:"SONIC에서는 이 생각이 motion Encoder + Robot Motion/Kinematic Decoder auxiliary path로 이어진다. physical action은 별도 Control Decoder가 낸다.",
+    ifMissing:"latent가 motion semantic을 보존하는지 직접 검사할 보조 신호가 약해진다.",
+    question:"왜 작은 latent를 다시 복원해 보는 것이 bottleneck의 품질 검사가 되는가?",
+    toyShape:"16D reference → 2D z → 16D reconstruction",
+    sonicShape:"motion Encoder → shared latent/token → Robot Motion Decoder auxiliary reconstruction",
     key:"AE는 SONIC deployment 구조 그 자체가 아니라 Encoder/auxiliary Decoder를 이해하기 위한 기본 개념이다."
   },
   vae:{
     title:"VAE — optional background",
     short:"z 하나를 직접 내는 대신 μ,σ를 내고 확률분포에서 latent를 sample한다.",
     why:"continuous latent를 regularized probabilistic space로 만드는 계열이다.",
+    mechanism:"Encoder가 μ,σ를 출력하고 z=μ+σ·ε로 sample한다. reconstruction loss와 KL divergence를 함께 최적화한다.",
+    sonic:"SONIC runtime은 VAE를 핵심 block으로 사용하지 않는다. VAE는 VQ-VAE라는 이름의 계보를 이해하기 위한 선택 배경지식이다.",
+    ifMissing:"SONIC 이해에는 치명적이지 않다. 이 탭을 건너뛰어도 VQ→VQ-VAE→FSQ 본선을 이해할 수 있다.",
+    question:"VAE의 μ/σ/KL은 왜 FSQ 이해의 필수 선행조건이 아닌가?",
+    toyShape:"concept-only: μ,σ → sampled z (not implemented in toy runtime)",
+    sonicShape:"optional background; not a SONIC runtime block",
     key:"FSQ의 직접 선행 개념은 VAE보다 VQ/VQ-VAE다. VAE는 선택 배경지식이다."
   },
   vq:{
     title:"Vector Quantization — learned vector dictionary",
     short:"continuous z를 가장 가까운 learned codebook vector q로 치환한다.",
     why:"continuous representation을 discrete code로 바꾼다.",
+    mechanism:"각 codebook vector e_k와 z의 거리를 계산해 argmin_k ||z-e_k||²를 선택한다. 선택 연산은 불연속이므로 학습 때 별도 gradient 처리와 codebook update가 필요하다.",
+    sonic:"SONIC은 learned VQ codebook 대신 FSQ를 사용한다. VQ는 FSQ가 무엇을 단순화했는지 이해하기 위한 직접 비교 기준이다.",
+    ifMissing:"FSQ의 장점인 'learned codebook 제거'가 왜 중요한지 이해하기 어렵다.",
+    question:"VQ에서 z가 codebook의 어느 vector로 가는지는 어떻게 결정되고, 그 vector 자체는 학습되는가?",
+    toyShape:"z∈R² → nearest of 8 learned 2D code vectors",
+    sonicShape:"comparison baseline; SONIC runtime uses FSQ instead of a learned VQ codebook",
     key:"codebook vector 자체가 학습/EMA update된다."
   },
   vqvae:{
     title:"VQ-VAE — discrete bottleneck을 실제로 학습시키는 구조",
     short:"Encoder → nearest code q → Decoder reconstruction을 함께 학습한다.",
-    why:"nearest lookup은 미분 불가능하므로 STE가 필요하고, Encoder가 code에 붙도록 commitment가 필요하며, codebook 자체도 update해야 한다.",
+    why:"nearest lookup은 미분 불가능하고 z와 learned codebook을 함께 맞춰야 하므로 STE·commitment·codebook update가 각각 필요하다.",
+    mechanism:"forward: z→nearest q→Decoder. backward: STE가 Encoder gradient를 통과시키고, commitment는 z를 q 근처에 붙이며, codebook update는 q 자체를 움직인다. 선택되지 않는 code는 dead code가 된다.",
+    sonic:"SONIC FSQ는 이 구조에서 learned vector codebook/commitment/dead-code 관리 부담을 줄인 대안으로 이해하면 된다.",
+    ifMissing:"FSQ가 단순히 'VQ보다 다른 rounding' 정도로만 보여 왜 연구적으로 의미가 있는지 놓치게 된다.",
+    question:"VQ-VAE에서 STE, commitment, codebook update는 각각 어떤 학습 문제를 해결하는가?",
+    toyShape:"16D → z2 → nearest learned q2 → recon16",
+    sonicShape:"VQ-VAE predecessor concept → SONIC FSQ removes learned codebook machinery",
     key:"forward에서는 q를 쓰고 backward에서는 STE로 Encoder까지 gradient를 보낸다. 이것이 '그냥 diagram'이 아니라 학습 메커니즘의 핵심이다."
   },
   fsq:{
     title:"FSQ — VQ codebook을 없애고 scalar별 finite level을 사용",
     short:"각 latent scalar를 fixed finite level로 bound→round한다.",
     why:"learned vector codebook 관리 없이 discrete bottleneck을 만든다.",
+    mechanism:"toy는 q_i = round(1.998·tanh(z_i))/2를 사용한다. round는 forward에서 discrete value를 만들고 backward에서는 STE로 gradient를 Encoder에 전달한다.",
+    sonic:"release 계열 config는 2 temporal tokens × 32 scalar dims, scalar당 32 fixed levels를 사용해 flattened 64-D token interface를 만든다.",
+    ifMissing:"continuous latent를 그대로 쓰게 되어 finite shared bottleneck의 규격성과 discrete token interface를 잃는다.",
+    question:"FSQ level은 고정인데 Encoder representation은 어떻게 계속 좋아질 수 있는가?",
+    toyShape:"z∈R² → q on 5×5 implicit fixed grid",
+    sonicShape:"2 tokens × 32 scalar dims, 32 fixed levels/scalar → 64 flattened values",
     key:"FSQ levels는 보통 학습되지 않는다. Encoder가 fixed bins를 유용하게 사용하는 법을 배운다."
   }
 };
@@ -236,7 +390,16 @@ export function getTrainingTopic(id){
 export function getSystemOutline(){
   return {
     version:COURSE_VERSION,
-    runtime:SONIC_FLOW.map(({id,nav,official,toy,input,output})=>({id,nav,official,toy,input,output})),
-    training:TRAINING_TOPICS.map(({id,label,title})=>({id,label,title}))
+    runtime:SONIC_FLOW.map(({id,nav,official,toy,input,output})=>({
+      id,nav,official,toy,input,output,
+      explanation:RUNTIME_DETAILS[id]||null,
+      concepts:(SONIC_FLOW.find(x=>x.id===id)?.concepts||[]).map(c=>({
+        ...c,
+        explanation:c.id==="core"?null:(CONCEPT_TEXT[c.id]||null)
+      }))
+    })),
+    training:TRAINING_TOPICS.map(({id,label,title,input,output})=>({
+      id,label,title,input,output,explanation:TRAINING_DETAILS[id]||null
+    }))
   };
 }
