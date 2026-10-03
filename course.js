@@ -1,4 +1,4 @@
-export const COURSE_VERSION = "2.2";
+export const COURSE_VERSION = "2.3";
 
 export const SONIC_FLOW = [
   {
@@ -97,7 +97,10 @@ export const SONIC_FLOW = [
     misconception:"token은 꼭 LLM처럼 integer ID 하나가 아니다. SONIC decoder는 quantized numeric vectors를 사용한다.",
     question:"실제 SONIC의 64-D motion token은 어디서 나오는가?",
     action:"live",
-    concepts:[]
+    concepts:[
+      {id:"core",label:"Current token"},
+      {id:"temporal",label:"1 vs 2 token slots"}
+    ]
   },
   {
     id:"motion-decoder",
@@ -320,6 +323,8 @@ export const TRAINING_DETAILS = {
 export const CONCEPT_TEXT = {
   ae:{
     title:"Autoencoder — bottleneck이 정보를 보존하는지 확인",
+    input:"future motion reference",
+    output:"latent z + reconstructed reference",
     short:"Encoder가 입력을 작은 z로 압축하고 Decoder가 입력을 복원한다.",
     why:"작은 latent가 motion 정보를 잃지 않았는지 reconstruction error로 확인한다.",
     mechanism:"x → Encoder → z → Decoder → x̂, 그리고 reconstruction loss ||x-x̂||²로 Encoder/Decoder를 같이 학습한다.",
@@ -332,6 +337,8 @@ export const CONCEPT_TEXT = {
   },
   vae:{
     title:"VAE — optional background",
+    input:"input/reference features",
+    output:"μ, σ → sampled continuous latent z",
     short:"z 하나를 직접 내는 대신 μ,σ를 내고 확률분포에서 latent를 sample한다.",
     why:"continuous latent를 regularized probabilistic space로 만드는 계열이다.",
     mechanism:"Encoder가 μ,σ를 출력하고 z=μ+σ·ε로 sample한다. reconstruction loss와 KL divergence를 함께 최적화한다.",
@@ -344,6 +351,8 @@ export const CONCEPT_TEXT = {
   },
   vq:{
     title:"Vector Quantization — learned vector dictionary",
+    input:"continuous latent z",
+    output:"nearest learned code vector q",
     short:"continuous z를 가장 가까운 learned codebook vector q로 치환한다.",
     why:"continuous representation을 discrete code로 바꾼다.",
     mechanism:"각 codebook vector e_k와 z의 거리를 계산해 argmin_k ||z-e_k||²를 선택한다. 선택 연산은 불연속이므로 학습 때 별도 gradient 처리와 codebook update가 필요하다.",
@@ -356,6 +365,8 @@ export const CONCEPT_TEXT = {
   },
   vqvae:{
     title:"VQ-VAE — discrete bottleneck을 실제로 학습시키는 구조",
+    input:"reference → continuous z",
+    output:"discrete q + reconstruction",
     short:"Encoder → nearest code q → Decoder reconstruction을 함께 학습한다.",
     why:"nearest lookup은 미분 불가능하고 z와 learned codebook을 함께 맞춰야 하므로 STE·commitment·codebook update가 각각 필요하다.",
     mechanism:"forward: z→nearest q→Decoder. backward: STE가 Encoder gradient를 통과시키고, commitment는 z를 q 근처에 붙이며, codebook update는 q 자체를 움직인다. 선택되지 않는 code는 dead code가 된다.",
@@ -368,6 +379,8 @@ export const CONCEPT_TEXT = {
   },
   fsq:{
     title:"FSQ — VQ codebook을 없애고 scalar별 finite level을 사용",
+    input:"continuous latent scalars z",
+    output:"fixed-level quantized scalars q",
     short:"각 latent scalar를 fixed finite level로 bound→round한다.",
     why:"learned vector codebook 관리 없이 discrete bottleneck을 만든다.",
     mechanism:"toy는 q_i = round(1.998·tanh(z_i))/2를 사용한다. round는 forward에서 discrete value를 만들고 backward에서는 STE로 gradient를 Encoder에 전달한다.",
@@ -378,7 +391,21 @@ export const CONCEPT_TEXT = {
     sonicShape:"2 tokens × 32 scalar dims, 32 fixed levels/scalar → 64 flattened values",
     key:"FSQ levels는 보통 학습되지 않는다. Encoder가 fixed bins를 유용하게 사용하는 법을 배운다."
   }
-};
+,
+  temporal:{
+    title:"1 token vs 2 token slots — 왜 future window를 여러 token으로 표현할까?",
+    input:"same whole future window",
+    output:"1-slot vs 2-slot FSQ representations + reconstructions",
+    short:"전체 future window를 한꺼번에 읽되, 출력 representation을 token slot 하나가 아니라 여러 slot으로 나누어 더 많은 discrete capacity를 쓴다.",
+    why:"하나의 작은 token이 표현할 수 있는 finite combinations는 제한적이다. 여러 token slot을 쓰면 whole-window 정보를 더 풍부하게 보존할 수 있다.",
+    mechanism:"toy는 같은 16D future window를 두 모델에 넣는다. 1-token model은 2 scalar FSQ, 2-token model은 2×2 scalar FSQ를 출력한다. 둘 다 whole window를 공동으로 읽으며 reconstruction loss로 학습된다. token 1=근미래, token 2=원미래 같은 역할은 미리 지정하지 않는다.",
+    sonic:"공식 SONIC MLP Encoder는 temporal input을 flatten해 읽고, 출력은 max_num_tokens=2 temporal slots로 reshape한다. release config는 token_dim=32이므로 2×32=64 flattened values다. slot 의미는 architecture/config이 정하는 shape이지 near/far semantic을 하드코딩한 것이 아니다.",
+    ifMissing:"token slot 수와 token dimension을 같은 것으로 오해하거나, token 1/2에 임의의 시간 의미를 붙이게 된다.",
+    question:"왜 token을 두 개 쓰는가? 그리고 token 1과 token 2가 각각 near/far를 담당한다고 말해도 되는가?",
+    toyShape:"same 16D window → 1×2 FSQ vs 2×2 FSQ",
+    sonicShape:"whole future window → 2 token slots × 32 scalar dims → 64 flattened values",
+    key:"multiple token slots increase representational capacity, but slot semantics are learned/not pre-assigned."
+  }};
 
 export function getNode(id){
   return SONIC_FLOW.find(x=>x.id===id)||SONIC_FLOW[0];

@@ -7,6 +7,7 @@ const toy=fs.readFileSync(new URL("../sonic_toy.js",import.meta.url),"utf8");
 const sim=fs.readFileSync(new URL("../mujoco_sim.js",import.meta.url),"utf8");
 const gpu=fs.readFileSync(new URL("../webgpu_fsq.js",import.meta.url),"utf8");
 const alignment=fs.readFileSync(new URL("../alignment_lab.js",import.meta.url),"utf8");
+const temporal=fs.readFileSync(new URL("../temporal_token_lab.js",import.meta.url),"utf8");
 
 for(const name of ["student_ae_bootstrap.json","student_vq_bootstrap.json","student_fsq_bootstrap.json"]){
   const u=new URL("../assets/"+name,import.meta.url);
@@ -62,6 +63,12 @@ const required=[
   [alignment,'actionMae',"alignment validates same-state action agreement"],
   [app,'function runAlignment(steps=50)',"bounded live alignment training"],
   [app,'alignment_control',"WebMCP alignment control tool"],
+  [course,'{id:"temporal",label:"1 vs 2 token slots"}',"temporal-token experiment lives under Universal Token"],
+  [app,'function renderTemporalTokenViz()',"live 1-token vs 2-token visualization"],
+  [temporal,'class TemporalTokenLab',"live temporal-token capacity lab"],
+  [temporal,'tokens=2',"two-token model"],
+  [temporal,'earlyLatentDelta',"token-slot sensitivity diagnostic"],
+  [app,'temporal_token_control',"WebMCP temporal-token control tool"],
   [app,'visualizationKind()',"live vs concept visualization is explicit"],
   [app,'sonic_get_map',"semantic WebMCP system-map tool"],
   [app,'sonic_get_state',"semantic WebMCP state tool"],

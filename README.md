@@ -193,7 +193,7 @@ Current concept-only views are intentionally limited to:
 - high-level official task modalities — the toy collapses them to one goal scalar
 - loss/trainability diagrams — explanatory views of optimization structure
 
-VQ, VQ-VAE live values, FSQ, Universal Token, both Decoder roles, robot tracking, PPO curves, and the two-Encoder alignment experiment all use real toy state/evidence.
+VQ, VQ-VAE live values, FSQ, Universal Token, the 1-vs-2 temporal-slot experiment, both Decoder roles, robot tracking, PPO curves, and the two-Encoder alignment experiment all use real toy state/evidence.
 
 ---
 
@@ -428,6 +428,77 @@ The implicit Cartesian-product code space is enormous, but it is **not explicitl
 
 The SONIC decoder consumes the quantized numeric token vectors; “token” here should not be interpreted as necessarily one integer ID like an LLM vocabulary token.
 
+### How are the two temporal token slots formed?
+
+The released MLP Encoder config declares:
+
+```text
+num_input_temporal_dims  = num_future_frames
+num_output_temporal_dims = max_num_tokens = 2
+```
+
+`BaseModule` then flattens the temporal input before the MLP and reshapes the MLP output back into the requested number of output temporal slots. Therefore the implementation is conceptually:
+
+```text
+whole future window
+(time × features)
+      ↓ flatten
+one MLP sees the whole window
+      ↓
+joint latent output
+      ↓ reshape
+[token slot 1, token slot 2]
+      ↓ FSQ
+quantized token slots
+```
+
+It is **not** hard-coded as:
+
+```text
+first half of the window → token 1
+second half of the window → token 2
+```
+
+Token indices are learned representation slots. A near/far interpretation must be demonstrated empirically rather than assumed from the index.
+
+Implementation anchors:
+
+- [G1 MLP Encoder config](https://github.com/NVlabs/GR00T-WholeBodyControl/blob/main/gear_sonic/config/actor_critic/encoders/g1_mf_mlp.yaml) — future-frame input temporal dims → `max_num_tokens` output temporal dims
+- [BaseModule](https://github.com/NVlabs/GR00T-WholeBodyControl/blob/main/gear_sonic/trl/modules/base_module.py) — flattens temporal input before the network and reshapes output after the network
+- [UniversalTokenModule](https://github.com/NVlabs/GR00T-WholeBodyControl/blob/main/gear_sonic/trl/modules/universal_token_modules.py) — defines `token_dim`, `max_num_tokens`, FSQ, and flattened decoder token input
+
+### Live 1-token vs 2-token capacity experiment
+
+The Universal Token page now has a `1 vs 2 token slots` experiment. Both toy models receive the **same complete 16-D future window**:
+
+```text
+1-token model
+16D whole window → Encoder → 1 token × 2 FSQ scalars → Decoder → 16D reconstruction
+
+2-token model
+16D whole window → Encoder → reshape to 2 tokens × 2 FSQ scalars → Decoder → 16D reconstruction
+```
+
+The models use the same deterministic reference distribution and reconstruction training procedure. The experiment isolates representational capacity; it does **not** claim that two tokens are universally optimal.
+
+At 200 training steps:
+
+```text
+                         1 token       2 tokens
+reconstruction MSE      0.00831       0.00417
+distinct FSQ combos     23            97
+
+2-token / 1-token MSE ≈ 0.50
+```
+
+The page also perturbs the early and late halves of the input window and measures the continuous latent change of each token slot. This is a sensitivity diagnostic only. Both slots read the full window, so the UI explicitly warns against labeling slot 1 = near future and slot 2 = far future without evidence.
+
+Direct link:
+
+https://tinmanlab.github.io/cartpole-sonic/?focus=token&concept=temporal&depth=mechanism
+
+---
+
 ### Why do different encoders produce a universal token?
 
 FSQ alone does not guarantee that a G1 Encoder, SMPL Encoder, and teleoperation Encoder give the same semantic token.
@@ -490,6 +561,7 @@ Useful direct links:
 - VQ-VAE: https://tinmanlab.github.io/cartpole-sonic/?focus=quantizer&concept=vqvae
 - FSQ: https://tinmanlab.github.io/cartpole-sonic/?focus=quantizer&concept=fsq
 - Universal Token: https://tinmanlab.github.io/cartpole-sonic/?focus=token
+- 1 vs 2 temporal token slots: https://tinmanlab.github.io/cartpole-sonic/?focus=token&concept=temporal&depth=mechanism
 - Robot Motion Decoder: https://tinmanlab.github.io/cartpole-sonic/?focus=motion-decoder
 - Robot Control Decoder: https://tinmanlab.github.io/cartpole-sonic/?focus=control-decoder
 - Robot / Feedback: https://tinmanlab.github.io/cartpole-sonic/?focus=robot
@@ -570,6 +642,7 @@ simulation_control
 experiment_set_goal
 training_run
 alignment_control
+temporal_token_control
 simulation_set_model
 ```
 
@@ -590,6 +663,8 @@ sonic_set_explanation_depth({depth:"mechanism"})
 sonic_open_training({topic_id:"what-learns"})
 sonic_open_training({topic_id:"alignment"})
 alignment_control({action:"train", steps:50})
+sonic_focus({node_id:"token", concept_id:"temporal"})
+temporal_token_control({action:"train", steps:200})
 ```
 
 The map payload also includes the same structured explanations used by the UI: intuition, mechanism, actual SONIC mapping, failure-if-removed, transition-to-next-block, and toy/SONIC data shapes.
@@ -705,6 +780,7 @@ What this toy **does not** reproduce:
 ├── course.js                  # canonical SONIC system-map / concept SSOT
 ├── sonic_toy.js               # SONIC-like planner/encoder/token/decoder/PPO
 ├── alignment_lab.js           # live two-Encoder representation-alignment experiment
+├── temporal_token_lab.js      # live 1-token vs 2-token capacity experiment
 ├── mujoco_sim.js              # native MuJoCo WASM CartPole wrapper
 ├── webgpu_fsq.js              # WebGPU FSQ parity kernel
 ├── teacher_policy.js          # frozen bootstrap teacher adapter
