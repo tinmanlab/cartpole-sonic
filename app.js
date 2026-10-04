@@ -387,6 +387,7 @@ async function switchTrainerIfNeeded(){
 async function focusNode(id,concept=null){
   if(!SONIC_FLOW.some(n=>n.id===id))throw new Error("unknown node: "+id);
   if(concept!==null&&!(getNode(id).concepts||[]).some(c=>c.id===concept))throw new Error("unknown concept: "+concept);
+  leaveRecordedLessonForNavigation();
   return withOperation("화면/표현 로드",()=>focusNodeInternal(id,concept));
 }
 async function focusNodeInternal(id,concept){
@@ -411,6 +412,7 @@ async function setConceptInternal(id){
 }
 async function openTraining(topicId="loss-flow"){
   if(!TRAINING_TOPICS.some(t=>t.id===topicId))throw new Error("unknown training topic: "+topicId);
+  leaveRecordedLessonForNavigation();
   return withOperation("학습 화면 로드",()=>openTrainingInternal(topicId));
 }
 async function openTrainingInternal(topicId){
@@ -1334,6 +1336,7 @@ function renderHeaderState(){
   setBadge("mcpBadge",webmcpMode==="unavailable"?"WebMCP pending":"WebMCP · "+webmcpTools.length,webmcpMode!=="unavailable");
 }
 function renderPreload(){
+  if(nativeLesson?.active){renderHeaderState();return;}
   buildSystemMap();
   buildConceptTabs();
   renderSimulation();
@@ -1381,6 +1384,7 @@ function renderPreload(){
   }
 }
 function render(){
+  if(nativeLesson?.active){renderHeaderState();return;}
   for(const [el,wasDisabled] of busyDisabledControls)el.disabled=wasDisabled;
   busyDisabledControls.clear();
   if(physicsReady&&currentTrainer){buildSystemMap();renderSimulation();renderVisualization();renderGuide();renderHeaderState();}
@@ -1576,3 +1580,10 @@ window.__cartpoleSonic={
   resetTemporalControlLab,
   selectTemporalController,
 };
+
+// Explicit navigation may leave read-only replay; simulation and training never do so implicitly.
+function leaveRecordedLessonForNavigation(){
+  if(!nativeLesson?.active)return;
+  if(busy)throw new Error("모델 준비 중입니다. 준비가 끝나면 구조 탐색으로 전환하세요.");
+  nativeLesson.leave();
+}

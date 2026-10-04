@@ -1,10 +1,10 @@
 {
   "schema": "cartpole-sonic-browser-audit/v1",
-  "base": "http://127.0.0.1:57858/",
+  "base": "http://127.0.0.1:57638/",
   "browser": "153.0.8010.12",
   "executionOnly": false,
   "source_sha256": {
-    "app.js": "2b237a01139ba663c9c9a7f82de2206c46dab84a3aca82fa8787726640d23a5c",
+    "app.js": "19c36ab87b1de8da74af8389adf5111b443f493376b69e753507d6bdda2ca547",
     "course.js": "7fe8cca081be39f9670f6af0d6dbf7cb2dec92cffde28f9a78bdde0bb4c725a9",
     "index.html": "5a7403282522bcf6d4dc5ebe6ff8793f8d91e47718ce67c79cc359526ccf4bff",
     "presentation.js": "a3775054bfb68c44876c2374cb8f9d3ae5e5c0de34f302894a740d636840c9ff",
@@ -2784,12 +2784,12 @@
         -1.0428543249066369
       ],
       "after": [
-        0.0579161082434974,
-        -0.46801310685379977,
-        -0.028252139316118054,
-        0.46132741661143134
+        0.00215993308006152,
+        -0.5803699328764377,
+        0.02994899938001786,
+        0.6199201684810465
       ],
-      "force": -2.5795008788546054
+      "force": 0.988274232938145
     },
     {
       "label": "matched live PPO / WebMCP state",
@@ -2818,7 +2818,7 @@
     },
     {
       "label": "bounded local telemetry",
-      "bytes": 2939
+      "bytes": 2925
     }
   ],
   "errors": [],

@@ -10,11 +10,11 @@
   "failure": null,
   "browser": "153.0.8010.12",
   "source_sha256": {
-    "app.js": "2b237a01139ba663c9c9a7f82de2206c46dab84a3aca82fa8787726640d23a5c",
+    "app.js": "19c36ab87b1de8da74af8389adf5111b443f493376b69e753507d6bdda2ca547",
     "index.html": "5a7403282522bcf6d4dc5ebe6ff8793f8d91e47718ce67c79cc359526ccf4bff",
     "native_lesson.js": "91f2a5e84b3eb2f14bfd04084a41bcf8714233d313176ec6444e379e783dfd4b",
     "native_lesson.css": "55feec86b86a5fa43b643cf095580aeb78ee0ffd78a2207b0bd3f89b93e90c4a",
-    "scripts/browser_lesson.mjs": "b9fe5f408b14b6b0698e3c27f60a76b34cb67340fbb5b10d3b3825d9771dffce",
+    "scripts/browser_lesson.mjs": "b473151b93dee0de969aa8e7c3138d5f7acb5cddcb165b1379d81bb38013c907",
     "evidence/guided_lesson/traces.json": "8dadc52d5eb6a3b3d9c127c10e6c3a54c7e9afa1019379e22937de8eb41c8338"
   },
   "screenshots": [

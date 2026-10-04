@@ -36,6 +36,8 @@ try{
  };
  await page.goto(base);await page.locator('#lessonBody').waitFor({state:'visible'});
  assert.equal((await snap()).activeSurface,'native-lesson');assert.equal((await snap()).experiment.live,false);
+ await page.waitForFunction(()=>{const s=window.__cartpoleSonic?.getState();return s?.backends.physics?.includes('MuJoCo')&&!s.experiment.busy;});
+ assert.notEqual((await snap()).execution.state,'error','hidden exploration initializes without canvas drawing');
  await fit();await shot('lesson-default.png');
  await page.getByRole('button',{name:'구별할 수 있다',exact:true}).click();
  assert.match(await page.locator('#lessonFeedback').textContent(),/추가 정보/);
@@ -68,6 +70,9 @@ try{
  await page.waitForTimeout(200);const after=await snap();
  assert.deepEqual(after.signals.proprioception,before.signals.proprioception);
  assert.equal(after.training?.ppoIterations,before.training?.ppoIterations);
+ await page.evaluate(()=>window.__cartpoleSonic.focus('robot'));
+ assert.equal((await snap()).activeSurface,'exploration','explicit tool navigation must provide an exit from record mode');
+ await page.locator('#nativeLessonTab').click();
  await page.locator('#lessonPlay').click();await page.waitForTimeout(100);await page.locator('#explorationTab').click();
  assert.equal((await snap()).lesson.playing,false);assert.equal((await snap()).activeSurface,'exploration');
  await page.locator('main.shell').waitFor({state:'visible'});
