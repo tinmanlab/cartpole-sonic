@@ -1,3 +1,4 @@
+import {normalizeState,doneFor,gae,CartPoleTrainEnv,validateRng,integerCount} from "./control_contract.js";
 import {MLP,RNG,planReference,advancePlannerContext,SONIC_TOY_CONSTANTS} from "./sonic_toy.js";
 
 const REF_DIM=SONIC_TOY_CONSTANTS.REF_DIM;
@@ -8,32 +9,9 @@ const LOG_SQRT_2PI=0.9189385332046727;
 
 const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
 const mean=a=>a.length?a.reduce((s,v)=>s+v,0)/a.length:0;
-const normalizeState=s=>s.map((v,i)=>clamp(v/STATE_SCALE[i],-1.5,1.5));
 const fsqScalar=z=>Math.round(Math.tanh(z)*1.998)/2;
 const fsqDeriv=z=>{const t=Math.tanh(z);return .999*(1-t*t);};
 const logProbGaussian=(a,mu,std=FIXED_STD)=>{const z=(a-mu)/std;return -.5*z*z-Math.log(std)-LOG_SQRT_2PI;};
-
-function rewardFor(nextState,goal,action){
-  const [x,xd,th,thd]=nextState;
-  return 1
-    -.65*Math.min((x-goal)*(x-goal),4)
-    -8*th*th
-    -.020*xd*xd
-    -.020*thd*thd
-    -.002*action*action;
-}
-function doneFor(s){return Math.abs(s[0])>1.78||Math.abs(s[2])>.65||!s.every(Number.isFinite);}
-function gae(data,n,gamma=.99,lambda=.95){
-  const carry=new Float64Array(n);
-  for(let i=data.length-1;i>=0;i--){
-    const q=data[i];
-    q.delta=q.r+gamma*(q.terminated?0:q.nextV)-q.oldV;
-    q.rawAdv=q.delta+gamma*lambda*(q.done?0:carry[q.env]);
-    q.ret=q.rawAdv+q.oldV;carry[q.env]=q.rawAdv;
-  }
-  const m=mean(data.map(q=>q.rawAdv)),sd=Math.sqrt(mean(data.map(q=>(q.rawAdv-m)**2))+1e-8);
-  for(const q of data)q.adv=(q.rawAdv-m)/(sd+1e-8);
-}
 
 class TemporalControlPolicy {
   constructor({tokens=1,seed=9001,widths={}}={}){
@@ -81,58 +59,21 @@ class TemporalControlPolicy {
       kinematicDecoder:this.kinematicDecoder.snapshot(),critic:this.critic.snapshot(),
     };
   }
-  restore(snapshot){
+  validateSnapshot(snapshot){
     if(snapshot?.tokens!==this.tokens)throw new Error("controller token-count mismatch");
-    const load=(net,src,name)=>{
-      if(!src?.p||src.p.length!==net.p.length)throw new Error("invalid "+name+" checkpoint");
-      net.p.set(src.p);
-      if(src.m?.length===net.m.length)net.m.set(src.m);else net.m.fill(0);
-      if(src.v?.length===net.v.length)net.v.set(src.v);else net.v.fill(0);
-      net.t=Number.isFinite(src.t)?src.t:0;
-    };
-    load(this.encoder,snapshot.encoder,"encoder");
-    load(this.dynamicDecoder,snapshot.dynamicDecoder,"dynamicDecoder");
-    load(this.kinematicDecoder,snapshot.kinematicDecoder,"kinematicDecoder");
-    load(this.critic,snapshot.critic,"critic");
+    for(const name of ["encoder","dynamicDecoder","kinematicDecoder","critic"])this[name].validateSnapshot(snapshot[name],name);
+  }
+  restore(snapshot){
+    this.validateSnapshot(snapshot);
+    for(const name of ["encoder","dynamicDecoder","kinematicDecoder","critic"])this[name].applySnapshot(snapshot[name]);
     return this;
   }
 }
 
-class ControlEnv {
-  constructor(sim,rng){
-    this.sim=sim;this.rng=rng;this.data=sim.makeData();this.goal=0;this.steps=0;this.reset();
-  }
-  reset(){
-    this.data.qpos[0]=(this.rng.uniform()*2-1)*.12;
-    this.data.qpos[1]=(this.rng.uniform()*2-1)*.08;
-    this.data.qvel[0]=(this.rng.uniform()*2-1)*.08;
-    this.data.qvel[1]=(this.rng.uniform()*2-1)*.08;
-    this.data.ctrl[0]=0;this.data.time=0;
-    this.sim.mujoco.mj_forward(this.sim.model,this.data);
-    this.goal=(this.rng.uniform()*2-1)*.8;
-    this.refContext=[0,0];this.steps=0;
-    return this.state();
-  }
-  state(){return this.sim.getState(this.data);}
-  reference(){return planReference(this.refContext,this.goal);}
-  impulse({xDotDelta=.65,thetaDotDelta=-1.0}={}){
-    this.data.qvel[0]+=xDotDelta;this.data.qvel[1]+=thetaDotDelta;
-    this.sim.mujoco.mj_forward(this.sim.model,this.data);
-  }
-  step(action){
-    this.data.ctrl[0]=clamp(action,-1,1);
-    this.sim.mujoco.mj_step(this.sim.model,this.data);
-    this.sim.mujoco.mj_step(this.sim.model,this.data);
-    this.steps++;
-    this.refContext=advancePlannerContext(this.refContext,this.goal,.02);
-    const s=this.state(),targetX=this.refContext[0],done=doneFor(s)||this.steps>=500;
-    return{s,targetX,r:rewardFor(s,targetX,action),done,terminated:doneFor(s)};
-  }
-  delete(){this.data.delete();}
-}
-
 export class TemporalControlTrainer {
   constructor(sim,{tokens=1,seed=9101,n=8,horizon=96,epochs=4,batch=128,widths={},ppoLrScale=1,ppoModuleScales={}}={}){
+    integerCount(n,"environment count",1,1024);integerCount(horizon,"rollout horizon",1,100000);
+    integerCount(epochs,"epochs",1,1000);integerCount(batch,"batch",1,1000000);
     this.sim=sim;this.tokens=tokens;this.seed=seed;this.rng=new RNG(seed+5000);
     this.widths={...widths};this.ppoLrScale=ppoLrScale;
     this.ppoModuleScales={
@@ -141,7 +82,7 @@ export class TemporalControlTrainer {
     };
     this.policy=new TemporalControlPolicy({tokens,seed,widths});
     this.n=n;this.horizon=horizon;this.epochs=epochs;this.batch=batch;
-    this.envs=Array.from({length:n},()=>new ControlEnv(sim,this.rng));
+    this.envs=Array.from({length:n},()=>new CartPoleTrainEnv(sim,this.rng));
     this.iter=0;this.envSteps=0;this.episodes=0;this.history=[];
     this.last={reward:NaN,tracking:NaN,piLoss:NaN,valueLoss:NaN,auxLoss:NaN};
   }
@@ -262,7 +203,7 @@ export class TemporalControlTrainer {
   evaluate({episodes=12,seed=8080,disturbance=false}={}){
     const rng=new RNG(seed);let successes=0;const allErr=[],completedErr=[],postPushErr=[],recoverySteps=[],recoveredOnly=[];
     for(let ep=0;ep<episodes;ep++){
-      const e=new ControlEnv(this.sim,rng);let err=0,n=0,postErr=0,postN=0,recovered=null;
+      const e=new CartPoleTrainEnv(this.sim,rng);let err=0,n=0,postErr=0,postN=0,recovered=null;
       while(e.steps<500){
         if(disturbance&&e.steps===120)e.impulse();
         const s=e.state(),ref=e.reference(),o=this.policy.forward(s,ref,e.goal),step=e.step(o.mu);
@@ -292,12 +233,19 @@ export class TemporalControlTrainer {
       bootstrap:this.bootstrap||null,last:this.last,history:this.history.slice(-120),policy:this.policy.snapshot(),
     };
   }
+  validateSnapshot(snapshot){
+    if(snapshot?.schema!=="cartpole-sonic-temporal-control-trainer/v1"||snapshot.tokens!==this.tokens)throw new Error("invalid temporal control checkpoint");
+    this.policy.validateSnapshot(snapshot.policy);
+    if(Object.hasOwn(snapshot,"rng"))validateRng(snapshot.rng);
+    for(const key of ["iter","envSteps","episodes"])if(Object.hasOwn(snapshot,key))integerCount(snapshot[key],key,0,Number.MAX_SAFE_INTEGER);
+  }
   restore(snapshot){
     if(snapshot?.schema!=="cartpole-sonic-temporal-control-trainer/v1"||snapshot.tokens!==this.tokens)throw new Error("invalid temporal control checkpoint");
+    this.validateSnapshot(snapshot);
     this.policy.restore(snapshot.policy);
     for(const e of this.envs)e.delete();
     this.rng=new RNG(this.seed+5000);
-    this.envs=Array.from({length:this.n},()=>new ControlEnv(this.sim,this.rng));
+    this.envs=Array.from({length:this.n},()=>new CartPoleTrainEnv(this.sim,this.rng));
     if(snapshot.rng){this.rng.s=snapshot.rng.s>>>0;this.rng.spare=Number.isFinite(snapshot.rng.spare)?snapshot.rng.spare:null;}
     this.bootstrap=snapshot.bootstrap||null;
     this.iter=snapshot.iter||0;this.envSteps=snapshot.envSteps||0;this.episodes=snapshot.episodes||0;
@@ -339,6 +287,7 @@ export class TemporalControlLab {
   }
   restore(snapshot){
     if(snapshot?.schema!=="cartpole-sonic-temporal-control-lab/v1")throw new Error("invalid temporal control lab checkpoint");
+    this.one.validateSnapshot(snapshot.one);this.two.validateSnapshot(snapshot.two);
     this.one.restore(snapshot.one);this.two.restore(snapshot.two);
     this.evalHistory=Array.isArray(snapshot.evalHistory)?snapshot.evalHistory.slice(-40):[];
     return this;

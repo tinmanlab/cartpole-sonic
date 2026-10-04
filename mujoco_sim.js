@@ -1,3 +1,4 @@
+import {finiteNumber,integerCount,numericVector,ACTION_FORCE} from "./control_contract.js";
 import loadMujoco from "./vendor/mujoco/mujoco.js";
 
 const PRESETS = {
@@ -86,7 +87,12 @@ export class MuJoCoCartPole {
     return this.snapshot();
   }
 
-  reset({x=0, theta=0.10, xDot=0, thetaDot=0}={}) {
+  reset(options={}) {
+    if(!options||typeof options!=="object"||Array.isArray(options))throw new Error("reset state must be an object");
+    for(const key of ["x","theta","xDot","thetaDot"])if(Object.hasOwn(options,key))finiteNumber(options[key],key);
+    const {x=0,theta=.10,xDot=0,thetaDot=0}=options;
+    for(const [name,value] of Object.entries({x,theta,xDot,thetaDot}))finiteNumber(value,name);
+    this.mujoco.mj_resetData(this.model,this.data);
     const qpos = this.data.qpos;
     const qvel = this.data.qvel;
     qpos[0] = x; qpos[1] = theta;
@@ -97,7 +103,9 @@ export class MuJoCoCartPole {
     return this.snapshot();
   }
 
-  setState([x, xDot, theta, thetaDot]) {
+  setState(values) {
+    numericVector(values,4,"reset state");
+    const [x,xDot,theta,thetaDot]=values;
     return this.reset({x, xDot, theta, thetaDot});
   }
 
@@ -106,7 +114,8 @@ export class MuJoCoCartPole {
   }
 
   stepForce(forceN, steps=1) {
-    const count = Math.max(1, Math.min(1000, Math.floor(steps)));
+    finiteNumber(forceN,"forceN");
+    const count = integerCount(steps,"physics steps",1,1000);
     const ctrl = Math.max(-1, Math.min(1, forceN / 10));
     for (let i=0; i<count; i++) {
       this.data.ctrl[0] = ctrl;
@@ -115,9 +124,13 @@ export class MuJoCoCartPole {
     return this.snapshot(forceN);
   }
 
-  applyImpulse({xDotDelta=0.75, thetaDotDelta=-1.25}={}) {
-    this.data.qvel[0] += Number(xDotDelta) || 0;
-    this.data.qvel[1] += Number(thetaDotDelta) || 0;
+  applyImpulse(options={}) {
+    if(!options||typeof options!=="object"||Array.isArray(options))throw new Error("impulse must be an object");
+    for(const key of ["xDotDelta","thetaDotDelta"])if(Object.hasOwn(options,key))finiteNumber(options[key],key);
+    const {xDotDelta=.75,thetaDotDelta=-1.25}=options;
+    finiteNumber(xDotDelta,"xDotDelta");finiteNumber(thetaDotDelta,"thetaDotDelta");
+    this.data.qvel[0] += xDotDelta;
+    this.data.qvel[1] += thetaDotDelta;
     this.mujoco.mj_forward(this.model, this.data);
     return this.snapshot();
   }
@@ -126,7 +139,7 @@ export class MuJoCoCartPole {
     const [x,xDot,theta,thetaDot] = this.getState();
     return {
       x, xDot, theta, thetaDot,
-      time: this.data?.time ?? 0, forceN,
+      time: this.data?.time ?? 0, forceN, requestedForceN:forceN, appliedForceN:forceN===null?null:Math.max(-ACTION_FORCE,Math.min(ACTION_FORCE,forceN)),
       preset: this.preset, model: this.spec.label,
       timestep: this.model?.opt?.timestep ?? 0.01,
       sliderRange: this.spec.sliderRange,
@@ -139,10 +152,12 @@ export class MuJoCoCartPole {
   makeData() { return new this.mujoco.MjData(this.model); }
 
   seedData(data, rng, spread=1) {
-    data.qpos[0] = (rng()*2-1) * 0.10 * spread;
-    data.qpos[1] = (rng()*2-1) * 0.034 * spread;
-    data.qvel[0] = 0.01 * randomNormal(rng) * spread;
-    data.qvel[1] = 0.01 * randomNormal(rng) * spread;
+    finiteNumber(spread,"spread",0);
+    const x=(rng()*2-1)*.10*spread,theta=(rng()*2-1)*.034*spread;
+    const xDot=.01*randomNormal(rng)*spread,thetaDot=.01*randomNormal(rng)*spread;
+    numericVector([x,xDot,theta,thetaDot],4,"seed state");
+    this.mujoco.mj_resetData(this.model,data);
+    data.qpos[0]=x;data.qpos[1]=theta;data.qvel[0]=xDot;data.qvel[1]=thetaDot;
     data.ctrl[0] = 0; data.time = 0;
     this.mujoco.mj_forward(this.model, data);
   }
