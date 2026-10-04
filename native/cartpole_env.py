@@ -112,7 +112,8 @@ class CartPoleEnv:
         metrics={'tracking_mae':torch.tensor(np.abs(states[:,0]-targets),dtype=torch.float32),
                  'abs_pole_angle':torch.tensor(np.abs(states[:,2]),dtype=torch.float32)}
         episode={}
-        if dones.any():episode={'length':torch.tensor(self.episode_steps[dones].mean(),dtype=torch.float32)}
+        # The official trainer already computes episode lengths from dones.
+        # Do not duplicate it with sparse keys that break process_ep_infos().
         for i in np.flatnonzero(dones):self._reset(int(i))
         # Continuing task: only physical failure terminates. Rollout cutoff is not
         # an environment timeout; the official trainer bootstraps its last value.
