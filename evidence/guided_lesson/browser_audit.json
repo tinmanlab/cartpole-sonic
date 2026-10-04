@@ -1,0 +1,26 @@
+{
+  "passed": true,
+  "checks": [
+    "prediction/skip, raw state/force/token alignment, end null, selection reset, playback end, surfaces and mutation rejection",
+    "1440x900 and 1920x1080 horizontal bounds",
+    "explicit focus/training deep links",
+    "missing/invalid evidence error and real-record retry"
+  ],
+  "errors": [],
+  "failure": null,
+  "browser": "153.0.8010.12",
+  "source_sha256": {
+    "app.js": "2b237a01139ba663c9c9a7f82de2206c46dab84a3aca82fa8787726640d23a5c",
+    "index.html": "5a7403282522bcf6d4dc5ebe6ff8793f8d91e47718ce67c79cc359526ccf4bff",
+    "native_lesson.js": "91f2a5e84b3eb2f14bfd04084a41bcf8714233d313176ec6444e379e783dfd4b",
+    "native_lesson.css": "55feec86b86a5fa43b643cf095580aeb78ee0ffd78a2207b0bd3f89b93e90c4a",
+    "scripts/browser_lesson.mjs": "b9fe5f408b14b6b0698e3c27f60a76b34cb67340fbb5b10d3b3825d9771dffce",
+    "evidence/guided_lesson/traces.json": "8dadc52d5eb6a3b3d9c127c10e6c3a54c7e9afa1019379e22937de8eb41c8338"
+  },
+  "screenshots": [
+    "lesson-default.png",
+    "lesson-comparison.png",
+    "lesson-interpretation.png",
+    "lesson-wide.png"
+  ]
+}

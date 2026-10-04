@@ -23,6 +23,7 @@ jobs:
       - run: npm ci
       - run: npm run check
       - run: npm run verify:execution
+      - run: npm run verify:lesson
       - run: npm run verify:presentation
       - run: npm run verify:public
       - run: npm run verify:contracts
@@ -41,6 +42,8 @@ jobs:
         run: npm run verify:browser
       - name: Execute invalid-input, terminal, training-target and recovery paths
         run: npm run verify:browser-execution
+      - name: Verify the native-recorded guided lesson
+        run: npm run verify:browser-lesson
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -51,4 +54,6 @@ jobs:
             media/optimizer-*.png
             evidence/browser_audit.json
             evidence/browser_execution_audit.json
+            evidence/guided_lesson/browser_audit.json
+            media/lesson-*.png
           if-no-files-found: error

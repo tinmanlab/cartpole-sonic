@@ -1,3 +1,4 @@
+import {mountNativeLesson} from "./native_lesson.js";
 import {physicalFailureReason,finiteNumber,integerCount,CONTROL_DT,CONTROL_SUBSTEPS} from "./control_contract.js";
 import { controlSample, controllerIdentity, controllerSummary, blockShape, decoderLayout, decoderConnections, robotGeometry } from "./presentation.js";
 import { MuJoCoCartPole } from "./mujoco_sim.js";
@@ -29,7 +30,10 @@ const $ = id => document.getElementById(id);
 const clamp = (x,a,b) => Math.max(a,Math.min(b,x));
 const fmt = (v,n=3) => Number.isFinite(v) ? Number(v).toFixed(n) : "—";
 
+let nativeLesson=null;
+let labAnimation=0;
 const query = new URLSearchParams(location.search);
+const startsInLesson=query.get("lesson")==="future"||(!query.has("focus")&&!query.has("training")&&!query.has("lesson"));
 const LEGACY = {
   ae:{focus:"encoder",concept:"ae"},
   vae:{focus:"encoder",concept:"vae"},
@@ -126,7 +130,7 @@ function executionText(){
   const reason=executionReason.replace("track limit (1.78 m)","카트 이동 한계(1.78m)").replace("pole angle (0.65 rad)","막대 각도 한계(0.65rad)");
   return labels[executionSnapshot().state]+" · "+(reason||"한 단계 또는 계속 실행")+" · 학습 대상: "+(lastTrainingTargets.map(id=>names[id]||id).join(" · ")||"아직 없음");
 }
-function assertIdle(){if(busy)throw new Error("작업 중입니다. 완료 후 다시 시도하세요.");}
+function assertIdle(){if(nativeLesson?.active)throw new Error("실험 수업 기록 재생 중에는 구조 탐색 도구를 실행할 수 없습니다. 구조 탐색으로 전환하세요.");if(busy)throw new Error("작업 중입니다. 완료 후 다시 시도하세요.");}
 function assertEpisodeReady(){
   assertIdle();if(!physicsReady||!resolveActiveController().trainer)throw new Error("시뮬레이션/모델 준비가 필요합니다.");
   if(episodeTerminated||executionState==="error")throw new Error("Reset 필요: "+executionReason);
@@ -358,6 +362,7 @@ function normalizeConcept(){
   if(!conceptId||!ids.includes(conceptId)) conceptId=focus.id==="quantizer"?"fsq":"core";
 }
 function updateUrl(){
+  if(nativeLesson?.active)return;
   const u=new URL(location.href);
   u.searchParams.delete("lesson");
   if(trainingMode){
@@ -1382,7 +1387,7 @@ function render(){
   const status=$("episodeStatus");
   if(status)status.textContent=executionText();
   // Recreated lesson buttons retain their own bounded/lesson-specific disabled rules.
-  if(busy)for(const el of document.querySelectorAll("button,input,select")){busyDisabledControls.set(el,el.disabled);el.disabled=true;}
+  if(busy)for(const el of document.querySelectorAll(".system-map button,.shell button,.shell input,.shell select")){busyDisabledControls.set(el,el.disabled);el.disabled=true;}
   for(const id of ["stepBtn","liveBtn","pushBtn"])$(id).disabled=busy||episodeTerminated||executionState==="error"||!currentTrainer;
   $("resetBtn").disabled=busy||!physicsReady;$("goal").disabled=busy;
   $("simPreset").disabled=busy||temporalControlModeRequested();
@@ -1403,6 +1408,7 @@ function liveSignals(p=preview(),ref=currentReference(),s=state()){
 function systemSnapshot(){
   const p=preview(),ref=currentReference(),s=state();
   return {
+    ...nativeLesson?.snapshot(),
     system:{
       version:COURSE_VERSION,
       mode:trainingMode?"training":"runtime",
@@ -1463,6 +1469,7 @@ function telemetrySnapshot(){
   const p=preview(),brief=t=>t?{iter:t.iter,envSteps:t.envSteps,last:t.last,parameters:t.policy.parameterBreakdown()}:null;
   return {
     schema:"cartpole-sonic-telemetry/v2",
+    ...nativeLesson?.snapshot(),
     system:{version:COURSE_VERSION,mode:trainingMode?"training":"runtime",focus:trainingMode?null:{node:focus.id,concept:conceptId},trainingTopic:trainingMode?trainingTopic.id:null},
     activeController:activeController(p),lastTrainingTargets:lastTrainingTargets.slice(),execution:executionSnapshot(),
     experiment:{goal,live,preset,busy,episode:episodeIndex,autoResets:autoResetCount},
@@ -1504,6 +1511,8 @@ function installCanvasResizeObserver(){
   const ro=new ResizeObserver(()=>{if(physicsReady&&currentTrainer)render();});ro.observe($("cart"));ro.observe($("lessonViz"));window.__cartpoleSonicResizeObserver=ro;
 }
 function loop(now){
+  labAnimation=0;
+  if(nativeLesson?.active)return;
   const dt=Math.min(.05,Math.max(0,(now-lastFrame)/1000));lastFrame=now;
   if(live&&!busy&&currentTrainer&&physicsReady){
     accumulator+=dt;let n=0;
@@ -1514,10 +1523,15 @@ function loop(now){
     }
     render();
   }
-  requestAnimationFrame(loop);
+  labAnimation=requestAnimationFrame(loop);
 }
 async function init(){
-  attachUI();busy=true;normalizeConcept();
+  attachUI();normalizeConcept();
+  nativeLesson=mountNativeLesson({root:$("nativeLesson"),onEnter(){setLive(false);cancelAnimationFrame(labAnimation);labAnimation=0;$("nativeLessonTab").classList.add("active");$("explorationTab").classList.remove("active");},onLeave(){updateUrl();render();lastFrame=performance.now();if(!labAnimation)labAnimation=requestAnimationFrame(loop);$("nativeLessonTab").classList.remove("active");$("explorationTab").classList.add("active");}});
+  $("nativeLessonTab").onclick=()=>{if(!nativeLesson.active){nativeLesson.enter();const u=new URL(location.href);u.searchParams.set("lesson","future");history.replaceState(null,"",u);}};
+  $("explorationTab").onclick=()=>{if(nativeLesson.active)nativeLesson.leave();};
+  if(startsInLesson)nativeLesson.enter();else $("explorationTab").classList.add("active");
+  busy=true;
   if(focus.id==="token"&&conceptId==="temporal-control")preset="playground";
   renderPreload();
   teacherPromise=loadTeacherPolicy().then(t=>(teacher=t,t)).catch(err=>{console.warn("teacher unavailable",err);return null;});
@@ -1535,9 +1549,9 @@ async function init(){
   registerWebMCP().then(()=>renderHeaderState()).catch(()=>{});
   probeWebGPUFSQ().then(status=>{webgpuStatus=status;setBadge("webgpuBadge",status.ok?"WebGPU FSQ ✓":status.available?"WebGPU fallback":"WebGPU unavailable",status.ok);}).catch(err=>{webgpuStatus={available:false,ok:false,reason:err.message};setBadge("webgpuBadge","WebGPU unavailable",false);});
   if(location.hostname==="localhost"||location.hostname==="127.0.0.1"){setInterval(()=>{fetch("/telemetry",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(telemetrySnapshot()),keepalive:true}).catch(()=>{});},900);}
-  installCanvasResizeObserver();requestAnimationFrame(loop);
+  installCanvasResizeObserver();if(!nativeLesson?.active)labAnimation=requestAnimationFrame(loop);
 }
-init().catch(err=>{busy=false;showError(err);render();setBadge("physicsBadge","model load error",false);requestAnimationFrame(loop);});
+init().catch(err=>{busy=false;showError(err);render();setBadge("physicsBadge","model load error",false);if(!nativeLesson?.active)labAnimation=requestAnimationFrame(loop);});
 
 window.__cartpoleSonic={
   getState:systemSnapshot,

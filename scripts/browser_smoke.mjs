@@ -38,7 +38,7 @@ const page=await browser.newPage({viewport:{width:1600,height:1000},deviceScaleF
 const errors=[],checks=[];
 page.on('pageerror',e=>errors.push(e.message));
 page.on('console',m=>{if(m.type()==='error')errors.push(m.text());});
-const sourceFiles=['app.js','course.js','index.html','presentation.js','optimizer_evidence_view.js','control_contract.js','mujoco_sim.js','sonic_toy.js','temporal_control_lab.js','scripts/browser_smoke.mjs'];
+const sourceFiles=['app.js','course.js','index.html','presentation.js','optimizer_evidence_view.js','control_contract.js','mujoco_sim.js','sonic_toy.js','temporal_control_lab.js','native_lesson.js','native_lesson.css','evidence/guided_lesson/traces.json','scripts/browser_smoke.mjs'];
 const sourceHashes=()=>Object.fromEntries(sourceFiles.map(file=>[file,createHash('sha256').update(fs.readFileSync(file)).digest('hex')]));
 const report={schema:'cartpole-sonic-browser-audit/v1',base,browser:browser.version(),executionOnly,source_sha256:sourceHashes(),checks,errors};
 const state=()=>page.evaluate(()=>window.__cartpoleSonic.getState());
@@ -70,7 +70,7 @@ const bounds=async label=>{
 };
 try{
   if(executionOnly){
-    await page.goto(base);await waitReady();
+    await page.goto(base+'?focus=task');await waitReady();
     const api=code=>page.evaluate(code);
     const reject=async work=>{const result=await page.evaluate(async source=>{try{await Function('return ('+source+')')()();return null;}catch(e){return e.message;}},work.toString());assert.ok(result,'expected API rejection');};
     const before=await state();
@@ -123,7 +123,7 @@ try{
     assert.deepEqual(errors,[]);report.passed=true;
   }else{
   await page.goto(base+'?training=optimizer-sensitivity&depth=mechanism');await waitReady();
-  assert.equal((await state()).system.version,'2.8');
+  assert.equal((await state()).system.version,'2.9');
   await screenshot('optimizer-budget-50.png');
   assert.equal(await page.locator('.opt-data tbody tr').count(),16);
   await bounds('optimizer +50');
