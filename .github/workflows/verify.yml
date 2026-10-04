@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
-      UI_TEST_OUTPUT: ${{ runner.temp }}/sonic-browser-audit
+      UI_TEST_OUTPUT: /tmp/sonic-browser-audit
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -46,7 +46,7 @@ jobs:
         with:
           name: public-learning-visual-audit
           path: |
-            ${{ runner.temp }}/sonic-browser-audit/
+            ${{ env.UI_TEST_OUTPUT }}/
             media/public-*.png
             media/optimizer-*.png
             evidence/browser_audit.json
