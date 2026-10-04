@@ -973,3 +973,9 @@ In 32 separate initial-condition cases, the native policy survived 10 seconds in
 [Measured summary](evidence/native_learning/summary.json) · [Per-episode audit](evidence/native_learning/holdout.json) · [Native weights](evidence/native_learning/weights-final.pt)
 
 This is one training initialization, a fixed CartPole plant, a narrow goal range and a 10-second evaluation—not a seed-robust, humanoid or sim-to-real guarantee. The 32-level setting is not established as necessary or optimal. **The browser controller is unchanged:** these native weights are evaluated through Python, not silently substituted into the JavaScript teaching demo.
+
+## SONIC concept gates and conditional embodiment pivot
+
+The [small-environment concept experiments](native/CONCEPTS.md) now test physically recorded motion references, two coordinate representations, actual multi-Encoder routing, frozen shared-Decoder transfer, future-frame interventions and reconstruction-loss removal. Both successful and unsuccessful control paths are preserved in [`evidence/native_concepts/`](evidence/native_concepts/). In the successful transfer path the already verified native Decoder is unchanged; only new Encoders learn its existing token space. This is not a silent replacement of the browser policy or a new teacher-free PPO performance record.
+
+[The pivot contract](native/PIVOT.md) distinguishes an implementation/experiment gap from a missing physical capability. CartPole remains the fast regression environment. A pinned upstream 2R Reacher is prepared for independently actuated joint/interface questions; a planar walker is a separate conditional option for contact questions. Neither has been installed or trained by these changes. CartPole weights, reward, normalization and force units are not universal robot defaults.

@@ -1,0 +1,421 @@
+{
+  "schema": "cartpole-sonic-concepts/v1",
+  "execution": "COMPLETE",
+  "upstream_commit": "b042411fae38ee4d1af9aac82a37a1f8d14d6dd0",
+  "source_sha256": {
+    "gear_sonic/trl/modules/universal_token_modules.py": "46b6a460032932034a23411b10674adee4ce253e51f66af89d58678c41caf415",
+    "gear_sonic/trl/modules/base_module.py": "462dfc4be982f5d6e2d08275df00fccbc49a81f882bdb60fc257be81da8593b6",
+    "gear_sonic/trl/utils/common.py": "26263d3a3dabcf2bfb9ad0766ba90b910c45246728719497481ec72b28f3e0ad",
+    "gear_sonic/config/actor_critic/encoders/g1_mf_mlp.yaml": "aae7fcb5e043cdf9ea6e2dbbc5da0742c31a4de321ba9867a5537c1e151c739d",
+    "gear_sonic/config/actor_critic/decoders/g1_dyn_mlp.yaml": "4e10d2267500a917c6523280e24518a4826df0135cb6f6879f67a3f7dddac6a4",
+    "gear_sonic/config/actor_critic/decoders/g1_kin_mf_mlp.yaml": "1582d3cef59650adc6377a90f6c828a9de40f2274475c5feb03a37be8946580c",
+    "gear_sonic/config/actor_critic/quantizers/fsq.yaml": "04c18b94f2ef2133c6ee7579c8bede6560cd3b681f7f2eedfdca407c7d6052a4",
+    "gear_sonic/trl/trainer/ppo_trainer.py": "f8bdf8930072aa7fe2bcdbcd03960444e51ba86d853bfc32f1186feaf3ad1b07",
+    "gear_sonic/trl/trainer/ppo_trainer_aux_loss.py": "28be258ef3a67cac33bc97b036b97073f17907333557dae3d9543fdba3cd1b7c",
+    "gear_sonic/trl/modules/actor_critic_modules.py": "6050eca4ea29b312d509201667b1aa7681cbb79ad1f5c957b928c936cb9a85be",
+    "gear_sonic/trl/modules/data_utils.py": "b1d749c208c24306712c09ed5a647e3f4b9c97125ef287b12f18b65e939b67c8",
+    "gear_sonic/trl/utils/rl.py": "c74043b94c43914839cc4b17afc645a611b2fda9be862383e75f037d5776269b",
+    "gear_sonic/trl/utils/scheduler.py": "29c44006764ee6829addb9a655e868987bf1b0218d1a57b7606501f8b4ab7f13",
+    "gear_sonic/trl/callbacks/hv_callback_handler.py": "d119b6cffc48eb4d465863204c85926dc2d462451dec1df1e6e3ea166319a705",
+    "gear_sonic/utils/average_meters.py": "904dadb7ea7ada895ae428845db8b5c1223ff9d03ce20f898f3f9647ebb7a88c",
+    "gear_sonic/utils/batch_normalizer.py": "75d17e143e48120337257d65a1e7f36de772f460641f2ec3202068fc95fe0db4",
+    "gear_sonic/utils/running_mean_std.py": "1e5b0b01b72e9cf216229930409a2dc7522051c593d7f7b8ab61b1fb145fb7ea",
+    "gear_sonic/config/actor_critic/critics/mlp.yaml": "1304f7a390d718c0302b31cbd5be61dfd597181c3e6e575a85b3bca328d3fd80"
+  },
+  "local_source_sha256": {
+    "concepts.py": "2338ed916bc9fcd5cb32929ddaa8849c8ca9fb0665066dbb615fa41e4c4410c6",
+    "cartpole_env.py": "8e051c37a675b7667e6ee9ef78d6543bb9477142b2ef5917e90114ede7998335",
+    "cartpole.xml": "c84f251ff520fafe4cf6effe3182a310a3a7a4966d3508f00b9077c2f37f1f07"
+  },
+  "versions": {
+    "torch": "2.7.0+cpu",
+    "mujoco": "3.14.0"
+  },
+  "method": "official neural modules with local offline imitation/reconstruction/alignment; existing PPO path unchanged",
+  "configuration": {
+    "tokens": 2,
+    "token_dim": 4,
+    "fsq_levels": 32,
+    "hidden_widths": [
+      64,
+      64
+    ],
+    "future_offsets_steps": [
+      0,
+      4,
+      8,
+      12,
+      16,
+      20,
+      24,
+      28
+    ],
+    "joint_reference_dim": 4,
+    "marker_reference_dim": 6,
+    "one_shared_dynamic_decoder": true,
+    "first_reference_frame": "current reference, not first future frame"
+  },
+  "bank": {
+    "source": "recorded actual MuJoCo transitions under frozen native learned policy; changed commands are not certified as perfectly tracked",
+    "checkpoint_sha256": "6ba8092aeda44b8fb69ea53dc48d68a99797e31b05d2d94c4ab2e0c3bbb3f84b",
+    "plant_sha256": "c84f251ff520fafe4cf6effe3182a310a3a7a4966d3508f00b9077c2f37f1f07"
+  },
+  "data_split": {
+    "train_episode_ids": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23
+    ],
+    "heldout_episode_ids": [
+      24,
+      25,
+      26,
+      27,
+      28,
+      29,
+      30,
+      31
+    ],
+    "train_windows": 2184,
+    "heldout_windows": 728,
+    "recorded_lengths": [
+      300,
+      300,
+      300,
+      300,
+      300,
+      300,
+      300,
+      300,
+      300,
+      300,
+      300,
+      300,
+      300,
+      300,
+      300,
+      300,
+      300,
+      300,
+      300,
+      300,
+      300,
+      300,
+      300,
+      300,
+      300,
+      300,
+      300,
+      300,
+      300,
+      300,
+      300,
+      300
+    ],
+    "no_cross_terminal_windows": true,
+    "no_padding": true,
+    "failed_episodes_are_not_hidden": true
+  },
+  "anchor_fit": {
+    "steps": 900,
+    "batch": 64,
+    "learning_rate": 0.001,
+    "aux_coef": 0.5,
+    "first_loss": 0.005663351621478796,
+    "last_loss": 0.00012878207780886441,
+    "reference_mode": "normal",
+    "method": "local offline imitation and reconstruction with official neural modules, not PPO"
+  },
+  "anchor_before": {
+    "samples": 728,
+    "route": 0,
+    "frame_mode": "normal",
+    "action_rmse_normalized": 0.055917781873283216,
+    "action_rmse_newtons": 0.5591778187328321,
+    "reconstruction_mae_state4": [
+      0.13307213271012774,
+      0.23709092106338722,
+      0.04466745888561652,
+      0.25622516992340555
+    ]
+  },
+  "anchor_after": {
+    "samples": 728,
+    "route": 0,
+    "frame_mode": "normal",
+    "action_rmse_normalized": 0.008576653090154927,
+    "action_rmse_newtons": 0.08576653090154927,
+    "reconstruction_mae_state4": [
+      0.008407586100202933,
+      0.03272361599806638,
+      0.0021991509621541025,
+      0.005595285692190243
+    ]
+  },
+  "marker_fit": {
+    "steps": 900,
+    "decoder_unchanged": true,
+    "joint_encoder_unchanged": true,
+    "first_loss": 0.022594522684812546,
+    "last_loss": 0.00010213960194960237,
+    "method": "local paired latent/action MSE; not G1/SMPL loss and not the official PPO trainer"
+  },
+  "marker_before": {
+    "latent_mse": 0.010470696724951267,
+    "exact_token_vector_agreement": 0.0,
+    "scalar_agreement": 0.2771291136741638,
+    "action_disagreement_rmse_newtons": 0.5347051024436951,
+    "warning": "exact token equality is neither the only criterion nor a guarantee of control quality"
+  },
+  "marker_after": {
+    "latent_mse": 0.0001311254600295797,
+    "exact_token_vector_agreement": 0.3392857015132904,
+    "scalar_agreement": 0.8528502583503723,
+    "action_disagreement_rmse_newtons": 0.13479799032211304,
+    "warning": "exact token equality is neither the only criterion nor a guarantee of control quality"
+  },
+  "marker_task_metrics": {
+    "samples": 728,
+    "route": 1,
+    "frame_mode": "normal",
+    "action_rmse_normalized": 0.014536352417473782,
+    "action_rmse_newtons": 0.14536352417473783,
+    "reconstruction_mae_state4": [
+      0.008253925241548653,
+      0.030122201843781206,
+      0.002102997407705797,
+      0.0054844886388146705
+    ]
+  },
+  "temporal_interventions": {
+    "normal": {
+      "samples": 728,
+      "route": 0,
+      "frame_mode": "normal",
+      "action_rmse_normalized": 0.008576653090154927,
+      "action_rmse_newtons": 0.08576653090154927,
+      "reconstruction_mae_state4": [
+        0.008407586100202933,
+        0.03272361599806638,
+        0.0021991509621541025,
+        0.005595285692190243
+      ]
+    },
+    "current_only": {
+      "samples": 728,
+      "route": 0,
+      "frame_mode": "current_only",
+      "action_rmse_normalized": 0.05036368322246439,
+      "action_rmse_newtons": 0.5036368322246438,
+      "reconstruction_mae_state4": [
+        0.015973298831632357,
+        0.04283880046498779,
+        0.002477187720599889,
+        0.00712110096201352
+      ]
+    },
+    "reverse_future": {
+      "samples": 728,
+      "route": 0,
+      "frame_mode": "reverse_future",
+      "action_rmse_normalized": 0.05442200443046848,
+      "action_rmse_newtons": 0.5442200443046848,
+      "reconstruction_mae_state4": [
+        0.009705726247189218,
+        0.04279880254678616,
+        0.0024612785782204493,
+        0.007997219998456827
+      ]
+    },
+    "endpoints_only": {
+      "samples": 728,
+      "route": 0,
+      "frame_mode": "endpoints_only",
+      "action_rmse_normalized": 0.025773994461931557,
+      "action_rmse_newtons": 0.2577399446193156,
+      "reconstruction_mae_state4": [
+        0.008242328156022462,
+        0.030820564010435054,
+        0.002245371732550237,
+        0.0054599815981167706
+      ]
+    }
+  },
+  "matched_current_only_fit": {
+    "steps": 900,
+    "batch": 64,
+    "learning_rate": 0.001,
+    "aux_coef": 0.5,
+    "first_loss": 0.005663351621478796,
+    "last_loss": 0.0006799087859690189,
+    "reference_mode": "current_only",
+    "method": "local offline imitation and reconstruction with official neural modules, not PPO"
+  },
+  "matched_current_only_metrics": {
+    "samples": 728,
+    "route": 0,
+    "frame_mode": "current_only",
+    "action_rmse_normalized": 0.021314899079349445,
+    "action_rmse_newtons": 0.21314899079349445,
+    "reconstruction_mae_state4": [
+      0.006031763515065089,
+      0.021483765881181123,
+      0.0018235630675549586,
+      0.007377239335237406
+    ]
+  },
+  "fork_probe": {
+    "current_reference_max_delta": 0.0,
+    "future_max_delta": 0.38215527661168913,
+    "action_delta": 0.17776457965373993,
+    "boundary": "physical futures, not equal-endpoint paths; action difference alone does not demonstrate useful anticipation"
+  },
+  "replay": {
+    "joints": {
+      "clean": {
+        "route": 0,
+        "frame_mode": "normal",
+        "episodes": 8,
+        "completed": 0,
+        "horizons": [
+          250,
+          250,
+          250,
+          250,
+          250,
+          250,
+          250,
+          250
+        ],
+        "executed_mae": 0.1215112160105833,
+        "completed_mae": null,
+        "mean_steps": 153.5,
+        "push_reached": 0,
+        "reference_source": "immutable prerecorded physical trajectory; current proprioception is measured live",
+        "claim": "replay-conditioned evaluation only; no online planner or formal stability claim"
+      },
+      "push": {
+        "route": 0,
+        "frame_mode": "normal",
+        "episodes": 8,
+        "completed": 0,
+        "horizons": [
+          250,
+          250,
+          250,
+          250,
+          250,
+          250,
+          250,
+          250
+        ],
+        "executed_mae": 0.12515178105194893,
+        "completed_mae": null,
+        "mean_steps": 150.25,
+        "push_reached": 8,
+        "reference_source": "immutable prerecorded physical trajectory; current proprioception is measured live",
+        "claim": "replay-conditioned evaluation only; no online planner or formal stability claim"
+      }
+    },
+    "markers": {
+      "clean": {
+        "route": 1,
+        "frame_mode": "normal",
+        "episodes": 8,
+        "completed": 0,
+        "horizons": [
+          250,
+          250,
+          250,
+          250,
+          250,
+          250,
+          250,
+          250
+        ],
+        "executed_mae": 0.11844786599861125,
+        "completed_mae": null,
+        "mean_steps": 148.875,
+        "push_reached": 0,
+        "reference_source": "immutable prerecorded physical trajectory; current proprioception is measured live",
+        "claim": "replay-conditioned evaluation only; no online planner or formal stability claim"
+      },
+      "push": {
+        "route": 1,
+        "frame_mode": "normal",
+        "episodes": 8,
+        "completed": 0,
+        "horizons": [
+          250,
+          250,
+          250,
+          250,
+          250,
+          250,
+          250,
+          250
+        ],
+        "executed_mae": 0.12743628789577838,
+        "completed_mae": null,
+        "mean_steps": 160.5,
+        "push_reached": 8,
+        "reference_source": "immutable prerecorded physical trajectory; current proprioception is measured live",
+        "claim": "replay-conditioned evaluation only; no online planner or formal stability claim"
+      }
+    },
+    "current_only_matched_training": {
+      "route": 0,
+      "frame_mode": "current_only",
+      "episodes": 8,
+      "completed": 0,
+      "horizons": [
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250,
+        250
+      ],
+      "executed_mae": 0.10912781600708982,
+      "completed_mae": null,
+      "mean_steps": 99.625,
+      "push_reached": 0,
+      "reference_source": "immutable prerecorded physical trajectory; current proprioception is measured live",
+      "claim": "replay-conditioned evaluation only; no online planner or formal stability claim"
+    }
+  },
+  "boundaries": [
+    "Clean invertible coordinates, not camera/VR noise, occlusion or ambiguous human retargeting.",
+    "One offline training seed; shared-decoder transfer is not cross-robot weight transfer.",
+    "Frame corruption is an input intervention, not a new physically feasible motion command.",
+    "Replay performance and offline prediction do not prove online planning or optimal anticipatory control.",
+    "No new PPO sweep, browser policy replacement, new robot or hardware actuation was performed."
+  ],
+  "artifacts_sha256": {
+    "motions.npz": "aec58b9b4115afe3114300f418758d594cd891664ddf62ea2d644076cc32e168",
+    "concept-weights.pt": "f3e09be3b6d2d4edc48f927c36b10941cecb492e5a62498be03b7721541c9d33"
+  }
+}
