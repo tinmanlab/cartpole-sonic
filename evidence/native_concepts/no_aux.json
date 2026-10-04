@@ -1,0 +1,81 @@
+{
+  "execution": "COMPLETE",
+  "scope": "offline reconstruction-loss ablation, not a SONIC PPO benchmark",
+  "source_sha256": {
+    "gear_sonic/trl/modules/universal_token_modules.py": "46b6a460032932034a23411b10674adee4ce253e51f66af89d58678c41caf415",
+    "gear_sonic/trl/modules/base_module.py": "462dfc4be982f5d6e2d08275df00fccbc49a81f882bdb60fc257be81da8593b6",
+    "gear_sonic/trl/utils/common.py": "26263d3a3dabcf2bfb9ad0766ba90b910c45246728719497481ec72b28f3e0ad",
+    "gear_sonic/config/actor_critic/encoders/g1_mf_mlp.yaml": "aae7fcb5e043cdf9ea6e2dbbc5da0742c31a4de321ba9867a5537c1e151c739d",
+    "gear_sonic/config/actor_critic/decoders/g1_dyn_mlp.yaml": "4e10d2267500a917c6523280e24518a4826df0135cb6f6879f67a3f7dddac6a4",
+    "gear_sonic/config/actor_critic/decoders/g1_kin_mf_mlp.yaml": "1582d3cef59650adc6377a90f6c828a9de40f2274475c5feb03a37be8946580c",
+    "gear_sonic/config/actor_critic/quantizers/fsq.yaml": "04c18b94f2ef2133c6ee7579c8bede6560cd3b681f7f2eedfdca407c7d6052a4",
+    "gear_sonic/trl/trainer/ppo_trainer.py": "f8bdf8930072aa7fe2bcdbcd03960444e51ba86d853bfc32f1186feaf3ad1b07",
+    "gear_sonic/trl/trainer/ppo_trainer_aux_loss.py": "28be258ef3a67cac33bc97b036b97073f17907333557dae3d9543fdba3cd1b7c",
+    "gear_sonic/trl/modules/actor_critic_modules.py": "6050eca4ea29b312d509201667b1aa7681cbb79ad1f5c957b928c936cb9a85be",
+    "gear_sonic/trl/modules/data_utils.py": "b1d749c208c24306712c09ed5a647e3f4b9c97125ef287b12f18b65e939b67c8",
+    "gear_sonic/trl/utils/rl.py": "c74043b94c43914839cc4b17afc645a611b2fda9be862383e75f037d5776269b",
+    "gear_sonic/trl/utils/scheduler.py": "29c44006764ee6829addb9a655e868987bf1b0218d1a57b7606501f8b4ab7f13",
+    "gear_sonic/trl/callbacks/hv_callback_handler.py": "d119b6cffc48eb4d465863204c85926dc2d462451dec1df1e6e3ea166319a705",
+    "gear_sonic/utils/average_meters.py": "904dadb7ea7ada895ae428845db8b5c1223ff9d03ce20f898f3f9647ebb7a88c",
+    "gear_sonic/utils/batch_normalizer.py": "75d17e143e48120337257d65a1e7f36de772f460641f2ec3202068fc95fe0db4",
+    "gear_sonic/utils/running_mean_std.py": "1e5b0b01b72e9cf216229930409a2dc7522051c593d7f7b8ab61b1fb145fb7ea",
+    "gear_sonic/config/actor_critic/critics/mlp.yaml": "1304f7a390d718c0302b31cbd5be61dfd597181c3e6e575a85b3bca328d3fd80"
+  },
+  "shared_bank_sha256": "aec58b9b4115afe3114300f418758d594cd891664ddf62ea2d644076cc32e168",
+  "training": {
+    "steps": 900,
+    "batch": 64,
+    "learning_rate": 0.001,
+    "aux_coef": 0.0,
+    "first_loss": 0.00155753327999264,
+    "last_loss": 7.012656715232879e-05,
+    "reference_mode": "normal",
+    "method": "local offline imitation and reconstruction with official neural modules, not PPO"
+  },
+  "heldout": {
+    "samples": 728,
+    "route": 0,
+    "frame_mode": "normal",
+    "action_rmse_normalized": 0.007655518682937914,
+    "action_rmse_newtons": 0.07655518682937913,
+    "reconstruction_mae_state4": [
+      0.1326788704772027,
+      0.23651140428325976,
+      0.04493156150399927,
+      0.25531150763337496
+    ]
+  },
+  "replay": {
+    "route": 0,
+    "frame_mode": "normal",
+    "episodes": 8,
+    "completed": 0,
+    "horizons": [
+      250,
+      250,
+      250,
+      250,
+      250,
+      250,
+      250,
+      250
+    ],
+    "executed_mae": 0.12561612934133254,
+    "completed_mae": null,
+    "mean_steps": 162.0,
+    "push_reached": 0,
+    "reference_source": "immutable prerecorded physical trajectory; current proprioception is measured live",
+    "claim": "replay-conditioned evaluation only; no online planner or formal stability claim"
+  },
+  "comparison": "same initial joint model, samples, batch size, optimizer, steps and full future input as anchor; only aux_coef .5 to 0",
+  "heldout_episode_ids": [
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31
+  ]
+}
