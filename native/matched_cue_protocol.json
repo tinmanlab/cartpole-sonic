@@ -1,0 +1,45 @@
+{
+  "schema": "cartpole-sonic-matched-cue-protocol/v1",
+  "base_commit": "d85a6bab5a8e23451b1aa87ad63bce716c76846a",
+  "objective": "Replace frozen-input-only interventions with equally trained input-conditioned Encoders, retain the same official SONIC Decoder, and evaluate on new whole physical pairs without selecting a winner.",
+  "native_checkpoint": "evidence/native_learning/weights-final.pt",
+  "upstream_commit": "b042411fae38ee4d1af9aac82a37a1f8d14d6dd0",
+  "data_splits": {
+    "train": {"seed": 94101, "replicates": 3, "ticks": [8,12,16], "amplitudes_m": [0.001,0.002,0.004,0.006]},
+    "validation": {"seed": 94102, "replicates": 1, "ticks": [8,12,16], "amplitudes_m": [0.001,0.002,0.004,0.006]},
+    "test": {"seed": 94103, "replicates": 2, "ticks": [8,12,16], "amplitudes_m": [0.0015,0.003,0.005,0.0055]}
+  },
+  "physical_acceptance": "Reuse temporal_pairs.generate_pair and its fixed full-state endpoint/interior/force/solver-budget checks. All rejections retained. Both signs and every window of each pair stay in the same split.",
+  "conditions": ["full_future", "current_only", "history_only", "endpoints_only"],
+  "encoders": ["joints", "markers"],
+  "encoder_initialization_seeds": [52101, 52102, 52103],
+  "trainable": "Only the selected new Encoder; original Encoder, FSQ and both Decoder parameter arrays remain unchanged.",
+  "initialization": "Reset the selected original BaseModule MLP with the declared seed; identical learned weights across cue conditions within each modality/seed. Not independent full-controller or PPO initializations.",
+  "training": {
+    "method": "Local supervised imitation of recorded normalized actions through original SONIC Encoder/FSQ/frozen Decoder; not an official PPO experiment.",
+    "optimizer": "torch.optim.Adam",
+    "learning_rate": 0.001,
+    "steps": 1200,
+    "paired_cases_per_batch": 32,
+    "samples_per_batch": 64,
+    "first_tick_probability": 0.5,
+    "other_ticks": [1,27],
+    "loss": "Mean squared error to both recorded normalized actions; pair signs always balanced.",
+    "gradient_norm_clip": 1.0,
+    "checkpoint_selection": "Final fixed-budget checkpoint only. Validation is reported but never used to select a checkpoint, epoch, seed or learning rate."
+  },
+  "evaluations": {
+    "offline": ["branch-point first-force MSE", "all-window recorded-action RMSE", "equal-cue paired-common-force prediction bound"],
+    "closed_loop": {"horizon_steps": 28, "control_dt_s": 0.02, "actual_state_offsets": [[0,0,0,0],[0,0.02,0.001,-0.02]], "targets": "unchanged prerecorded true reference, with physically simulated zero-control preview tail"},
+    "marker_noise_probe": {"position_sigma_m": [0.001,0.005], "velocity_sigma_m_s": [0.01,0.05], "rng_seed": 94104, "scope": "Offline input sensitivity of full-future marker Encoder on test references; actual proprioception/labels unchanged. Not a noisy-sensor controller certification."},
+    "missing_marker_contract": "Prove the existing tip-only ambiguity, and reject missing full-marker information rather than treating an unmarked zero as an observed value. No inverse-state claim from ambiguous data."
+  },
+  "claim_limits": [
+    "Equal training budget is not proof that every condition is globally optimally trained.",
+    "New Encoder seeds share one fixed previously trained controller/Decoder.",
+    "Recorded first-action prediction is not a universal control-performance bound.",
+    "Subsecond paired maneuvers are not sustained stability, original SONIC humanoid performance or sim-to-real readiness.",
+    "This experiment changes no browser policy, shared service, hardware authority or robot embodiment.",
+    "Failure to learn is an experiment/representation gap unless a required physical structure is demonstrably absent."
+  ]
+}

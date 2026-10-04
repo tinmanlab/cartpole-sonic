@@ -9,6 +9,7 @@ on:
       - 'evidence/native_learning/**'
       - 'evidence/native_concepts/**'
       - 'evidence/temporal_audit/**'
+      - 'evidence/matched_cues/**'
       - '.github/workflows/native-core.yml'
   push:
     branches: [main]
@@ -19,6 +20,7 @@ on:
       - 'evidence/native_learning/**'
       - 'evidence/native_concepts/**'
       - 'evidence/temporal_audit/**'
+      - 'evidence/matched_cues/**'
       - '.github/workflows/native-core.yml'
 
 permissions:
@@ -61,8 +63,8 @@ jobs:
           python -m pip install 'torch==2.7.0+cpu' 'torchvision==0.22.0+cpu' --index-url https://download.pytorch.org/whl/cpu
           python -m pip install -r native/training.lock
           python -m pip check
-      - name: Native contracts and committed physical/concept/temporal replay
-        run: python -m pytest native/test_core_smoke.py native/test_training.py native/test_learning.py native/test_concepts.py native/test_concept_control.py native/test_encoder_transfer.py native/test_temporal_pairs.py native/test_temporal_audit.py -q --junitxml=native-results.xml
+      - name: Native contracts, matched-training smoke and committed replay
+        run: python -m pytest native/test_core_smoke.py native/test_training.py native/test_learning.py native/test_concepts.py native/test_concept_control.py native/test_encoder_transfer.py native/test_temporal_pairs.py native/test_temporal_audit.py native/test_matched_cues.py -q --junitxml=native-results.xml
       - name: Record fresh module and trainer executions
         run: |
           python native/core_smoke.py --output native-core-result.json

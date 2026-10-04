@@ -1,0 +1,1290 @@
+{
+  "schema": "cartpole-sonic-matched-cues/v1",
+  "execution": "COMPLETE",
+  "final_protocol": true,
+  "actual_steps": 1200,
+  "models": 24,
+  "raw_report_sha256": "f417db46339d7b88cb2194045f67bdcd81fe93b62e64ba413fa2373f54b4fcf9",
+  "compressed_report_sha256": "706fa7e47b2d2406fc8ba22fe67a89938717f8c4c2961e67e9d7c1442d86042b",
+  "provenance": {
+    "protocol_sha256": "954d6ae7c4e3032437620c2eacb77df038c14c953e8832301b8a20aa15dfe9fb",
+    "checkpoint_sha256": "6ba8092aeda44b8fb69ea53dc48d68a99797e31b05d2d94c4ab2e0c3bbb3f84b",
+    "plant_sha256": "c84f251ff520fafe4cf6effe3182a310a3a7a4966d3508f00b9077c2f37f1f07",
+    "source_sha256": {
+      "gear_sonic/trl/modules/universal_token_modules.py": "46b6a460032932034a23411b10674adee4ce253e51f66af89d58678c41caf415",
+      "gear_sonic/trl/modules/base_module.py": "462dfc4be982f5d6e2d08275df00fccbc49a81f882bdb60fc257be81da8593b6",
+      "gear_sonic/trl/utils/common.py": "26263d3a3dabcf2bfb9ad0766ba90b910c45246728719497481ec72b28f3e0ad",
+      "gear_sonic/config/actor_critic/encoders/g1_mf_mlp.yaml": "aae7fcb5e043cdf9ea6e2dbbc5da0742c31a4de321ba9867a5537c1e151c739d",
+      "gear_sonic/config/actor_critic/decoders/g1_dyn_mlp.yaml": "4e10d2267500a917c6523280e24518a4826df0135cb6f6879f67a3f7dddac6a4",
+      "gear_sonic/config/actor_critic/decoders/g1_kin_mf_mlp.yaml": "1582d3cef59650adc6377a90f6c828a9de40f2274475c5feb03a37be8946580c",
+      "gear_sonic/config/actor_critic/quantizers/fsq.yaml": "04c18b94f2ef2133c6ee7579c8bede6560cd3b681f7f2eedfdca407c7d6052a4",
+      "gear_sonic/trl/trainer/ppo_trainer.py": "f8bdf8930072aa7fe2bcdbcd03960444e51ba86d853bfc32f1186feaf3ad1b07",
+      "gear_sonic/trl/trainer/ppo_trainer_aux_loss.py": "28be258ef3a67cac33bc97b036b97073f17907333557dae3d9543fdba3cd1b7c",
+      "gear_sonic/trl/modules/actor_critic_modules.py": "6050eca4ea29b312d509201667b1aa7681cbb79ad1f5c957b928c936cb9a85be",
+      "gear_sonic/trl/modules/data_utils.py": "b1d749c208c24306712c09ed5a647e3f4b9c97125ef287b12f18b65e939b67c8",
+      "gear_sonic/trl/utils/rl.py": "c74043b94c43914839cc4b17afc645a611b2fda9be862383e75f037d5776269b",
+      "gear_sonic/trl/utils/scheduler.py": "29c44006764ee6829addb9a655e868987bf1b0218d1a57b7606501f8b4ab7f13",
+      "gear_sonic/trl/callbacks/hv_callback_handler.py": "d119b6cffc48eb4d465863204c85926dc2d462451dec1df1e6e3ea166319a705",
+      "gear_sonic/utils/average_meters.py": "904dadb7ea7ada895ae428845db8b5c1223ff9d03ce20f898f3f9647ebb7a88c",
+      "gear_sonic/utils/batch_normalizer.py": "75d17e143e48120337257d65a1e7f36de772f460641f2ec3202068fc95fe0db4",
+      "gear_sonic/utils/running_mean_std.py": "1e5b0b01b72e9cf216229930409a2dc7522051c593d7f7b8ab61b1fb145fb7ea",
+      "gear_sonic/config/actor_critic/critics/mlp.yaml": "1304f7a390d718c0302b31cbd5be61dfd597181c3e6e575a85b3bca328d3fd80"
+    },
+    "local_source_sha256": {
+      "matched_cues.py": "f7af549c12b7a2433e8e57712c303e805b744194dabceff1328e24d30af4c6ae",
+      "temporal_pairs.py": "edab4a3515dc542d9936b329ea177a75e84634a0fb2bb51736b81ca008f27cd9",
+      "temporal_audit.py": "910f43eec12c8e8da27752b2c513451ccdef6f77b66bf21f006cba2a0fdaf5e6",
+      "encoder_transfer.py": "bf2dad6e0c5d85c74527debf9d644829ee796428a4f0cc313553f62d81ab6dab",
+      "concepts.py": "2338ed916bc9fcd5cb32929ddaa8849c8ca9fb0665066dbb615fa41e4c4410c6",
+      "cartpole.xml": "c84f251ff520fafe4cf6effe3182a310a3a7a4966d3508f00b9077c2f37f1f07"
+    }
+  },
+  "protocol": {
+    "schema": "cartpole-sonic-matched-cue-protocol/v1",
+    "base_commit": "d85a6bab5a8e23451b1aa87ad63bce716c76846a",
+    "objective": "Replace frozen-input-only interventions with equally trained input-conditioned Encoders, retain the same official SONIC Decoder, and evaluate on new whole physical pairs without selecting a winner.",
+    "native_checkpoint": "evidence/native_learning/weights-final.pt",
+    "upstream_commit": "b042411fae38ee4d1af9aac82a37a1f8d14d6dd0",
+    "data_splits": {
+      "train": {
+        "seed": 94101,
+        "replicates": 3,
+        "ticks": [
+          8,
+          12,
+          16
+        ],
+        "amplitudes_m": [
+          0.001,
+          0.002,
+          0.004,
+          0.006
+        ]
+      },
+      "validation": {
+        "seed": 94102,
+        "replicates": 1,
+        "ticks": [
+          8,
+          12,
+          16
+        ],
+        "amplitudes_m": [
+          0.001,
+          0.002,
+          0.004,
+          0.006
+        ]
+      },
+      "test": {
+        "seed": 94103,
+        "replicates": 2,
+        "ticks": [
+          8,
+          12,
+          16
+        ],
+        "amplitudes_m": [
+          0.0015,
+          0.003,
+          0.005,
+          0.0055
+        ]
+      }
+    },
+    "physical_acceptance": "Reuse temporal_pairs.generate_pair and its fixed full-state endpoint/interior/force/solver-budget checks. All rejections retained. Both signs and every window of each pair stay in the same split.",
+    "conditions": [
+      "full_future",
+      "current_only",
+      "history_only",
+      "endpoints_only"
+    ],
+    "encoders": [
+      "joints",
+      "markers"
+    ],
+    "encoder_initialization_seeds": [
+      52101,
+      52102,
+      52103
+    ],
+    "trainable": "Only the selected new Encoder; original Encoder, FSQ and both Decoder parameter arrays remain unchanged.",
+    "initialization": "Reset the selected original BaseModule MLP with the declared seed; identical learned weights across cue conditions within each modality/seed. Not independent full-controller or PPO initializations.",
+    "training": {
+      "method": "Local supervised imitation of recorded normalized actions through original SONIC Encoder/FSQ/frozen Decoder; not an official PPO experiment.",
+      "optimizer": "torch.optim.Adam",
+      "learning_rate": 0.001,
+      "steps": 1200,
+      "paired_cases_per_batch": 32,
+      "samples_per_batch": 64,
+      "first_tick_probability": 0.5,
+      "other_ticks": [
+        1,
+        27
+      ],
+      "loss": "Mean squared error to both recorded normalized actions; pair signs always balanced.",
+      "gradient_norm_clip": 1.0,
+      "checkpoint_selection": "Final fixed-budget checkpoint only. Validation is reported but never used to select a checkpoint, epoch, seed or learning rate."
+    },
+    "evaluations": {
+      "offline": [
+        "branch-point first-force MSE",
+        "all-window recorded-action RMSE",
+        "equal-cue paired-common-force prediction bound"
+      ],
+      "closed_loop": {
+        "horizon_steps": 28,
+        "control_dt_s": 0.02,
+        "actual_state_offsets": [
+          [
+            0,
+            0,
+            0,
+            0
+          ],
+          [
+            0,
+            0.02,
+            0.001,
+            -0.02
+          ]
+        ],
+        "targets": "unchanged prerecorded true reference, with physically simulated zero-control preview tail"
+      },
+      "marker_noise_probe": {
+        "position_sigma_m": [
+          0.001,
+          0.005
+        ],
+        "velocity_sigma_m_s": [
+          0.01,
+          0.05
+        ],
+        "rng_seed": 94104,
+        "scope": "Offline input sensitivity of full-future marker Encoder on test references; actual proprioception/labels unchanged. Not a noisy-sensor controller certification."
+      },
+      "missing_marker_contract": "Prove the existing tip-only ambiguity, and reject missing full-marker information rather than treating an unmarked zero as an observed value. No inverse-state claim from ambiguous data."
+    },
+    "claim_limits": [
+      "Equal training budget is not proof that every condition is globally optimally trained.",
+      "New Encoder seeds share one fixed previously trained controller/Decoder.",
+      "Recorded first-action prediction is not a universal control-performance bound.",
+      "Subsecond paired maneuvers are not sustained stability, original SONIC humanoid performance or sim-to-real readiness.",
+      "This experiment changes no browser policy, shared service, hardware authority or robot embodiment.",
+      "Failure to learn is an experiment/representation gap unless a required physical structure is demonstrably absent."
+    ]
+  },
+  "generation": {
+    "train": {
+      "declared": 36,
+      "accepted": 27
+    },
+    "validation": {
+      "declared": 12,
+      "accepted": 9
+    },
+    "test": {
+      "declared": 24,
+      "accepted": 20
+    }
+  },
+  "shared_anchor": {
+    "decoders": {
+      "g1_dyn": "fabe92b32d7952e641a4111a650f0882a08fe65e4c7c951374e8af0defe25e83",
+      "cartpole_kin": "e588a6dff5f95c298daf2ed023324ca00d59303426172ccd7b709aaff021b869"
+    },
+    "fsq": "7a93f1b79eee1a3e3f370d314f1535b2043d7acfe9b76dcdd003a412f662bafc",
+    "original": "70c4c72d3afbf036cfc03b0e8aed2b15d027df3c86e9cda894dc2b08ff14faf5"
+  },
+  "summary": [
+    {
+      "modality": "joints",
+      "mode": "full_future",
+      "encoder_initializations": 3,
+      "metrics": {
+        "action_rmse_N": {
+          "mean": 0.5689623850472311,
+          "sample_std": 0.009570264209606067
+        },
+        "first_force_mse_N2": {
+          "mean": 0.004360330988343015,
+          "sample_std": 0.000806108898282614
+        },
+        "paired_common_first_force_bound_N2": {
+          "mean": 0.18748394041390318,
+          "sample_std": 0.0
+        }
+      },
+      "survival": [
+        {
+          "offset": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "per_seed_counts": [
+            [
+              40,
+              40
+            ],
+            [
+              40,
+              40
+            ],
+            [
+              40,
+              40
+            ]
+          ],
+          "mean": 1.0,
+          "sample_std": 0.0,
+          "cart_metrics": {
+            "executed_cart_mae_m": {
+              "per_seed": [
+                0.0003939802578122876,
+                0.0004048911966144443,
+                0.0003807215172524479
+              ],
+              "mean": 0.00039319765722639334,
+              "sample_std": 1.2103829884512183e-05
+            },
+            "completed_cart_mae_m": {
+              "per_seed": [
+                0.0003939802578122876,
+                0.0004048911966144443,
+                0.0003807215172524479
+              ],
+              "mean": 0.00039319765722639334,
+              "sample_std": 1.2103829884512183e-05
+            }
+          }
+        },
+        {
+          "offset": [
+            0,
+            0.02,
+            0.001,
+            -0.02
+          ],
+          "per_seed_counts": [
+            [
+              40,
+              40
+            ],
+            [
+              40,
+              40
+            ],
+            [
+              40,
+              40
+            ]
+          ],
+          "mean": 1.0,
+          "sample_std": 0.0,
+          "cart_metrics": {
+            "executed_cart_mae_m": {
+              "per_seed": [
+                0.002612546856218961,
+                0.0026927927750656244,
+                0.0025805760604496056
+              ],
+              "mean": 0.002628638563911397,
+              "sample_std": 5.781310450189776e-05
+            },
+            "completed_cart_mae_m": {
+              "per_seed": [
+                0.002612546856218961,
+                0.0026927927750656244,
+                0.0025805760604496056
+              ],
+              "mean": 0.002628638563911397,
+              "sample_std": 5.781310450189776e-05
+            }
+          }
+        }
+      ]
+    },
+    {
+      "modality": "joints",
+      "mode": "current_only",
+      "encoder_initializations": 3,
+      "metrics": {
+        "action_rmse_N": {
+          "mean": 0.7010226876915527,
+          "sample_std": 0.0005477085414637113
+        },
+        "first_force_mse_N2": {
+          "mean": 0.19154986327742388,
+          "sample_std": 0.0013957474557518997
+        },
+        "paired_common_first_force_bound_N2": {
+          "mean": 0.18748394041390318,
+          "sample_std": 0.0
+        }
+      },
+      "survival": [
+        {
+          "offset": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "per_seed_counts": [
+            [
+              40,
+              40
+            ],
+            [
+              40,
+              40
+            ],
+            [
+              40,
+              40
+            ]
+          ],
+          "mean": 1.0,
+          "sample_std": 0.0,
+          "cart_metrics": {
+            "executed_cart_mae_m": {
+              "per_seed": [
+                0.0010355841829032713,
+                0.0010267337341837827,
+                0.0009992602314863775
+              ],
+              "mean": 0.001020526049524477,
+              "sample_std": 1.89409311612774e-05
+            },
+            "completed_cart_mae_m": {
+              "per_seed": [
+                0.0010355841829032713,
+                0.0010267337341837827,
+                0.0009992602314863775
+              ],
+              "mean": 0.001020526049524477,
+              "sample_std": 1.89409311612774e-05
+            }
+          }
+        },
+        {
+          "offset": [
+            0,
+            0.02,
+            0.001,
+            -0.02
+          ],
+          "per_seed_counts": [
+            [
+              40,
+              40
+            ],
+            [
+              40,
+              40
+            ],
+            [
+              40,
+              40
+            ]
+          ],
+          "mean": 1.0,
+          "sample_std": 0.0,
+          "cart_metrics": {
+            "executed_cart_mae_m": {
+              "per_seed": [
+                0.0027299564078783027,
+                0.0026751992685830487,
+                0.0027238057197284745
+              ],
+              "mean": 0.0027096537987299422,
+              "sample_std": 2.9996561918184772e-05
+            },
+            "completed_cart_mae_m": {
+              "per_seed": [
+                0.0027299564078783027,
+                0.0026751992685830487,
+                0.0027238057197284745
+              ],
+              "mean": 0.0027096537987299422,
+              "sample_std": 2.9996561918184772e-05
+            }
+          }
+        }
+      ]
+    },
+    {
+      "modality": "joints",
+      "mode": "history_only",
+      "encoder_initializations": 3,
+      "metrics": {
+        "action_rmse_N": {
+          "mean": 0.6915528980467118,
+          "sample_std": 0.006598630863989265
+        },
+        "first_force_mse_N2": {
+          "mean": 0.19155284051070467,
+          "sample_std": 0.0006810518109210157
+        },
+        "paired_common_first_force_bound_N2": {
+          "mean": 0.18748394041390318,
+          "sample_std": 0.0
+        }
+      },
+      "survival": [
+        {
+          "offset": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "per_seed_counts": [
+            [
+              40,
+              40
+            ],
+            [
+              40,
+              40
+            ],
+            [
+              40,
+              40
+            ]
+          ],
+          "mean": 1.0,
+          "sample_std": 0.0,
+          "cart_metrics": {
+            "executed_cart_mae_m": {
+              "per_seed": [
+                0.0008885241114293983,
+                0.0008678995060259004,
+                0.0008550868944065298
+              ],
+              "mean": 0.0008705035039539428,
+              "sample_std": 1.6870017026237373e-05
+            },
+            "completed_cart_mae_m": {
+              "per_seed": [
+                0.0008885241114293983,
+                0.0008678995060259004,
+                0.0008550868944065298
+              ],
+              "mean": 0.0008705035039539428,
+              "sample_std": 1.6870017026237373e-05
+            }
+          }
+        },
+        {
+          "offset": [
+            0,
+            0.02,
+            0.001,
+            -0.02
+          ],
+          "per_seed_counts": [
+            [
+              40,
+              40
+            ],
+            [
+              40,
+              40
+            ],
+            [
+              40,
+              40
+            ]
+          ],
+          "mean": 1.0,
+          "sample_std": 0.0,
+          "cart_metrics": {
+            "executed_cart_mae_m": {
+              "per_seed": [
+                0.002638984386593523,
+                0.002683719764762063,
+                0.0026485946769668244
+              ],
+              "mean": 0.002657099609440803,
+              "sample_std": 2.354918092547551e-05
+            },
+            "completed_cart_mae_m": {
+              "per_seed": [
+                0.002638984386593523,
+                0.002683719764762063,
+                0.0026485946769668244
+              ],
+              "mean": 0.002657099609440803,
+              "sample_std": 2.354918092547551e-05
+            }
+          }
+        }
+      ]
+    },
+    {
+      "modality": "joints",
+      "mode": "endpoints_only",
+      "encoder_initializations": 3,
+      "metrics": {
+        "action_rmse_N": {
+          "mean": 0.7020764119657565,
+          "sample_std": 0.0019445836832477667
+        },
+        "first_force_mse_N2": {
+          "mean": 0.1915473486355508,
+          "sample_std": 0.0008390267729982485
+        },
+        "paired_common_first_force_bound_N2": {
+          "mean": 0.18748394041390318,
+          "sample_std": 0.0
+        }
+      },
+      "survival": [
+        {
+          "offset": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "per_seed_counts": [
+            [
+              40,
+              40
+            ],
+            [
+              40,
+              40
+            ],
+            [
+              40,
+              40
+            ]
+          ],
+          "mean": 1.0,
+          "sample_std": 0.0,
+          "cart_metrics": {
+            "executed_cart_mae_m": {
+              "per_seed": [
+                0.0010492345671477025,
+                0.0010135608250872578,
+                0.0010061193929900001
+              ],
+              "mean": 0.0010229715950749868,
+              "sample_std": 2.3046724376442485e-05
+            },
+            "completed_cart_mae_m": {
+              "per_seed": [
+                0.0010492345671477025,
+                0.0010135608250872578,
+                0.0010061193929900001
+              ],
+              "mean": 0.0010229715950749868,
+              "sample_std": 2.3046724376442485e-05
+            }
+          }
+        },
+        {
+          "offset": [
+            0,
+            0.02,
+            0.001,
+            -0.02
+          ],
+          "per_seed_counts": [
+            [
+              40,
+              40
+            ],
+            [
+              40,
+              40
+            ],
+            [
+              40,
+              40
+            ]
+          ],
+          "mean": 1.0,
+          "sample_std": 0.0,
+          "cart_metrics": {
+            "executed_cart_mae_m": {
+              "per_seed": [
+                0.0026233698339435166,
+                0.002650763032520304,
+                0.0026753634743132853
+              ],
+              "mean": 0.002649832113592369,
+              "sample_std": 2.6009317893074418e-05
+            },
+            "completed_cart_mae_m": {
+              "per_seed": [
+                0.0026233698339435166,
+                0.002650763032520304,
+                0.0026753634743132853
+              ],
+              "mean": 0.002649832113592369,
+              "sample_std": 2.6009317893074418e-05
+            }
+          }
+        }
+      ]
+    },
+    {
+      "modality": "markers",
+      "mode": "full_future",
+      "encoder_initializations": 3,
+      "metrics": {
+        "action_rmse_N": {
+          "mean": 0.6998506819987699,
+          "sample_std": 0.003059133686213452
+        },
+        "first_force_mse_N2": {
+          "mean": 0.02491246301684394,
+          "sample_std": 0.004190441712060227
+        },
+        "paired_common_first_force_bound_N2": {
+          "mean": 0.18748394041390318,
+          "sample_std": 0.0
+        }
+      },
+      "survival": [
+        {
+          "offset": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "per_seed_counts": [
+            [
+              40,
+              40
+            ],
+            [
+              40,
+              40
+            ],
+            [
+              40,
+              40
+            ]
+          ],
+          "mean": 1.0,
+          "sample_std": 0.0,
+          "cart_metrics": {
+            "executed_cart_mae_m": {
+              "per_seed": [
+                0.0005785732705997215,
+                0.0006309531635757565,
+                0.0005720032522317766
+              ],
+              "mean": 0.0005938432288024181,
+              "sample_std": 3.230559904257855e-05
+            },
+            "completed_cart_mae_m": {
+              "per_seed": [
+                0.0005785732705997215,
+                0.0006309531635757565,
+                0.0005720032522317766
+              ],
+              "mean": 0.0005938432288024181,
+              "sample_std": 3.230559904257855e-05
+            }
+          }
+        },
+        {
+          "offset": [
+            0,
+            0.02,
+            0.001,
+            -0.02
+          ],
+          "per_seed_counts": [
+            [
+              40,
+              40
+            ],
+            [
+              40,
+              40
+            ],
+            [
+              40,
+              40
+            ]
+          ],
+          "mean": 1.0,
+          "sample_std": 0.0,
+          "cart_metrics": {
+            "executed_cart_mae_m": {
+              "per_seed": [
+                0.0027981014606472615,
+                0.0025030610176514237,
+                0.002653323876179412
+              ],
+              "mean": 0.002651495451492699,
+              "sample_std": 0.00014752871958849671
+            },
+            "completed_cart_mae_m": {
+              "per_seed": [
+                0.0027981014606472615,
+                0.0025030610176514237,
+                0.002653323876179412
+              ],
+              "mean": 0.002651495451492699,
+              "sample_std": 0.00014752871958849671
+            }
+          }
+        }
+      ]
+    },
+    {
+      "modality": "markers",
+      "mode": "current_only",
+      "encoder_initializations": 3,
+      "metrics": {
+        "action_rmse_N": {
+          "mean": 0.8368852175951508,
+          "sample_std": 0.0014537904342608184
+        },
+        "first_force_mse_N2": {
+          "mean": 0.19189376540372716,
+          "sample_std": 0.0015701240286711828
+        },
+        "paired_common_first_force_bound_N2": {
+          "mean": 0.18748394041390318,
+          "sample_std": 0.0
+        }
+      },
+      "survival": [
+        {
+          "offset": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "per_seed_counts": [
+            [
+              40,
+              40
+            ],
+            [
+              40,
+              40
+            ],
+            [
+              40,
+              40
+            ]
+          ],
+          "mean": 1.0,
+          "sample_std": 0.0,
+          "cart_metrics": {
+            "executed_cart_mae_m": {
+              "per_seed": [
+                0.0008061198250905353,
+                0.0007894222001916416,
+                0.0007825517835864937
+              ],
+              "mean": 0.0007926979362895568,
+              "sample_std": 1.2120683987360019e-05
+            },
+            "completed_cart_mae_m": {
+              "per_seed": [
+                0.0008061198250905353,
+                0.0007894222001916416,
+                0.0007825517835864937
+              ],
+              "mean": 0.0007926979362895568,
+              "sample_std": 1.2120683987360019e-05
+            }
+          }
+        },
+        {
+          "offset": [
+            0,
+            0.02,
+            0.001,
+            -0.02
+          ],
+          "per_seed_counts": [
+            [
+              40,
+              40
+            ],
+            [
+              40,
+              40
+            ],
+            [
+              40,
+              40
+            ]
+          ],
+          "mean": 1.0,
+          "sample_std": 0.0,
+          "cart_metrics": {
+            "executed_cart_mae_m": {
+              "per_seed": [
+                0.0027658817369425903,
+                0.002665714764700548,
+                0.0026374214141745545
+              ],
+              "mean": 0.002689672638605898,
+              "sample_std": 6.749813644068592e-05
+            },
+            "completed_cart_mae_m": {
+              "per_seed": [
+                0.0027658817369425903,
+                0.002665714764700548,
+                0.0026374214141745545
+              ],
+              "mean": 0.002689672638605898,
+              "sample_std": 6.749813644068592e-05
+            }
+          }
+        }
+      ]
+    },
+    {
+      "modality": "markers",
+      "mode": "history_only",
+      "encoder_initializations": 3,
+      "metrics": {
+        "action_rmse_N": {
+          "mean": 0.7559705802070721,
+          "sample_std": 0.0022796337405894796
+        },
+        "first_force_mse_N2": {
+          "mean": 0.19583615446693595,
+          "sample_std": 0.003761681442322578
+        },
+        "paired_common_first_force_bound_N2": {
+          "mean": 0.18748394041390318,
+          "sample_std": 0.0
+        }
+      },
+      "survival": [
+        {
+          "offset": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "per_seed_counts": [
+            [
+              40,
+              40
+            ],
+            [
+              40,
+              40
+            ],
+            [
+              40,
+              40
+            ]
+          ],
+          "mean": 1.0,
+          "sample_std": 0.0,
+          "cart_metrics": {
+            "executed_cart_mae_m": {
+              "per_seed": [
+                0.0007882295161643821,
+                0.0008096366523278412,
+                0.000788810209857119
+              ],
+              "mean": 0.000795558792783114,
+              "sample_std": 1.2195240805822357e-05
+            },
+            "completed_cart_mae_m": {
+              "per_seed": [
+                0.0007882295161643821,
+                0.0008096366523278412,
+                0.000788810209857119
+              ],
+              "mean": 0.000795558792783114,
+              "sample_std": 1.2195240805822357e-05
+            }
+          }
+        },
+        {
+          "offset": [
+            0,
+            0.02,
+            0.001,
+            -0.02
+          ],
+          "per_seed_counts": [
+            [
+              40,
+              40
+            ],
+            [
+              40,
+              40
+            ],
+            [
+              40,
+              40
+            ]
+          ],
+          "mean": 1.0,
+          "sample_std": 0.0,
+          "cart_metrics": {
+            "executed_cart_mae_m": {
+              "per_seed": [
+                0.0027225117989612526,
+                0.002491196485969384,
+                0.0026402173671346034
+              ],
+              "mean": 0.00261797521735508,
+              "sample_std": 0.00011725070757246034
+            },
+            "completed_cart_mae_m": {
+              "per_seed": [
+                0.0027225117989612526,
+                0.002491196485969384,
+                0.0026402173671346034
+              ],
+              "mean": 0.00261797521735508,
+              "sample_std": 0.00011725070757246034
+            }
+          }
+        }
+      ]
+    },
+    {
+      "modality": "markers",
+      "mode": "endpoints_only",
+      "encoder_initializations": 3,
+      "metrics": {
+        "action_rmse_N": {
+          "mean": 0.8442236563323107,
+          "sample_std": 0.0025331005772232127
+        },
+        "first_force_mse_N2": {
+          "mean": 0.19467403318376356,
+          "sample_std": 0.006137080835882716
+        },
+        "paired_common_first_force_bound_N2": {
+          "mean": 0.18748394041390318,
+          "sample_std": 0.0
+        }
+      },
+      "survival": [
+        {
+          "offset": [
+            0,
+            0,
+            0,
+            0
+          ],
+          "per_seed_counts": [
+            [
+              40,
+              40
+            ],
+            [
+              40,
+              40
+            ],
+            [
+              40,
+              40
+            ]
+          ],
+          "mean": 1.0,
+          "sample_std": 0.0,
+          "cart_metrics": {
+            "executed_cart_mae_m": {
+              "per_seed": [
+                0.0008228100927022454,
+                0.0008010380712730459,
+                0.0007970833692180875
+              ],
+              "mean": 0.0008069771777311262,
+              "sample_std": 1.3853548803389316e-05
+            },
+            "completed_cart_mae_m": {
+              "per_seed": [
+                0.0008228100927022454,
+                0.0008010380712730459,
+                0.0007970833692180875
+              ],
+              "mean": 0.0008069771777311262,
+              "sample_std": 1.3853548803389316e-05
+            }
+          }
+        },
+        {
+          "offset": [
+            0,
+            0.02,
+            0.001,
+            -0.02
+          ],
+          "per_seed_counts": [
+            [
+              40,
+              40
+            ],
+            [
+              40,
+              40
+            ],
+            [
+              40,
+              40
+            ]
+          ],
+          "mean": 1.0,
+          "sample_std": 0.0,
+          "cart_metrics": {
+            "executed_cart_mae_m": {
+              "per_seed": [
+                0.0027544115919728132,
+                0.0027141198739213347,
+                0.0026160047653384757
+              ],
+              "mean": 0.0026948454104108745,
+              "sample_std": 7.118806868049546e-05
+            },
+            "completed_cart_mae_m": {
+              "per_seed": [
+                0.0027544115919728132,
+                0.0027141198739213347,
+                0.0026160047653384757
+              ],
+              "mean": 0.0026948454104108745,
+              "sample_std": 7.118806868049546e-05
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "marker_noise_summary": [
+    {
+      "position_sigma_m": 0.001,
+      "velocity_sigma_m_s": 0.01,
+      "action_rmse_N_mean": 0.7170571411518682,
+      "sample_std": 0.004214722939459269,
+      "per_seed": [
+        0.712640636901487,
+        0.7210359178070154,
+        0.7174948687471023
+      ]
+    },
+    {
+      "position_sigma_m": 0.001,
+      "velocity_sigma_m_s": 0.05,
+      "action_rmse_N_mean": 1.060536652240762,
+      "sample_std": 0.01364006706885864,
+      "per_seed": [
+        1.0448001490343803,
+        1.0689734808129,
+        1.0678363268750057
+      ]
+    },
+    {
+      "position_sigma_m": 0.005,
+      "velocity_sigma_m_s": 0.01,
+      "action_rmse_N_mean": 0.7171576672602834,
+      "sample_std": 0.0031213760504000105,
+      "per_seed": [
+        0.7143406482610938,
+        0.7205133006431133,
+        0.7166190528766432
+      ]
+    },
+    {
+      "position_sigma_m": 0.005,
+      "velocity_sigma_m_s": 0.05,
+      "action_rmse_N_mean": 1.0608559727579634,
+      "sample_std": 0.010714793061688857,
+      "per_seed": [
+        1.0485773906297773,
+        1.0683121184252136,
+        1.0656784092188996
+      ]
+    }
+  ],
+  "interpretation": "Three Encoder initializations conditional on one fixed learned Decoder; not three independent end-to-end policy runs.",
+  "checkpoints": [
+    {
+      "file": "joints-full_future-52101-1200steps.pt",
+      "sha256": "efddb5c0751d460170e746755bd2a820c68e4aff34d39a9e51be8d62a7b3f78e",
+      "modality": "joints",
+      "mode": "full_future",
+      "seed": 52101
+    },
+    {
+      "file": "joints-current_only-52101-1200steps.pt",
+      "sha256": "d7202b01ff43a33c01e0977edf36db129012537324a55ec9eb7c1f46b32f21bc",
+      "modality": "joints",
+      "mode": "current_only",
+      "seed": 52101
+    },
+    {
+      "file": "joints-history_only-52101-1200steps.pt",
+      "sha256": "6d24576fa8fd20b08a2e444762e90a2450246f7122e0a8d24802406407547fdc",
+      "modality": "joints",
+      "mode": "history_only",
+      "seed": 52101
+    },
+    {
+      "file": "joints-endpoints_only-52101-1200steps.pt",
+      "sha256": "fd20387bc227751d69e0eef82890166caf27c5122f1a7a9451c29effc9fed97f",
+      "modality": "joints",
+      "mode": "endpoints_only",
+      "seed": 52101
+    },
+    {
+      "file": "joints-full_future-52102-1200steps.pt",
+      "sha256": "10b74baa6858fdfb24ff6a0ee9748bcb161fa0579cefa15f8838fe08a19b61f9",
+      "modality": "joints",
+      "mode": "full_future",
+      "seed": 52102
+    },
+    {
+      "file": "joints-current_only-52102-1200steps.pt",
+      "sha256": "f8155613f6199a87300e3ef658feb6e3b2cdce2bf95975fa472ce37dfe8e3b39",
+      "modality": "joints",
+      "mode": "current_only",
+      "seed": 52102
+    },
+    {
+      "file": "joints-history_only-52102-1200steps.pt",
+      "sha256": "2fa3958ed940cc24780f90acb768d1fc1614c67765690f37b111a83e8d545891",
+      "modality": "joints",
+      "mode": "history_only",
+      "seed": 52102
+    },
+    {
+      "file": "joints-endpoints_only-52102-1200steps.pt",
+      "sha256": "ffad99e7aa0f1b125c806f0bbfc5b54a8047532764a1313d1216f67aa660dc35",
+      "modality": "joints",
+      "mode": "endpoints_only",
+      "seed": 52102
+    },
+    {
+      "file": "joints-full_future-52103-1200steps.pt",
+      "sha256": "65520d08976a00c1ae220b86d3f109b3202a507aabae88c07c06e9eca899c886",
+      "modality": "joints",
+      "mode": "full_future",
+      "seed": 52103
+    },
+    {
+      "file": "joints-current_only-52103-1200steps.pt",
+      "sha256": "a7926d360929d3d921aec90d94f62d8e1ec9c11ca86de3d4dc26fd4cf657aa4a",
+      "modality": "joints",
+      "mode": "current_only",
+      "seed": 52103
+    },
+    {
+      "file": "joints-history_only-52103-1200steps.pt",
+      "sha256": "29ea8e42fbde9ff9200caf2bd938df0a880d6dd8aa320ad9314629c984725211",
+      "modality": "joints",
+      "mode": "history_only",
+      "seed": 52103
+    },
+    {
+      "file": "joints-endpoints_only-52103-1200steps.pt",
+      "sha256": "6e42ca17b1a601f095d9e10d4fea9be772073b7bc1b382066b517d274c699bb4",
+      "modality": "joints",
+      "mode": "endpoints_only",
+      "seed": 52103
+    },
+    {
+      "file": "markers-full_future-52101-1200steps.pt",
+      "sha256": "ed1ae28e1729671a31560fba3658cf81fb33c6cb382d471c8383390be6a376b1",
+      "modality": "markers",
+      "mode": "full_future",
+      "seed": 52101
+    },
+    {
+      "file": "markers-current_only-52101-1200steps.pt",
+      "sha256": "96e62c42268968ee9f99a80c823735aa223edef29983831079ad3785463611e8",
+      "modality": "markers",
+      "mode": "current_only",
+      "seed": 52101
+    },
+    {
+      "file": "markers-history_only-52101-1200steps.pt",
+      "sha256": "696617947a5ce35be4bb4eeea955ea5bf4a9d14b8dc94f1b5e435b43e36c584f",
+      "modality": "markers",
+      "mode": "history_only",
+      "seed": 52101
+    },
+    {
+      "file": "markers-endpoints_only-52101-1200steps.pt",
+      "sha256": "b7fb530e413bb1755d8aa1e1ae497acdb3f252aba389974ec60dbd32a960c70c",
+      "modality": "markers",
+      "mode": "endpoints_only",
+      "seed": 52101
+    },
+    {
+      "file": "markers-full_future-52102-1200steps.pt",
+      "sha256": "9be8b77cf476882a32ff9979f6f81ab0912705c8ae4ee93941cfe00be0c5c1db",
+      "modality": "markers",
+      "mode": "full_future",
+      "seed": 52102
+    },
+    {
+      "file": "markers-current_only-52102-1200steps.pt",
+      "sha256": "a56ea14928a796b77fd9485a579e10ff8bc62e538f4e092a2ea0b098935f9f5a",
+      "modality": "markers",
+      "mode": "current_only",
+      "seed": 52102
+    },
+    {
+      "file": "markers-history_only-52102-1200steps.pt",
+      "sha256": "e21f20e8b7dcda8a0b3229dc3956d166307e59184739b0169fec2e20bbaf5177",
+      "modality": "markers",
+      "mode": "history_only",
+      "seed": 52102
+    },
+    {
+      "file": "markers-endpoints_only-52102-1200steps.pt",
+      "sha256": "9b5a937bef3cbb2649a1f68b082f9d9dbd33c79966261a3d621d8257bbaa742c",
+      "modality": "markers",
+      "mode": "endpoints_only",
+      "seed": 52102
+    },
+    {
+      "file": "markers-full_future-52103-1200steps.pt",
+      "sha256": "b0ab86b426394cbc3b5815ab6768e69380fb5bbc193fcc87f760467d887f7a09",
+      "modality": "markers",
+      "mode": "full_future",
+      "seed": 52103
+    },
+    {
+      "file": "markers-current_only-52103-1200steps.pt",
+      "sha256": "8be76e1fb30d90f790270b29f376ed66bd1d0507f86c6d300f3f546383cfa607",
+      "modality": "markers",
+      "mode": "current_only",
+      "seed": 52103
+    },
+    {
+      "file": "markers-history_only-52103-1200steps.pt",
+      "sha256": "8181463ee4830975ed47defbfcbc6efbb0fff9f80c57dc44000b2bf574e41a90",
+      "modality": "markers",
+      "mode": "history_only",
+      "seed": 52103
+    },
+    {
+      "file": "markers-endpoints_only-52103-1200steps.pt",
+      "sha256": "5baed2fc069fc3593d7094d23f4040423a5ddb5751124586c74f867c757aa06a",
+      "modality": "markers",
+      "mode": "endpoints_only",
+      "seed": 52103
+    }
+  ]
+}
