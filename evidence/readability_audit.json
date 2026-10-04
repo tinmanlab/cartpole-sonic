@@ -2085,14 +2085,14 @@
     "lesson-3.png"
   ],
   "source_sha256": {
-    "app.js": "467b91ad24fb089bcae150fcf4d7967325a8f12abdc0e8c9087d7374edc5540c",
-    "course.js": "77eab860510ac360f8b90f1ce64c85060952d2363ed07232d0090b2406ad785f",
-    "index.html": "2637fbe785dfbf33e5cd31594618966627987a7d81a107d2df5d79c10059ca59",
+    "app.js": "5fe1f28bb31ee0fd36eb012f46dcb309ddd2670c8504e7a29b501b2a0492f302",
+    "course.js": "e64877099ffd5f6e9666e92aa12108d98201c3e341f9f8748b20e6922647abcd",
+    "index.html": "2590427f035a88d38f03fec53b52f77600e23690ad501e076f11c7c6eabffa02",
     "native_lesson.js": "e89938b206603a42f6e77592df1e53b8a9e19eabaeca995c1275ec11c4b9b681",
     "native_lesson.css": "2053e4a751c938264af5d71939d85a77c26037e23f66ec68289467e2e8cbd96f",
     "presentation.js": "a03a1ecfba4495b83f801905d664ffe10c8990ce275d5ad556067e2fdb838bad",
     "optimizer_evidence_view.js": "207a5b0ff35d982d3e68208938b0ed23e1c40cc782fa7908fee8f0758a57dbe3",
-    "scripts/browser_readability.mjs": "9286598674744191ed05bf18713040effe2ff2b38e41b525e040628529351cf0",
-    "scripts/verify_readability.test.mjs": "1c0cfaf17a93691a5238a0c171811b11e12c85dd556e0f30e8903f0aa2490e41"
+    "scripts/browser_readability.mjs": "89276369d1112b1242bd206ce5fd1eb0ad49dd7dcb92942702da69ae8a6a8695",
+    "scripts/verify_readability.test.mjs": "183c67526bdbbd27eff62571ba6038d9c31a6e735d7d59b8c87d571fc2d66788"
   }
 }

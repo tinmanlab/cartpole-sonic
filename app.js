@@ -643,16 +643,16 @@ function renderLatentViz(mode){
     const zx=X(p.z[0]),zy=Y(p.z[1]),qx=X(p.q[0]),qy=Y(p.q[1]);
     ctx.strokeStyle="#7b8492";ctx.setLineDash([5,4]);ctx.beginPath();ctx.moveTo(zx,zy);ctx.lineTo(qx,qy);ctx.stroke();ctx.setLineDash([]);
     ctx.fillStyle="#315dc9";ctx.beginPath();ctx.arc(zx,zy,8,0,Math.PI*2);ctx.fill();ctx.fillStyle="#d64f4f";ctx.beginPath();ctx.arc(qx,qy,8,0,Math.PI*2);ctx.fill();
-    ctx.fillStyle="#667085";ctx.font="12px system-ui";ctx.fillText("quantize",(zx+qx)/2+5,(zy+qy)/2-5);
+    ctx.fillStyle="#667085";ctx.font="12px system-ui";ctx.fillText("양자화",(zx+qx)/2+5,(zy+qy)/2-5);
   }
   ctx.fillStyle="#667085";ctx.font="12px system-ui";ctx.fillText("z₁",w-48,Y(0)-8);ctx.fillText("z₂",X(0)+7,22);
   const used=new Set(hist.map(x=>x.q.map(v=>v.toFixed(2)).join(",")));if(p)used.add(p.q.map(v=>v.toFixed(2)).join(","));
   const refX=p?p.ref[0]*SONIC_TOY_CONSTANTS.STATE_SCALE[0]:NaN;
   if(mode==="vq"){
-    $("vizCaption").innerHTML='<b>LIVE VQ.</b> 회색 큰 점=learned codebook, 파란 trail=actual episode z history, 빨간 q=nearest learned vector. 짧은 점선은 현재 quantization 이동이다.';
+    $("vizCaption").innerHTML='<b>LIVE VQ.</b> 회색 큰 점은 학습되는 대표 벡터, 파란 선은 연속 표현 z의 이력, 빨간 점은 가장 가까워서 선택된 q이다. 점선은 z와 q의 차이다.';
     setMetrics(["codebook=8 learned vectors","episode codes="+used.size+"/8","ref x(+80ms)="+fmt(refX,3)+"m"]);
   }else{
-    $("vizCaption").innerHTML='<b>LIVE FSQ.</b> 회색 grid=fixed finite levels, 파란 trail=actual episode z history, 빨간 q=현재 FSQ output. FSQ grid는 학습되어 움직이지 않는다.';
+    $("vizCaption").innerHTML='<b>LIVE FSQ.</b> 회색 점은 고정된 가능 값, 파란 점과 선은 연속 표현 z, 빨간 점은 선택된 양자화 값 q이다. 학습해도 회색 격자는 움직이지 않는다.';
     setMetrics(["toy L=[5,5]","episode tokens="+used.size+"/25","q=["+fmt(p?.q[0],2)+","+fmt(p?.q[1],2)+"]"]);
   }
 }
@@ -661,17 +661,17 @@ function renderVqvaeViz(){
   const code=p?.qIndex??"—";
   showHtml(
     '<div style="height:100%;display:grid;grid-template-rows:1fr auto;gap:12px">'+
-      '<div class="flow-row">'+
-        '<div class="flow-box"><strong>Reference</strong><span>16D future motion</span></div><div class="flow-arrow">→</div>'+
-        '<div class="flow-box"><strong>Encoder</strong><span>live z=['+fmt(p?.z[0],2)+', '+fmt(p?.z[1],2)+']</span></div><div class="flow-arrow">→</div>'+
-        '<div class="flow-box accent"><strong>Nearest VQ code</strong><span>index '+code+'<br>q=['+fmt(p?.q[0],2)+', '+fmt(p?.q[1],2)+']</span></div><div class="flow-arrow">→</div>'+
-        '<div class="flow-box purple"><strong>Decoder</strong><span>정규화 MSE (무차원) '+recon+'</span></div>'+
+      '<div class="vq-pipeline">'+
+        '<div class="flow-box"><strong>Reference</strong><span>미래 위치·속도 16개</span></div><div class="flow-arrow">→</div>'+
+        '<div class="flow-box"><strong>Encoder</strong><span>현재 z=['+fmt(p?.z[0],2)+', '+fmt(p?.z[1],2)+']</span></div><div class="flow-arrow">→</div>'+
+        '<div class="flow-box accent"><strong>가까운 코드 선택</strong><span>index '+code+'<br>q=['+fmt(p?.q[0],2)+', '+fmt(p?.q[1],2)+']</span></div><div class="flow-arrow">→</div>'+
+        '<div class="flow-box purple"><strong>복원 Decoder</strong><span>정규화 MSE (무차원) '+recon+'</span></div>'+
       '</div>'+
-      '<table class="compare-table"><thead><tr><th>Training problem</th><th>Why it exists</th><th>Mechanism</th></tr></thead><tbody>'+
-        '<tr><td>nearest lookup is non-differentiable</td><td>Encoder still needs gradient</td><td><b>STE</b>: backward treats quantization approximately like identity</td></tr>'+
-        '<tr><td>Encoder can drift far from selected code</td><td>z should commit to usable codes</td><td><b>commitment loss</b></td></tr>'+
-        '<tr><td>codebook must represent data</td><td>representative vectors need to move</td><td><b>codebook / EMA-style update</b></td></tr>'+
-        '<tr><td>some codes may never be selected</td><td>capacity is wasted</td><td>개념: 미사용 코드 관리 (브라우저의 별도 갱신 경로 아님)</td></tr>'+
+      '<table class="compare-table"><thead><tr><th>학습에서 생기는 문제</th><th>필요한 이유</th><th>해결하는 방식</th></tr></thead><tbody>'+
+        '<tr><td>가장 가까운 코드 선택은 불연속</td><td>앞단 Encoder도 갱신해야 함</td><td><b>STE</b>: 역전파에 대체 기울기를 사용</td></tr>'+
+        '<tr><td>연속 표현 z가 선택 코드에서 멀어짐</td><td>z와 선택한 코드의 차이를 줄임</td><td><b>commitment loss</b></td></tr>'+
+        '<tr><td>코드도 입력 분포를 나타내야 함</td><td>선택된 대표 벡터를 함께 갱신</td><td><b>codebook / EMA-style update</b></td></tr>'+
+        '<tr><td>일부 코드는 선택되지 않을 수 있음</td><td>사용 가능한 표현을 낭비함</td><td>개념: 미사용 코드 관리 (브라우저의 별도 갱신 경로 아님)</td></tr>'+
       '</tbody></table>'+
     '</div>',
     '<b>LIVE values + training explanation.</b> 현재 z/q/reconstruction 값은 실제 toy model에서 오지만, Live 버튼은 선택한 브라우저 제어기로 물리 시뮬레이션과 목표 궤적을 진행하며 weight를 재학습하지 않는다. 표는 VQ-VAE의 학습 개념이다. 브라우저 VQ는 STE·z 근접 항·코드 평균 갱신만 실행하며, 별도의 미사용 코드 관리는 구현하지 않는다. FSQ는 학습 코드북을 사용하지 않는다.',
@@ -1090,7 +1090,8 @@ function renderTrainingViz(){
   for(let i=0;i<=5;i++){const v=minMae+(maxMae-minMae)*i/5,y=Y(v);ctx.strokeStyle="#f0f2f5";ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(w-pad.r,y);ctx.stroke();ctx.fillStyle="#7b8492";ctx.font="12px ui-monospace";ctx.textAlign="right";ctx.fillText(v.toFixed(2),pad.l-8,y+3);}
   const draw=(pts,color,dash,width)=>{if(!pts.length)return;ctx.strokeStyle=color;ctx.lineWidth=width;ctx.setLineDash(dash);ctx.beginPath();pts.forEach((p,i)=>{const x=X(p.iterations),y=Y(p.mae);i?ctx.lineTo(x,y):ctx.moveTo(x,y);});ctx.stroke();ctx.setLineDash([]);};
   draw(ref,"#9aa3af",[6,5],2);draw(rollout,"#315dc9",[],2.5);held.forEach(p=>{ctx.fillStyle="#16805d";ctx.beginPath();ctx.arc(X(p.iterations),Y(p.mae),5,0,Math.PI*2);ctx.fill();});
-  ctx.fillStyle="#667085";ctx.font="12px system-ui";ctx.textAlign="left";ctx.fillText("tracking MAE [m] ↓",pad.l,18);ctx.textAlign="right";ctx.fillText("PPO iterations →",w-pad.r,h-15);
+  ctx.font="12px ui-monospace";ctx.fillStyle="#667085";ctx.textAlign="center";const ticks=Array.from({length:6},(_,i)=>Math.round(maxIter*i/5));canvasTicks(ctx,ticks.map(String),ticks.map(X),h-pad.b+20);
+  ctx.font="12px system-ui";ctx.textAlign="left";ctx.fillText("추적 MAE [m] ↓",pad.l,18);ctx.textAlign="right";ctx.fillText("PPO 학습 횟수 →",w-pad.r,h-8);
   $("vizCaption").innerHTML='회색 점선=deterministic held-out reference · 파랑=현재 PPO rollout MAE · 초록=현재 held-out check. <b>PPO는 physical tracking을 학습한다.</b>';
   setMetrics(["PPO iter="+currentTrainer.iter,heldoutEval?"held-out="+fmt(heldoutEval.trackingMae,3)+"m":"held-out=—"]);
 }

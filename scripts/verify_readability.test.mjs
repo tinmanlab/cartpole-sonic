@@ -32,3 +32,9 @@ test('full-state endpoint matching remains bounded at 1e-7',()=>{
  d.cases[0].reference[1][28][2]+=2e-7;
  assert.throws(()=>validateLessonData(d),/full-state endpoint matching/);
 });
+
+test('VQ-VAE has one explicit non-wrapping signal row',()=>{
+  const source=fs.readFileSync(new URL('../app.js',import.meta.url),'utf8');
+  const body=source.slice(source.indexOf('function renderVqvaeViz()'),source.indexOf('function renderTokenViz()'));
+  assert.equal(body.includes('class="vq-pipeline"'),true,'do not let the final arrow wrap away from the reconstruction decoder');
+});

@@ -1,12 +1,12 @@
 {
   "schema": "cartpole-sonic-browser-audit/v1",
-  "base": "http://127.0.0.1:58024/",
+  "base": "http://127.0.0.1:57656/",
   "browser": "153.0.8010.12",
   "executionOnly": false,
   "source_sha256": {
-    "app.js": "467b91ad24fb089bcae150fcf4d7967325a8f12abdc0e8c9087d7374edc5540c",
-    "course.js": "77eab860510ac360f8b90f1ce64c85060952d2363ed07232d0090b2406ad785f",
-    "index.html": "2637fbe785dfbf33e5cd31594618966627987a7d81a107d2df5d79c10059ca59",
+    "app.js": "5fe1f28bb31ee0fd36eb012f46dcb309ddd2670c8504e7a29b501b2a0492f302",
+    "course.js": "e64877099ffd5f6e9666e92aa12108d98201c3e341f9f8748b20e6922647abcd",
+    "index.html": "2590427f035a88d38f03fec53b52f77600e23690ad501e076f11c7c6eabffa02",
     "presentation.js": "a03a1ecfba4495b83f801905d664ffe10c8990ce275d5ad556067e2fdb838bad",
     "optimizer_evidence_view.js": "207a5b0ff35d982d3e68208938b0ed23e1c40cc782fa7908fee8f0758a57dbe3",
     "control_contract.js": "ecf8c6fca2d77f915ef7ccab361dc6b942d2674794feac411a161fdf22b861ab",
@@ -756,13 +756,13 @@
         ],
         [
           "temporalRecon",
-          300,
-          150
+          666,
+          333
         ],
         [
           "temporalCurve",
-          300,
-          150
+          666,
+          333
         ]
       ],
       "clippedMap": []
@@ -1168,13 +1168,13 @@
         ],
         [
           "temporalRecon",
-          300,
-          150
+          666,
+          333
         ],
         [
           "temporalCurve",
-          300,
-          150
+          666,
+          333
         ]
       ],
       "clippedMap": []
@@ -1682,13 +1682,13 @@
         ],
         [
           "temporalRecon",
-          826,
-          413
+          300,
+          150
         ],
         [
           "temporalCurve",
-          826,
-          413
+          300,
+          150
         ]
       ],
       "clippedMap": []
@@ -2094,13 +2094,13 @@
         ],
         [
           "temporalRecon",
-          300,
-          150
+          826,
+          413
         ],
         [
           "temporalCurve",
-          300,
-          150
+          826,
+          413
         ]
       ],
       "clippedMap": []
@@ -2784,12 +2784,12 @@
         -1.0428543249066369
       ],
       "after": [
-        0.06696700136300822,
-        -0.40616913167780827,
-        -0.03707640968528407,
-        0.3815213491285053
+        0.08561092570124249,
+        -0.1644207933044982,
+        -0.05261793232309269,
+        0.07149390797953228
       ],
-      "force": -3.201956028340777
+      "force": -4.570279436223995
     },
     {
       "label": "matched live PPO / WebMCP state",
@@ -2818,7 +2818,7 @@
     },
     {
       "label": "bounded local telemetry",
-      "bytes": 2942
+      "bytes": 2936
     }
   ],
   "errors": [],

@@ -33,6 +33,7 @@ try{
  for(let i=0;i<captions.length;i++)for(let j=i+1;j<captions.length;j++){const a=captions[i],b=captions[j];if(a.canvas!==b.canvas||!visible(document.getElementById(a.canvas)))continue;const ah=parseFloat(a.font.match(/([\d.]+)px/)?.[1]||0),bh=parseFloat(b.font.match(/([\d.]+)px/)?.[1]||0);if(Math.min(a.right,b.right)-Math.max(a.left,b.left)>2&&Math.min(a.y,b.y)-Math.max(a.y-ah,b.y-bh)>2)faults.push({kind:'canvas-text-overlap',a:a.text,b:b.text});}
  window.__textAudit=[];return faults;});
  if(formula){const shape=await page.locator('#guideShape').textContent();if(!shape.includes(formula)||!shape.includes('\n')||await page.locator('#guideShape').evaluate(e=>getComputedStyle(e).whiteSpace)==='normal')result.push({kind:'formula',formula,shape});}
+ if(name.startsWith('quantizer/vqvae/')){const row=await page.locator('.vq-pipeline').evaluate(el=>[...el.children].map(x=>{const r=x.getBoundingClientRect();return{y:r.top+r.height/2,x:r.left,right:r.right};}));if(row.length!==7||Math.max(...row.map(x=>x.y))-Math.min(...row.map(x=>x.y))>3)result.push({kind:'vq-flow-wrapping',row});}
  if(name==='lesson/2'){
  const caption=await page.locator('.lesson-values caption').textContent();const axis=await page.locator('.lesson-axis-note').textContent();
  if(!caption.includes('동일한 시각')||!axis.includes('mm')||!axis.includes('같은 축'))result.push({kind:'units-or-time',caption,axis});

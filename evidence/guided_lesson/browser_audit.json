@@ -10,8 +10,8 @@
   "failure": null,
   "browser": "153.0.8010.12",
   "source_sha256": {
-    "app.js": "467b91ad24fb089bcae150fcf4d7967325a8f12abdc0e8c9087d7374edc5540c",
-    "index.html": "2637fbe785dfbf33e5cd31594618966627987a7d81a107d2df5d79c10059ca59",
+    "app.js": "5fe1f28bb31ee0fd36eb012f46dcb309ddd2670c8504e7a29b501b2a0492f302",
+    "index.html": "2590427f035a88d38f03fec53b52f77600e23690ad501e076f11c7c6eabffa02",
     "native_lesson.js": "e89938b206603a42f6e77592df1e53b8a9e19eabaeca995c1275ec11c4b9b681",
     "native_lesson.css": "2053e4a751c938264af5d71939d85a77c26037e23f66ec68289467e2e8cbd96f",
     "presentation.js": "a03a1ecfba4495b83f801905d664ffe10c8990ce275d5ad556067e2fdb838bad",
