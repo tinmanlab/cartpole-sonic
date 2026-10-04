@@ -1,0 +1,664 @@
+{
+  "status": "PASS",
+  "scope": "native_module_smoke_only",
+  "upstream_url": "https://github.com/NVlabs/GR00T-WholeBodyControl",
+  "upstream_commit": "b042411fae38ee4d1af9aac82a37a1f8d14d6dd0",
+  "upstream_clean": true,
+  "source_verification": "working files byte-equal to pinned git blobs",
+  "source_sha256": {
+    "gear_sonic/trl/modules/universal_token_modules.py": "46b6a460032932034a23411b10674adee4ce253e51f66af89d58678c41caf415",
+    "gear_sonic/trl/modules/base_module.py": "462dfc4be982f5d6e2d08275df00fccbc49a81f882bdb60fc257be81da8593b6",
+    "gear_sonic/trl/utils/common.py": "26263d3a3dabcf2bfb9ad0766ba90b910c45246728719497481ec72b28f3e0ad",
+    "gear_sonic/config/actor_critic/encoders/g1_mf_mlp.yaml": "aae7fcb5e043cdf9ea6e2dbbc5da0742c31a4de321ba9867a5537c1e151c739d",
+    "gear_sonic/config/actor_critic/decoders/g1_dyn_mlp.yaml": "4e10d2267500a917c6523280e24518a4826df0135cb6f6879f67a3f7dddac6a4",
+    "gear_sonic/config/actor_critic/decoders/g1_kin_mf_mlp.yaml": "1582d3cef59650adc6377a90f6c828a9de40f2274475c5feb03a37be8946580c",
+    "gear_sonic/config/actor_critic/quantizers/fsq.yaml": "04c18b94f2ef2133c6ee7579c8bede6560cd3b681f7f2eedfdca407c7d6052a4"
+  },
+  "modules": {
+    "universal_token": {
+      "class": "gear_sonic.trl.modules.universal_token_modules.UniversalTokenModule",
+      "source": "gear_sonic/trl/modules/universal_token_modules.py",
+      "sha256": "46b6a460032932034a23411b10674adee4ce253e51f66af89d58678c41caf415"
+    },
+    "base": {
+      "class": "gear_sonic.trl.modules.base_module.BaseModule",
+      "source": "gear_sonic/trl/modules/base_module.py",
+      "sha256": "462dfc4be982f5d6e2d08275df00fccbc49a81f882bdb60fc257be81da8593b6"
+    },
+    "fsq": {
+      "class": "vector_quantize_pytorch.finite_scalar_quantization.FSQ",
+      "source": "vector_quantize_pytorch/finite_scalar_quantization.py",
+      "sha256": "76c30a4c826fc6a07dcf413432527b61ab898d87be398a6020898bc2bef09aab"
+    }
+  },
+  "versions": {
+    "torch": "2.7.0+cpu",
+    "torchvision": "0.22.0+cpu",
+    "numpy": "1.26.4",
+    "omegaconf": "2.3.0",
+    "loguru": "0.7.3",
+    "wandb": "0.19.11",
+    "vector-quantize-pytorch": "1.31.6",
+    "einops": "0.8.2",
+    "einx": "0.4.3"
+  },
+  "device": "cpu",
+  "dtype": "float32",
+  "seed": 9101,
+  "fixture_source": "deterministic synthetic CartPole references and states",
+  "normalization": {
+    "reference": [
+      1.8,
+      3.0
+    ],
+    "state": [
+      1.8,
+      3.0,
+      0.55,
+      4.0
+    ]
+  },
+  "official_ppo_executed": false,
+  "physical_rollout_executed": false,
+  "optimizer_steps": 0,
+  "adaptations": {
+    "g1_dyn": "legacy dispatch name retained solely because upstream forward selects action_mean from this key; no G1 observations or weights are used",
+    "release-token-shape": "2 tokens x 32 scalars x 32 levels; not production network widths, modalities, weights, training or humanoid capability",
+    "return_indices": "False suppresses optional integer indices/implicit codebook table; real upstream FSQ scalar quantization remains enabled",
+    "widths": "All three BaseModules use [32,32] instead of released large MLP widths; upstream SiLU activation is retained",
+    "losses": "Independent action-squared and reference-reconstruction MSE gradient probes only; not official PPO or its configured auxiliary-loss training"
+  },
+  "cases": [
+    {
+      "id": "reduced-one",
+      "reference_shape": [
+        4,
+        2,
+        8,
+        2
+      ],
+      "proprioception_shape": [
+        4,
+        2,
+        4
+      ],
+      "token_shape": [
+        8,
+        1,
+        2
+      ],
+      "action_shape": [
+        4,
+        2,
+        1
+      ],
+      "reconstruction_shape": [
+        4,
+        2,
+        8,
+        2
+      ],
+      "hidden_widths": [
+        32,
+        32
+      ],
+      "encoder_names": [
+        "cartpole"
+      ],
+      "dynamic_dispatch_name": "g1_dyn",
+      "return_indices": false,
+      "quantizer_levels": [
+        5,
+        5
+      ],
+      "quantizer_calls": 4,
+      "quantizer_parameters": 0,
+      "on_quantization_grid": true,
+      "quantized_equals_latent": false,
+      "finite": true,
+      "action_gradient_norms": {
+        "encoder": 0.00450176140293479,
+        "dynamic": 0.27364373207092285,
+        "kinematic": 0.0
+      },
+      "reconstruction_gradient_norms": {
+        "encoder": 0.006248918361961842,
+        "dynamic": 0.0,
+        "kinematic": 0.06180932745337486
+      },
+      "same_reference_changed_state": {
+        "tokens_equal": true,
+        "action_max_abs_delta": 0.0038843080401420593
+      },
+      "reference_latent_response": 0.015105362981557846,
+      "weights_unchanged": true,
+      "parameters": 4659,
+      "resolved_configuration": {
+        "env_config": {
+          "obs": {
+            "group_obs_dims": {
+              "tokenizer": {
+                "cartpole_reference": [
+                  8,
+                  2
+                ]
+              }
+            },
+            "group_obs_names": {
+              "tokenizer": [
+                "cartpole_reference"
+              ]
+            }
+          },
+          "robot": {
+            "actions_dim": 1,
+            "algo_obs_dim_dict": {
+              "actor_obs": 4
+            }
+          }
+        },
+        "algo_config": {},
+        "obs_dim_dict": {
+          "actor_obs": 4
+        },
+        "proprioception_features": [
+          "actor_obs"
+        ],
+        "num_future_frames": 8,
+        "max_num_tokens": 1,
+        "num_fsq_levels": 2,
+        "fsq_level_list": 5,
+        "quantizer": {
+          "_target_": "vector_quantize_pytorch.FSQ",
+          "return_indices": false
+        },
+        "encoders": {
+          "cartpole": {
+            "inputs": [
+              "cartpole_reference"
+            ],
+            "params": {
+              "_target_": "gear_sonic.trl.modules.base_module.BaseModule",
+              "input_dim": null,
+              "output_dim": null,
+              "num_input_temporal_dims": 8,
+              "num_output_temporal_dims": 1,
+              "module_config_dict": {
+                "layer_config": {
+                  "type": "MLP",
+                  "hidden_dims": [
+                    32,
+                    32
+                  ],
+                  "activation": "SiLU"
+                }
+              }
+            }
+          }
+        },
+        "decoders": {
+          "g1_dyn": {
+            "inputs": [
+              "token_flattened",
+              "proprioception"
+            ],
+            "outputs": [
+              "action"
+            ],
+            "has_temporal_dim": false,
+            "params": {
+              "_target_": "gear_sonic.trl.modules.base_module.BaseModule",
+              "input_dim": null,
+              "output_dim": null,
+              "num_input_temporal_dims": null,
+              "num_output_temporal_dims": null,
+              "module_config_dict": {
+                "layer_config": {
+                  "type": "MLP",
+                  "hidden_dims": [
+                    32,
+                    32
+                  ],
+                  "activation": "SiLU"
+                }
+              }
+            }
+          },
+          "cartpole_kin": {
+            "inputs": [
+              "token"
+            ],
+            "outputs": [
+              "cartpole_reference"
+            ],
+            "has_temporal_dim": true,
+            "params": {
+              "_target_": "gear_sonic.trl.modules.base_module.BaseModule",
+              "input_dim": null,
+              "output_dim": null,
+              "num_input_temporal_dims": 1,
+              "num_output_temporal_dims": 8,
+              "module_config_dict": {
+                "layer_config": {
+                  "type": "MLP",
+                  "hidden_dims": [
+                    32,
+                    32
+                  ],
+                  "activation": "SiLU"
+                }
+              }
+            }
+          }
+        },
+        "encoder_sample_probs": {
+          "cartpole": 1.0
+        }
+      }
+    },
+    {
+      "id": "reduced-two",
+      "reference_shape": [
+        4,
+        2,
+        8,
+        2
+      ],
+      "proprioception_shape": [
+        4,
+        2,
+        4
+      ],
+      "token_shape": [
+        8,
+        2,
+        2
+      ],
+      "action_shape": [
+        4,
+        2,
+        1
+      ],
+      "reconstruction_shape": [
+        4,
+        2,
+        8,
+        2
+      ],
+      "hidden_widths": [
+        32,
+        32
+      ],
+      "encoder_names": [
+        "cartpole"
+      ],
+      "dynamic_dispatch_name": "g1_dyn",
+      "return_indices": false,
+      "quantizer_levels": [
+        5,
+        5
+      ],
+      "quantizer_calls": 4,
+      "quantizer_parameters": 0,
+      "on_quantization_grid": true,
+      "quantized_equals_latent": false,
+      "finite": true,
+      "action_gradient_norms": {
+        "encoder": 0.0016754954122006893,
+        "dynamic": 0.04872516915202141,
+        "kinematic": 0.0
+      },
+      "reconstruction_gradient_norms": {
+        "encoder": 0.001640485250391066,
+        "dynamic": 0.0,
+        "kinematic": 0.04082173481583595
+      },
+      "same_reference_changed_state": {
+        "tokens_equal": true,
+        "action_max_abs_delta": 0.007334772497415543
+      },
+      "reference_latent_response": 0.019780844449996948,
+      "weights_unchanged": true,
+      "parameters": 4853,
+      "resolved_configuration": {
+        "env_config": {
+          "obs": {
+            "group_obs_dims": {
+              "tokenizer": {
+                "cartpole_reference": [
+                  8,
+                  2
+                ]
+              }
+            },
+            "group_obs_names": {
+              "tokenizer": [
+                "cartpole_reference"
+              ]
+            }
+          },
+          "robot": {
+            "actions_dim": 1,
+            "algo_obs_dim_dict": {
+              "actor_obs": 4
+            }
+          }
+        },
+        "algo_config": {},
+        "obs_dim_dict": {
+          "actor_obs": 4
+        },
+        "proprioception_features": [
+          "actor_obs"
+        ],
+        "num_future_frames": 8,
+        "max_num_tokens": 2,
+        "num_fsq_levels": 2,
+        "fsq_level_list": 5,
+        "quantizer": {
+          "_target_": "vector_quantize_pytorch.FSQ",
+          "return_indices": false
+        },
+        "encoders": {
+          "cartpole": {
+            "inputs": [
+              "cartpole_reference"
+            ],
+            "params": {
+              "_target_": "gear_sonic.trl.modules.base_module.BaseModule",
+              "input_dim": null,
+              "output_dim": null,
+              "num_input_temporal_dims": 8,
+              "num_output_temporal_dims": 2,
+              "module_config_dict": {
+                "layer_config": {
+                  "type": "MLP",
+                  "hidden_dims": [
+                    32,
+                    32
+                  ],
+                  "activation": "SiLU"
+                }
+              }
+            }
+          }
+        },
+        "decoders": {
+          "g1_dyn": {
+            "inputs": [
+              "token_flattened",
+              "proprioception"
+            ],
+            "outputs": [
+              "action"
+            ],
+            "has_temporal_dim": false,
+            "params": {
+              "_target_": "gear_sonic.trl.modules.base_module.BaseModule",
+              "input_dim": null,
+              "output_dim": null,
+              "num_input_temporal_dims": null,
+              "num_output_temporal_dims": null,
+              "module_config_dict": {
+                "layer_config": {
+                  "type": "MLP",
+                  "hidden_dims": [
+                    32,
+                    32
+                  ],
+                  "activation": "SiLU"
+                }
+              }
+            }
+          },
+          "cartpole_kin": {
+            "inputs": [
+              "token"
+            ],
+            "outputs": [
+              "cartpole_reference"
+            ],
+            "has_temporal_dim": true,
+            "params": {
+              "_target_": "gear_sonic.trl.modules.base_module.BaseModule",
+              "input_dim": null,
+              "output_dim": null,
+              "num_input_temporal_dims": 2,
+              "num_output_temporal_dims": 8,
+              "module_config_dict": {
+                "layer_config": {
+                  "type": "MLP",
+                  "hidden_dims": [
+                    32,
+                    32
+                  ],
+                  "activation": "SiLU"
+                }
+              }
+            }
+          }
+        },
+        "encoder_sample_probs": {
+          "cartpole": 1.0
+        }
+      }
+    },
+    {
+      "id": "release-token-shape",
+      "reference_shape": [
+        4,
+        2,
+        8,
+        2
+      ],
+      "proprioception_shape": [
+        4,
+        2,
+        4
+      ],
+      "token_shape": [
+        8,
+        2,
+        32
+      ],
+      "action_shape": [
+        4,
+        2,
+        1
+      ],
+      "reconstruction_shape": [
+        4,
+        2,
+        8,
+        2
+      ],
+      "hidden_widths": [
+        32,
+        32
+      ],
+      "encoder_names": [
+        "cartpole"
+      ],
+      "dynamic_dispatch_name": "g1_dyn",
+      "return_indices": false,
+      "quantizer_levels": [
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32,
+        32
+      ],
+      "quantizer_calls": 4,
+      "quantizer_parameters": 0,
+      "on_quantization_grid": true,
+      "quantized_equals_latent": false,
+      "finite": true,
+      "action_gradient_norms": {
+        "encoder": 0.015111148357391357,
+        "dynamic": 0.2781815826892853,
+        "kinematic": 0.0
+      },
+      "reconstruction_gradient_norms": {
+        "encoder": 0.0020380679052323103,
+        "dynamic": 0.0,
+        "kinematic": 0.05565784126520157
+      },
+      "same_reference_changed_state": {
+        "tokens_equal": true,
+        "action_max_abs_delta": 0.0010713264346122742
+      },
+      "reference_latent_response": 0.036513399332761765,
+      "weights_unchanged": true,
+      "parameters": 10673,
+      "resolved_configuration": {
+        "env_config": {
+          "obs": {
+            "group_obs_dims": {
+              "tokenizer": {
+                "cartpole_reference": [
+                  8,
+                  2
+                ]
+              }
+            },
+            "group_obs_names": {
+              "tokenizer": [
+                "cartpole_reference"
+              ]
+            }
+          },
+          "robot": {
+            "actions_dim": 1,
+            "algo_obs_dim_dict": {
+              "actor_obs": 4
+            }
+          }
+        },
+        "algo_config": {},
+        "obs_dim_dict": {
+          "actor_obs": 4
+        },
+        "proprioception_features": [
+          "actor_obs"
+        ],
+        "num_future_frames": 8,
+        "max_num_tokens": 2,
+        "num_fsq_levels": 32,
+        "fsq_level_list": 32,
+        "quantizer": {
+          "_target_": "vector_quantize_pytorch.FSQ",
+          "return_indices": false
+        },
+        "encoders": {
+          "cartpole": {
+            "inputs": [
+              "cartpole_reference"
+            ],
+            "params": {
+              "_target_": "gear_sonic.trl.modules.base_module.BaseModule",
+              "input_dim": null,
+              "output_dim": null,
+              "num_input_temporal_dims": 8,
+              "num_output_temporal_dims": 2,
+              "module_config_dict": {
+                "layer_config": {
+                  "type": "MLP",
+                  "hidden_dims": [
+                    32,
+                    32
+                  ],
+                  "activation": "SiLU"
+                }
+              }
+            }
+          }
+        },
+        "decoders": {
+          "g1_dyn": {
+            "inputs": [
+              "token_flattened",
+              "proprioception"
+            ],
+            "outputs": [
+              "action"
+            ],
+            "has_temporal_dim": false,
+            "params": {
+              "_target_": "gear_sonic.trl.modules.base_module.BaseModule",
+              "input_dim": null,
+              "output_dim": null,
+              "num_input_temporal_dims": null,
+              "num_output_temporal_dims": null,
+              "module_config_dict": {
+                "layer_config": {
+                  "type": "MLP",
+                  "hidden_dims": [
+                    32,
+                    32
+                  ],
+                  "activation": "SiLU"
+                }
+              }
+            }
+          },
+          "cartpole_kin": {
+            "inputs": [
+              "token"
+            ],
+            "outputs": [
+              "cartpole_reference"
+            ],
+            "has_temporal_dim": true,
+            "params": {
+              "_target_": "gear_sonic.trl.modules.base_module.BaseModule",
+              "input_dim": null,
+              "output_dim": null,
+              "num_input_temporal_dims": 2,
+              "num_output_temporal_dims": 8,
+              "module_config_dict": {
+                "layer_config": {
+                  "type": "MLP",
+                  "hidden_dims": [
+                    32,
+                    32
+                  ],
+                  "activation": "SiLU"
+                }
+              }
+            }
+          }
+        },
+        "encoder_sample_probs": {
+          "cartpole": 1.0
+        }
+      }
+    }
+  ]
+}

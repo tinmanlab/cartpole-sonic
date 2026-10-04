@@ -12,6 +12,12 @@
 
 [High-resolution MP4](media/cartpole-sonic-demo.mp4)
 
+## Implementation identity
+
+The **browser remains the independent JavaScript teaching model**. A separate [native core experiment](native/README.md) now imports pinned, unmodified official SONIC `UniversalTokenModule` / `BaseModule` and the actual FSQ library for CartPole-shaped forward/backward tests. [Execution evidence](evidence/native_core_smoke.json) distinguishes reduced and release-token-shape cases.
+
+**This is module-level verification, not official SONIC PPO training or trained closed-loop CartPole control.** The browser controllers and their existing evidence are not replaced or relabelled by this experiment.
+
 ## What this project is
 
 This is **not a reimplementation of GEAR-SONIC's humanoid capability**.
