@@ -24,6 +24,7 @@ jobs:
       - run: npm run check
       - run: npm run verify:execution
       - run: npm run verify:lesson
+      - run: npm run verify:readability
       - run: npm run verify:presentation
       - run: npm run verify:public
       - run: npm run verify:contracts
@@ -44,6 +45,8 @@ jobs:
         run: npm run verify:browser-execution
       - name: Verify the native-recorded guided lesson
         run: npm run verify:browser-lesson
+      - name: Check readable text, formulas and layout across all views
+        run: npm run verify:browser-readability
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -56,4 +59,6 @@ jobs:
             evidence/browser_execution_audit.json
             evidence/guided_lesson/browser_audit.json
             media/lesson-*.png
+            media/readability-*.png
+            evidence/readability_audit.json
           if-no-files-found: error

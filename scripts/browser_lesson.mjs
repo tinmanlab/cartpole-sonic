@@ -17,7 +17,7 @@ const server=http.createServer((req,res)=>{
 });
 let browser,passed=false,failure=null,browserVersion=null,negativeCase=false;
 const checks=[],screenshots=[],errors=[];
-const sourceFiles=['app.js','index.html','native_lesson.js','native_lesson.css','scripts/browser_lesson.mjs','evidence/guided_lesson/traces.json'];
+const sourceFiles=['app.js','index.html','native_lesson.js','native_lesson.css','presentation.js','scripts/browser_lesson.mjs','evidence/guided_lesson/traces.json'];
 const hashes=()=>Object.fromEntries(sourceFiles.map(f=>[f,createHash('sha256').update(fs.readFileSync(f)).digest('hex')]));
 const source_sha256=hashes();
 try{
@@ -48,8 +48,8 @@ try{
  for(const condition of data.protocol.conditions){
   const f=data.cases[0].runs.find(r=>r.condition===condition&&r.offset==='nominal'&&r.branch===0).frames[7];
   const values=await page.locator(`[data-condition="${condition}"] td`).allTextContents();
-  for(let j=0;j<4;j++)assert.equal(Number(values[j]),Number(f.state[j].toPrecision(8)));
-  assert.equal(values[4],f.decision.requestedForceN.toPrecision(8)+' / '+f.decision.appliedForceN.toPrecision(8));
+  for(let j=0;j<4;j++)assert.equal(Number(values[j]),Number(f.state[j].toFixed(4)));
+  assert.equal(values[4],f.decision.appliedForceN.toFixed(3));
   assert.equal(values[5],f.decision.token.join(', '));
  }
  const chartHeight=await page.locator('#lessonChart').evaluate(c=>c.clientHeight);
@@ -57,12 +57,12 @@ try{
  assert.equal(await page.locator('#lessonChart').evaluate(c=>c.clientHeight),chartHeight,'DPR2 chart height is stable');
  await shot('lesson-comparison.png');await seek(28);
  assert.match(await page.locator('#lessonDecision').textContent(),/기록 종료: 새 행동 없음/);
- assert.match(await page.locator('#lessonValues').textContent(),/— \/ —/);
+ assert.match(await page.locator('#lessonValues').textContent(),/—/);
  for(const [id,value] of [['lessonCase',data.cases[1].id],['lessonBranch','1'],['lessonOffset','perturbed']]){
   await seek(10);await page.locator('#'+id).selectOption(value);
   assert.equal((await snap()).lesson.tick,0);assert.equal((await snap()).lesson.playing,false);
  }
- await page.locator('#lessonInterpret').click();assert.match(await page.locator('#lessonStats').textContent(),/test-001/);
+ await page.locator('#lessonInterpret').click();assert.match(await page.locator('#lessonStats').textContent(),/사례 2/);
  await shot('lesson-interpretation.png');await fit();
  const before=await snap();
  await assert.rejects(()=>page.evaluate(()=>window.__cartpoleSonic.step()),/구조 탐색/);

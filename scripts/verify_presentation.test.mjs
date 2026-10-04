@@ -9,7 +9,7 @@ test('tracking display uses same-time planner target',()=>{
 });
 test('planned and last applied commands are separately named',()=>{
   assert.match(app,/plannedForce/);assert.match(app,/lastAppliedForce/);
-  assert.match(html,/last applied/);
+  assert.match(html,/마지막 적용 힘/);
 });
 test('browser identity and responsive decoder are explicit',()=>{
   assert.match(html,/브라우저 교육용 모델 · MuJoCo WASM 시뮬레이션/);

@@ -1,86 +1,92 @@
-# Matched-training cue comparison and observation boundary
+# 입력별로 따로 학습해도 미래 정보의 차이가 남는가?
 
-## What this closes
+## 질문
 
-The previous temporal audit changed the input of an already trained future Encoder. A weak history/current/endpoint result could therefore be due to an unfamiliar input format, not necessarily to insufficient information. This experiment **trains a separate Encoder for each declared cue condition** and compares the final models on new whole physical reference pairs.
+[TEMPORAL_AUDIT.md](TEMPORAL_AUDIT.md)는 기존 미래 Encoder에 낯선 축소 입력을 넣었다. 결과가 정보 부족 때문인지 입력 형식 때문인지 구분하려고, 여기서는 **각 입력 조건의
+Encoder를 따로 학습**하고 새로운 물리 궤적 쌍으로 비교한다.
 
-This is not a new PPO implementation, a claim of globally optimal baselines, or an attempt to make SONIC win every comparison. The original SONIC `UniversalTokenModule`, `BaseModule`, FSQ and the already trained shared Decoder are reused. Only the selected new Encoder is trainable. Original controller/Decoder weights remain fixed, and the previous native/browser baselines are unchanged.
+## 실제 방법
 
-## Protocol fixed before results
+원본 `UniversalTokenModule`, `BaseModule`, FSQ와 기존 공유 Decoder를 재사용한다. 선택한 새 Encoder만 학습한다. PPO나 새 안정화 제어기를 추가하지 않으며, 기존 제어기와 Decoder는 고정한다.
 
-`matched_cue_protocol.json` owns the exact case lists, random seeds, budgets and metrics. The input conditions are full future, current reference only, causal reference history, and current/terminal reference. There are joint-state and marker-coordinate input branches. Each has three independently initialized Encoders, with identical initial learned parameters across cue conditions within that branch/seed. This is **three Encoder initializations conditional on one shared pretrained Decoder**, not three independent whole-controller/PPO training runs.
+`matched_cue_protocol.json`에 전체 미래·현재만·인과적 이력·현재와 끝점의 네 조건, joint / marker 두 표현, 데이터·seed·예산·지표를 선언했다. Encoder seed는
+**52101, 52102, 52103**이다. 같은 표현·seed의 네 입력 조건은 동일 학습 파라미터로 시작한다. 이는 **한 고정 Decoder에 대한 Encoder 초기화 세 번**이며 전체 제어기/PPO
+독립 학습 세 번이 아니다.
 
-Each condition receives the same supervised recorded-action loss, optimizer settings, training sample stream and fixed update count. Both signed branches of a reference pair are always present together in a minibatch. This prevents a blind model from exploiting accidental sign imbalance. The final fixed-budget checkpoint is evaluated; validation is not used to choose the seed, epoch, checkpoint or learning rate.
+조건별로 같은 기록 행동의 지도학습 loss, optimizer, sample 순서와 고정 update 횟수를 사용한다. 한 쌍의 양쪽 부호를 같은 minibatch에 넣어 방향 불균형을 이용하지 못하게 한다. 최종
+예산 checkpoint를 평가하며 validation으로 seed·시점·학습률을 고르지 않는다. 기록 상태에서 행동을 맞추는 지도학습과 실제 폐루프 제어는 별도로 측정한다.
 
-Training matches the recorded demonstration's action at its recorded state. Closed-loop replay separately tests the resulting feedback behavior, including a small initial-state perturbation. Low supervised error does not itself establish stable control. No hidden stabilizer, action relabelling, target changes or new PPO training are added.
+### 데이터와 분리
 
-## Physical data and independent split
+기존 MuJoCo 쌍 생성기로 비선형 물리 궤적을 만든다. 종료 전체 상태·힘·중간 변위·solver 예산 검사를 유지하고 탈락 후보도 기록한다. 양쪽 부호와 모든 window는 같은 split에 둔다.
 
-The existing MuJoCo pair generator supplies actual nonlinear trajectories, not invented frame sequences. The terminal full-state, force, interior-displacement and solver-budget checks are retained. All generated/rejected candidates are recorded. Both signs and all time windows of a pair remain in one split.
+선언된 후보는 학습 36개, validation 12개, test 24개다. 위치 seed는 각각 **94101, 94102, 94103**이다. Test 변위는 학습 변위와 다르지만 같은 작은 국소 task 집합
+안이다. 탈락을 쉬운 성공 사례로 바꾸지 않으며 solver 실패를 물리적 불가능이라 부르지 않는다.
 
-The protocol declares 36 training candidates, 12 validation candidates and 24 test candidates. Test amplitudes differ from the training amplitudes; initial positions also use a separate seed. They remain within the declared small local task family, so the test is not a broader morphology or hardware transfer experiment. A solver rejection is not proof of physical infeasibility and is never silently replaced by a selected easy case.
+미래 꼬리와 과거 이력은 물리 재생으로 생성한다. Padding이나 reset 경계 넘김은 없으며 현재 시뮬레이터의 실제 미래를 reference로 주지 않는다. 분기점에서는 현재·이력·끝점 입력이 양쪽 부호에
+동일하다. 끝점의 허용오차 이하 잔차만 입력에서 공통화하고 원시 물리는 보존한다.
 
-Future tails and causal histories are generated using the existing physical replay helpers. No missing states are padded, no reset boundary is crossed, and no current simulator's future is supplied as a reference. At the branch point, current/history/endpoint inputs are identical for the signed pair; canonicalization removes only sub-tolerance endpoint roundoff, without altering raw physics records.
+### 관측 정보와 잡음
 
-## What the measurements mean
+전체 cart+tip 위치·속도는 이 평면 task에서 분석적으로 역변환할 수 있다. Tip만 있으면 다른 cart/pole 상태가 같은 tip 위치·속도를 만들 수 있다. **좌표 역변환 가능성과 신경망의 실제
+센서 인식 능력은 별개**다. 전체 관측 경로는 빠진 marker를 0으로 채우지 않고 거부한다.
 
-Report both recorded-action prediction and actual closed-loop behavior. The paired common-force predictor gives a squared-error lower bound only for reproducing the two recorded first actions when observations are identical. It is not a universal optimal-control bound: a successful controller need not reproduce a particular demonstration's force sequence.
+잡음 검사는 활성 marker-reference 좌표·속도만 선언된 물리 단위로 교란하며 모델마다 같은 잡음을 사용한다. 실제 proprioception과 정답 행동은 그대로다. 이는 **reference 잡음에
+대한 오프라인 민감도**이며 잡음 상태의 폐루프 제어·카메라·가림 처리·센서 추정 검증이 아니다.
 
-The selected Encoder is trained anew for its own information format, so the previous frozen-input-format confound is removed. Equal budget does **not** prove global optimizer convergence or equal best attainable performance. Differences can still include finite-data/finite-training effects and limitations of the shared frozen Decoder.
+## 측정 결과
 
-Report individual seeds, mean and sample standard deviation, with surviving/completed counts and actual horizons. Sample standard deviation over three Encoder seeds is not a confidence interval, and correlated time windows are not independent episodes. The 0.56-second paired task does not extend previous five/ten-second survival claims.
+24개 모델 모두 선택 Encoder를 **1,200 updates** 학습했다. 허용된 데이터는 **학습 27/36쌍, validation 9/12쌍, test 20/24쌍**이다. 탈락한 16개도
+`pairs.npz`에 있다. Test는 양쪽 부호를 포함한 **40개 궤적**이다.
 
-## Missing or noisy marker information
+첫 힘 예측 MSE의 평균 ± 표본 표준편차(Encoder seed 세 개)는 다음과 같다.
 
-The full cart-plus-tip position/velocity representation is invertible in this planar task and has an analytic baseline. Tip-only observations are not: two different cart/pole states can give the same tip position/velocity. The full-observation path therefore rejects missing marker information rather than silently replacing an absent measurement with a zero. No neural Encoder can be assumed to recover information that the supplied observation does not identify.
-
-The noise probe perturbs only active marker-reference coordinates and velocities, using the declared physical-unit noise scales and identical draws across models. Actual proprioception and target actions remain unchanged. This is **offline sensitivity to reference-coordinate noise**, not a demonstration of a noisy-proprioception closed-loop controller, camera perception, occlusion handling or hardware safety. Missing-data rejection and ambiguity evidence close the information-contract question, not sensor-estimator research.
-
-## Reuse and pivot decision
-
-The successful/unsuccessful outcomes of this bounded comparison are evaluated under `native/PIVOT.md`. A lack of convergence, a shared-decoder limitation or an inadequately learned motion family is an experiment/implementation issue unless a required structure is actually absent. Independent actuators, continuous kinematic redundancy, foot-contact transitions and general 3D retargeting are still not represented by the current CartPole plant.
-
-No new robot is installed in this comparison. When the admitted question requires one of those absent structures, reproduce the appropriate pinned upstream small example and port only robot-specific configuration/data/units. Retain this CartPole suite as a regression environment; never promote its learned weights or force normalization into universal robot defaults.
-
-## Checkpoint integrity correction found during review
-
-The initial new fingerprint helper used only `state_dict()`. The installed FSQ registers its level/basis tensors as nonpersistent buffers, so its `state_dict()` is empty. A regression test changed `_levels` and demonstrated that the initial hash failed to notice. The helper now includes `named_buffers()` as well as persistent parameters/buffers. The failing test then passed, before the full experiment was executed. This corrects the new experiment's integrity check; it is not described as a defect in upstream FSQ or a change to quantization behavior.
-
-## Measured final-protocol result
-
-All 24 declared models completed 1,200 selected-Encoder updates each. Data acceptance was **27/36 training pairs, 9/12 validation pairs and 20/24 test pairs**. All 16 rejected generation attempts are retained in `pairs.npz`; the test set has 40 trajectories (20 signed pairs). No test result selected a model, checkpoint or hyperparameter.
-
-For the three independently initialized Encoders in each condition, the test first-force prediction MSE was:
-
-| Trained cue condition | Joint Encoder [N²], mean ± sample SD | Marker Encoder [N²], mean ± sample SD |
+| 학습한 입력 조건 | Joint Encoder [N²], 평균 ± 표본 SD | Marker Encoder [N²], 평균 ± 표본 SD |
 |---|---:|---:|
-| Full future | **0.00436 ± 0.00081** | **0.02491 ± 0.00419** |
-| Current only | 0.19155 ± 0.00140 | 0.19189 ± 0.00157 |
-| History only | 0.19155 ± 0.00068 | 0.19584 ± 0.00376 |
-| Endpoints only | 0.19155 ± 0.00084 | 0.19467 ± 0.00614 |
+| 전체 미래 | **0.00436 ± 0.00081** | **0.02491 ± 0.00419** |
+| 현재만 | 0.19155 ± 0.00140 | 0.19189 ± 0.00157 |
+| 이력만 | 0.19155 ± 0.00068 | 0.19584 ± 0.00376 |
+| 현재·끝점 | 0.19155 ± 0.00084 | 0.19467 ± 0.00614 |
 
-The paired-common first-force prediction bound is **0.18748 N²** for this test set. The trained reduced-cue models approach it but cannot identify the signed branch from their identical branch-point information. Full future information allows much lower error for these recorded actions. This is stronger than merely observing different output after corrupting an unfamiliar input, but it remains an imitation/information statement—not a proof that every successful control strategy must use these forces.
+이 test의 공통 첫 힘 예측 하한은 **0.18748 N²**다. 분기점 정보가 같은 축소 입력 모델은 방향을 구별할 수 없어 하한에 가까워진다. 전체 미래는 기록 행동을 훨씬 낮은 오차로 예측했다. 이 하한은
+기록된 첫 행동을 모사하는 문제에만 적용되며 모든 성공 제어 전략의 하한이 아니다.
 
-All-window force RMSE was 0.569 N (joint full-future) versus 0.692–0.702 N (its reduced-cue conditions), and 0.700 N (marker full-future) versus 0.756–0.844 N. Training deliberately samples the branch point with probability 0.5 in every condition; the report includes both branch-point and all-window metrics so that emphasis is visible.
+전체 window 힘 RMSE는 joint 전체 미래 **0.569 N** 대 축소 입력 **0.692–0.702 N**, marker 전체 미래 **0.700 N** 대 **0.756–0.844 N**이다. 모든
+조건에서 분기점 sample 확률을 0.5로 정했으므로 분기점과 전체 window 지표를 함께 읽는다.
 
-Closed-loop cart MAE on the 40 unperturbed test trajectories was:
+정상 조건 40개 궤적의 폐루프 카트 MAE는 다음과 같다.
 
-| Trained cue condition | Joint Encoder [mm], mean ± sample SD | Marker Encoder [mm], mean ± sample SD |
+| 학습한 입력 조건 | Joint Encoder [mm], 평균 ± 표본 SD | Marker Encoder [mm], 평균 ± 표본 SD |
 |---|---:|---:|
-| Full future | **0.393 ± 0.012** | **0.594 ± 0.032** |
-| Current only | 1.021 ± 0.019 | 0.793 ± 0.012 |
-| History only | 0.871 ± 0.017 | 0.796 ± 0.012 |
-| Endpoints only | 1.023 ± 0.023 | 0.807 ± 0.014 |
+| 전체 미래 | **0.393 ± 0.012** | **0.594 ± 0.032** |
+| 현재만 | 1.021 ± 0.019 | 0.793 ± 0.012 |
+| 이력만 | 0.871 ± 0.017 | 0.796 ± 0.012 |
+| 현재·끝점 | 1.023 ± 0.023 | 0.807 ± 0.014 |
 
-Every seed/condition completed 40/40 over **0.56 seconds**. This denominator is the same 40 physical test trajectories evaluated under three Encoder initializations, not 120 independent environments or independently trained base controllers. The nominal full-future advantage occurred for every tested Encoder seed in both modalities.
+모든 seed·조건은 **0.56초에서 40/40 완주**했다. 같은 40개 물리 궤적을 Encoder 초기화 세 번으로 평가한 것이며 독립 환경 120개나 독립 학습 제어기 120개가 아니다. 정상 조건의 전체
+미래 이점은 두 표현의 모든 평가 seed에서 나타났다. 표시 수업의 세 쌍·한 seed는 [GUIDED_LESSON.md](GUIDED_LESSON.md)의 별도 사례다.
 
-With the predeclared actual-state offset `[0,0.02,0.001,-0.02]`, differences largely collapsed: full-future MAE was **2.629 ± 0.058 mm** (joint) and **2.651 ± 0.148 mm** (marker). Reduced-cue means ranged from 2.650 to 2.710 mm for joints and 2.618 to 2.695 mm for markers. Therefore the experiment does **not** establish robust full-future superiority under state disturbances; marker history was slightly lower on the aggregate. The fixed Decoder, finite data and training support remain material limits.
+실제 초기 상태 오차 `[0,0.02,0.001,-0.02]` (단위 `[m,m/s,rad,rad/s]`)에서는 차이가 대부분 줄었다. 전체 미래 MAE는 joint **2.629 ± 0.058 mm**,
+marker **2.651 ± 0.148 mm**다. 축소 입력 평균 범위는 joint **2.650–2.710 mm**, marker **2.618–2.695 mm**이며 marker 이력의 평균은 조금 더
+낮았다. 상태 외란에서도 전체 미래가 강건하게 우월하다는 결과는 아니다.
 
-For the full-future marker Encoder, clean all-window force RMSE averaged 0.700 N. Adding 1 mm reference-position noise and 0.01 m/s reference-velocity noise gave approximately **0.717 N**; using 0.05 m/s reference-velocity noise gave about **1.061 N**. All four declared position/velocity-noise combinations and individual seeds are recorded. This identifies reference-velocity sensitivity, not a validated perception filter or noisy-state control capability.
+Marker 전체 미래의 깨끗한 입력 전체 window RMSE는 평균 **0.700 N**이다. Reference 위치 잡음 1 mm와 속도 잡음 0.01 m/s에서는 약 **0.717 N**, 속도 잡음 0.05
+m/s에서는 약 **1.061 N**이었다. 선언된 위치·속도 잡음 네 조합과 개별 seed는 원시 보고서에 있다. Reference 속도 민감도를 보여주며 인식 필터 성능을 입증하지 않는다.
 
-## Reproduce, inspect and use the artifacts
+## 한계와 무결성 검사
 
-Use the existing `native/training.lock` environment and the pinned official source. No new package installation is needed beyond that environment.
+동일 예산은 전역 최적 수렴이나 각 조건의 최선 성능을 보장하지 않는다. 유한 데이터·학습 및 고정 Decoder의 한계가 남는다. 세 seed의 표본 SD는 신뢰구간이 아니며 겹치는 window도 독립
+episode가 아니다. 0.56초 완주를 장시간 안정성으로 확대하지 않는다.
+
+초기 fingerprint가 `state_dict()`만 사용해 FSQ의 비영속 level/basis buffer를 놓쳤다. `_levels`를 바꾸는 회귀 검사로 이를 확인해 `named_buffers()`
+까지 포함했다. 이는 실험의 무결성 검사 수정이며 upstream FSQ 결함이나 양자화 행동 변경이 아니다.
+
+전체 제어기 독립 재학습, 장시간·잡음 proprioception 강건성, 카메라/VR, 다중 actuator·접촉·3D, 하드웨어·sim-to-real은 검증 범위 밖이다. 필요한 물리 구조가 없을 때의 최소 로봇
+선택은 [PIVOT.md](PIVOT.md)에 있다.
+
+## 재현과 자료
+
+기존 `native/training.lock` 환경과 고정 공식 소스를 사용한다.
 
 ```bash
 export SONIC_UPSTREAM=/path/to/pinned/GR00T-WholeBodyControl
@@ -90,12 +96,9 @@ python -m pytest native/test_matched_cues.py -q
 python native/matched_cues.py --output-dir /tmp/sonic-matched-cues --steps 1200
 ```
 
-Repository evidence is under `evidence/matched_cues/`. `summary.json` is a derived readable projection; `matched.json.gz` is the losslessly compressed complete execution report (including all predictions, training losses and per-pair rollouts); `pairs.npz` preserves all accepted/rejected physics and solver records; 24 small checkpoint files preserve the selected Encoders. The original Decoder is not duplicated into each checkpoint. Compression avoids committing a nearly 10 MB pretty-printed raw report; no measurements are discarded. Reproduction emits the uncompressed report, whose SHA-256 is recorded alongside the compressed artifact hash.
+[summary.json](../evidence/matched_cues/summary.json)은 읽기용 요약이다.
+[matched.json.gz](../evidence/matched_cues/matched.json.gz)는 예측·loss·쌍별 재생을 모두 담은 무손실 압축 보고서다.
+[pairs.npz](../evidence/matched_cues/pairs.npz)는 허용·탈락 물리와 solver 기록을 보존한다. Encoder checkpoint 24개에는 공유 Decoder를 중복
+저장하지 않는다. 재현 실행은 비압축 보고서를 생성하며 원본·압축 SHA-256을 함께 기록한다.
 
-Tests verify the source/protocol/checkpoint chain, all 24 reloads and test predictions, initialization/sample-stream equality across conditions, original learned Decoder and FSQ invariance, representative physical replay for every modality/condition, and summary arithmetic. The expensive full training comparison is not repeated in every CI run.
-
-## Resolution of the admitted gaps
-
-**Resolved within this protocol:** separate cue-trained baselines, equal data/budgets, paired sign balance, new trajectory/amplitude split, three conditional Encoder initializations, physically valid references, explicit missing-marker rejection, reference-noise sensitivity and frozen-checkpoint integrity. The earlier frozen-input audit remains valid for its own question; the new comparison removes its unfamiliar-input-format confound rather than retroactively rewriting its result.
-
-**Not claimed:** global optimality of any baseline; independent retraining of the full base controller; long-horizon/noisy-proprioception robustness; camera/VR perception; multi-actuator/contact/3D embodiment competence; hardware or sim-to-real readiness. These are outside this local acceptance contract, not hidden successes or reasons to keep repeating the same comparison. The next embodiment is selected by the missing physical property under `PIVOT.md`, not by demanding an unlimited sequence of CartPole optimization wins.
+검사는 소스·선언·checkpoint 연결, 24개 재로딩과 예측, 조건 간 초기화·sample 동일성, 기존 Decoder·FSQ 불변성, 표현·조건별 물리 재생과 요약 계산을 확인한다. 전체 학습 비교를 매 CI마다 반복하는 검사는 아니다.

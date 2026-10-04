@@ -39,3 +39,18 @@ export function decoderConnections(w){
     {points:[[decoder.x+decoder.w,decoder.y+decoder.h/2],[force.x,force.y+force.h/2]],arrow:'right'}
   ];
 }
+
+// Keep captions inside their own region without shrinking the font.
+export function canvasLines(ctx,text,x,y,width,lineHeight=17){
+  let line='',row=0;
+  for(const char of String(text)){
+    if(line&&ctx.measureText(line+char).width>width){ctx.fillText(line,x,y+row++*lineHeight);line='';}
+    line+=char;
+  }
+  if(line)ctx.fillText(line,x,y+row*lineHeight);
+  return row+1;
+}
+export function canvasTicks(ctx,labels,positions,y,gap=8){
+  let edge=-Infinity;
+  labels.forEach((label,i)=>{const width=ctx.measureText(label).width,left=positions[i]-width/2;if(left>=edge+gap){ctx.fillText(label,positions[i],y);edge=left+width;}});
+}
