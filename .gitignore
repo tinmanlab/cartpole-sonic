@@ -6,3 +6,8 @@ server.log
 .DS_Store
 
 media/frames-new/
+
+# Isolated native SONIC module smoke only
+.venv-native/
+.pytest_cache/
+.upstream-sonic/
