@@ -72,3 +72,7 @@ With the declared actual-state perturbation, full-preview MAE was 2.992 / 2.958 
 This closes a prior **experimental construction gap**: CartPole can supply physically valid same-present/same-endpoint but different-interior references. It also narrows interpretation of earlier frame-corruption results: the frozen policy can react to temporal detail, yet that detail does not automatically improve its control on a newly specified motion family. A matched retraining study, broader trajectory support and appropriate causal baselines remain separate work. No new robot or additional policy training was used to conceal this result.
 
 Artifacts: [`audit.json`](../evidence/temporal_audit/audit.json) contains every accepted/rejected case and per-pair/condition result. [`physical_pairs.npz`](../evidence/temporal_audit/physical_pairs.npz) contains raw physics and solver diagnostics. Source and protocol hashes bind the code and declared experiment to these measurements.
+
+### Numerical equality in regression tests
+
+Equal-cue input arrays and quantized token vectors are compared exactly. Neural force outputs use a `1e-7 N` absolute equality tolerance, below the `1e-6 N` action-distinguishability criterion used by the audit. The first clean CI run exposed a `3.7253e-8 N` output difference between identical rows; the test had incorrectly required bitwise zero. Only that regression assertion was corrected. Neither recorded physics, endpoint acceptance, model weights nor reported outcomes were changed.

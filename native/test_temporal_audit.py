@@ -135,7 +135,11 @@ def test_committed_information_audit_replays_without_winner_assertions(audit,fro
                     a=probe['conditions'][mode];b=stored['conditions'][mode]
                     np.testing.assert_allclose(a['predicted_force_N'],b['predicted_force_N'],atol=1e-7,rtol=1e-5)
                     if mode!='full_future':
-                        assert a['reference_pair_max_abs_delta']==0 and a['force_pair_abs_delta_N']==0
+                        assert a['reference_pair_max_abs_delta']==0
+                        assert a['tokens_identical']
+                        # Float32 CPU kernels can differ by a few ulps for equal rows.
+                        # Keep this below the audit's 1e-6 N distinguishability criterion.
+                        assert a['force_pair_abs_delta_N']<=1e-7
                 for mode in ['full_future','endpoints_only']:
                     now=audit.control_rollout(frozen,model,extended,history,route,mode,np.zeros(4))
                     then=next(r for r in pair['audit']['rollouts'] if r['encoder']==name and r['condition']==mode and not np.any(r['actual_offset_state4']))
