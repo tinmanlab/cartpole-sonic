@@ -1,6 +1,7 @@
 # Native SONIC core: what is actually connected?
 
-This directory is the **first native-code gate**, not a trained CartPole controller.
+This page describes `core_smoke.py`, the **first native-code gate**, not a trained CartPole controller.
+For the subsequent actual trainer/physics integration, see [TRAINING.md](TRAINING.md).
 It imports the unmodified official `UniversalTokenModule`, its `BaseModule` Encoder/Decoders, and the actual `vector_quantize_pytorch.FSQ` dependency. No local neural-network, FSQ or PPO replacement is used in this path.
 
 ## 쉽게 이해하기

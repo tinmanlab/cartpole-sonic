@@ -14,9 +14,12 @@
 
 ## Implementation identity
 
-The **browser remains the independent JavaScript teaching model**. A separate [native core experiment](native/README.md) now imports pinned, unmodified official SONIC `UniversalTokenModule` / `BaseModule` and the actual FSQ library for CartPole-shaped forward/backward tests. [Execution evidence](evidence/native_core_smoke.json) distinguishes reduced and release-token-shape cases.
+The **browser remains the independent JavaScript teaching model**. The separate native Python path now contains two distinct checks:
 
-**This is module-level verification, not official SONIC PPO training or trained closed-loop CartPole control.** The browser controllers and their existing evidence are not replaced or relabelled by this experiment.
+- [Core module verification](native/README.md): original pinned SONIC Encoder/FSQ/Decoder forward/backward tests.
+- [Official trainer + physical CartPole integration](native/TRAINING.md): the unmodified official PPO trainer collects MuJoCo rollouts and updates actual policy/critic weights. [Measured results](evidence/native_training.json) record 2,048 control transitions and 8 optimizer steps in the bounded run.
+
+**Integration success is not controller-performance success:** the two-iteration random-initialization run completes 0/8 evaluation episodes. No teacher, hidden stabilizer, humanoid checkpoint, or browser-PPO substitute is used. This does not establish stable tracking, original humanoid benchmark performance, or sim-to-real readiness. Existing browser controllers and evidence are unchanged.
 
 ## What this project is
 

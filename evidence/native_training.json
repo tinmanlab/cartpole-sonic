@@ -1,0 +1,200 @@
+{
+  "status": "PASS",
+  "scope": "native_trainer_physics_integration",
+  "upstream_commit": "b042411fae38ee4d1af9aac82a37a1f8d14d6dd0",
+  "upstream_clean": true,
+  "source_sha256": {
+    "gear_sonic/trl/modules/universal_token_modules.py": "46b6a460032932034a23411b10674adee4ce253e51f66af89d58678c41caf415",
+    "gear_sonic/trl/modules/base_module.py": "462dfc4be982f5d6e2d08275df00fccbc49a81f882bdb60fc257be81da8593b6",
+    "gear_sonic/trl/utils/common.py": "26263d3a3dabcf2bfb9ad0766ba90b910c45246728719497481ec72b28f3e0ad",
+    "gear_sonic/config/actor_critic/encoders/g1_mf_mlp.yaml": "aae7fcb5e043cdf9ea6e2dbbc5da0742c31a4de321ba9867a5537c1e151c739d",
+    "gear_sonic/config/actor_critic/decoders/g1_dyn_mlp.yaml": "4e10d2267500a917c6523280e24518a4826df0135cb6f6879f67a3f7dddac6a4",
+    "gear_sonic/config/actor_critic/decoders/g1_kin_mf_mlp.yaml": "1582d3cef59650adc6377a90f6c828a9de40f2274475c5feb03a37be8946580c",
+    "gear_sonic/config/actor_critic/quantizers/fsq.yaml": "04c18b94f2ef2133c6ee7579c8bede6560cd3b681f7f2eedfdca407c7d6052a4",
+    "gear_sonic/trl/trainer/ppo_trainer.py": "f8bdf8930072aa7fe2bcdbcd03960444e51ba86d853bfc32f1186feaf3ad1b07",
+    "gear_sonic/trl/trainer/ppo_trainer_aux_loss.py": "28be258ef3a67cac33bc97b036b97073f17907333557dae3d9543fdba3cd1b7c",
+    "gear_sonic/trl/modules/actor_critic_modules.py": "6050eca4ea29b312d509201667b1aa7681cbb79ad1f5c957b928c936cb9a85be",
+    "gear_sonic/trl/modules/data_utils.py": "b1d749c208c24306712c09ed5a647e3f4b9c97125ef287b12f18b65e939b67c8",
+    "gear_sonic/trl/utils/rl.py": "c74043b94c43914839cc4b17afc645a611b2fda9be862383e75f037d5776269b",
+    "gear_sonic/trl/utils/scheduler.py": "29c44006764ee6829addb9a655e868987bf1b0218d1a57b7606501f8b4ab7f13",
+    "gear_sonic/trl/callbacks/hv_callback_handler.py": "d119b6cffc48eb4d465863204c85926dc2d462451dec1df1e6e3ea166319a705",
+    "gear_sonic/utils/average_meters.py": "904dadb7ea7ada895ae428845db8b5c1223ff9d03ce20f898f3f9647ebb7a88c",
+    "gear_sonic/utils/batch_normalizer.py": "75d17e143e48120337257d65a1e7f36de772f460641f2ec3202068fc95fe0db4",
+    "gear_sonic/utils/running_mean_std.py": "1e5b0b01b72e9cf216229930409a2dc7522051c593d7f7b8ab61b1fb145fb7ea",
+    "gear_sonic/config/actor_critic/critics/mlp.yaml": "1304f7a390d718c0302b31cbd5be61dfd597181c3e6e575a85b3bca328d3fd80"
+  },
+  "local_source_sha256": {
+    "training.py": "fa243d527cb5735880a49560f1ca7ec2aca50b87d51433bd87b56da30bbc52b3",
+    "cartpole_env.py": "b1bc2bec278afb73b161cb21f13675e4ef600f9ab30520d604a786614a8c3323",
+    "cartpole.xml": "c84f251ff520fafe4cf6effe3182a310a3a7a4966d3508f00b9077c2f37f1f07"
+  },
+  "versions": {
+    "torch": "2.7.0+cpu",
+    "numpy": "1.26.4",
+    "mujoco": "3.14.0",
+    "trl": "0.28.0",
+    "transformers": "4.56.2",
+    "accelerate": "1.12.0",
+    "tensordict": "0.9.1",
+    "vector-quantize-pytorch": "1.31.6"
+  },
+  "trainer_class": "gear_sonic.trl.trainer.ppo_trainer_aux_loss.TRLAuxLossPPOTrainer",
+  "official_ppo_executed": true,
+  "physical_rollout_executed": true,
+  "official_method_calls": {
+    "train": 1,
+    "_rollout_step": 2,
+    "_compute_returns": 2,
+    "_compute_ppo_loss": 8,
+    "_compute_aux_loss": 8,
+    "_gradient_clipping": 8
+  },
+  "iterations": 2,
+  "optimizer_steps": 8,
+  "control_transitions": 2048,
+  "physics_steps": 4096,
+  "terminated_training_episodes": 39,
+  "parameter_delta_l2": {
+    "encoder": 0.048174262046813965,
+    "dynamic": 0.03488843888044357,
+    "kinematic": 0.0873880386352539,
+    "critic": 0.08740641921758652
+  },
+  "losses": [
+    {
+      "total": 31.864473342895508,
+      "policy": 0.07981852442026138,
+      "value": 63.567996978759766,
+      "auxiliary": 0.0006554844439961016
+    },
+    {
+      "total": 37.31901168823242,
+      "policy": -0.07977090030908585,
+      "value": 74.79598236083984,
+      "auxiliary": 0.0007893702131696045
+    },
+    {
+      "total": 35.018409729003906,
+      "policy": -0.03013850748538971,
+      "value": 70.09542846679688,
+      "auxiliary": 0.0008343240479007363
+    },
+    {
+      "total": 34.13253402709961,
+      "policy": 0.0295725017786026,
+      "value": 68.20481872558594,
+      "auxiliary": 0.0005518674151971936
+    },
+    {
+      "total": 41.76594924926758,
+      "policy": -0.060471061617136,
+      "value": 83.65132904052734,
+      "auxiliary": 0.0007544943946413696
+    },
+    {
+      "total": 35.158565521240234,
+      "policy": 0.060559675097465515,
+      "value": 70.19407653808594,
+      "auxiliary": 0.0009679257054813206
+    },
+    {
+      "total": 29.241989135742188,
+      "policy": 0.1849592924118042,
+      "value": 58.11195755004883,
+      "auxiliary": 0.0010515268659219146
+    },
+    {
+      "total": 47.648475646972656,
+      "policy": -0.18503370881080627,
+      "value": 95.66577911376953,
+      "auxiliary": 0.0006192108266986907
+    }
+  ],
+  "losses_finite": true,
+  "reconstruction_loss_observed": true,
+  "evaluation": {
+    "before": {
+      "clean": {
+        "episodes": 8,
+        "seed": 8080,
+        "horizon_steps": 500,
+        "survived": 0,
+        "mean_steps": 61.625,
+        "all_executed_step_mae": 0.08570718425102782,
+        "completed_episode_mae": null,
+        "push_reached_episodes": null,
+        "interpretation": "MAE before failure can look small; survival is reported separately. Evaluation horizon is not a training timeout."
+      },
+      "push": {
+        "episodes": 8,
+        "seed": 8080,
+        "horizon_steps": 500,
+        "survived": 0,
+        "mean_steps": 61.625,
+        "all_executed_step_mae": 0.08570718425102782,
+        "completed_episode_mae": null,
+        "push_reached_episodes": 0,
+        "interpretation": "MAE before failure can look small; survival is reported separately. Evaluation horizon is not a training timeout."
+      }
+    },
+    "after": {
+      "clean": {
+        "episodes": 8,
+        "seed": 8080,
+        "horizon_steps": 500,
+        "survived": 0,
+        "mean_steps": 59.125,
+        "all_executed_step_mae": 0.08502027081582547,
+        "completed_episode_mae": null,
+        "push_reached_episodes": null,
+        "interpretation": "MAE before failure can look small; survival is reported separately. Evaluation horizon is not a training timeout."
+      },
+      "push": {
+        "episodes": 8,
+        "seed": 8080,
+        "horizon_steps": 500,
+        "survived": 0,
+        "mean_steps": 59.125,
+        "all_executed_step_mae": 0.08502027081582547,
+        "completed_episode_mae": null,
+        "push_reached_episodes": 0,
+        "interpretation": "MAE before failure can look small; survival is reported separately. Evaluation horizon is not a training timeout."
+      }
+    }
+  },
+  "checkpoint": {
+    "kind": "weights-only; not exact-resume trainer state",
+    "action_parity_max_abs": 0.0,
+    "sha256": "d37124097aa801b630e057d0fee55ba77a1266cd0cf3d5d005f0b4bc02c5465a"
+  },
+  "initialization": "random; no teacher, no stabilizing controller",
+  "performance_claim": "not established by this integration run",
+  "adaptations": {
+    "environment": "custom MuJoCo CartPole environment; not Isaac Lab or a humanoid task",
+    "auxiliary_loss": "local CartPole MSE binding through original SONIC auxiliary-loss extension; not G1 kinematic or multimodal alignment loss",
+    "network": "official Actor/Critic/UniversalTokenModule/BaseModule/FSQ; two 2D tokens, five levels, reduced [32,32] MLP widths",
+    "action": "original Gaussian sample retained for PPO; clip only physical input to [-1,1], force=10*input N",
+    "timing": "MuJoCo dt=0.01 s, two physics steps per action, 50 Hz control",
+    "termination": "physical |x|>1.78 or |theta|>0.65 only; no artificial training timeouts; rollout boundary bootstrapped by original trainer",
+    "reference": "independent critically damped x/xd trajectory, goal sampled in [-0.4,0.4] m; no independent commanded pole angle"
+  },
+  "configuration": {
+    "algo": {
+      "init_noise_std": 0.12,
+      "use_log_std": true,
+      "freeze_noise_std": true,
+      "num_steps_per_env": 128,
+      "entropy_coef": 0.0,
+      "desired_kl": null,
+      "compute_aux_loss": true,
+      "aux_loss_scale": 1.0,
+      "use_padding_mask": false
+    },
+    "num_envs": 8,
+    "horizon": 128,
+    "epochs": 2,
+    "minibatches": 2,
+    "learning_rate": 0.0003,
+    "seed": 9101
+  }
+}

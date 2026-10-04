@@ -1,0 +1,17 @@
+<mujoco model="cartpole-native-sonic">
+  <!-- CartPole task adaptation, not an official SONIC humanoid plant. -->
+  <option timestep="0.01" iterations="1" ls_iterations="4">
+    <flag contact="disable" eulerdamp="disable"/>
+  </option>
+  <worldbody>
+    <body name="cart" pos="0 0 1">
+      <joint name="slider" type="slide" axis="1 0 0" limited="true" range="-1.8 1.8" solreflimit=".08 1" damping="5e-4"/>
+      <geom name="cart" type="box" size=".2 .15 .1" mass="1.0"/>
+      <body name="pole">
+        <joint name="hinge" type="hinge" axis="0 1 0" damping="2e-6"/>
+        <geom name="pole" type="capsule" fromto="0 0 0 0 0 1" size=".045" mass=".1"/>
+      </body>
+    </body>
+  </worldbody>
+  <actuator><motor name="slide" joint="slider" gear="10" ctrllimited="true" ctrlrange="-1 1"/></actuator>
+</mujoco>
