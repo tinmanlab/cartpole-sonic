@@ -1,0 +1,221 @@
+{
+  "schema": "cartpole-sonic-native-learning/v1",
+  "scope": "single-training-seed simulation learning and reference interventions",
+  "upstream_commit": "b042411fae38ee4d1af9aac82a37a1f8d14d6dd0",
+  "local_source_sha256": {
+    "learning.py": "08d32a2fe725f6fd08b8c8dbb7c6b26aabcfc29ddee7ff5745fd8c01da354de1",
+    "training.py": "fa243d527cb5735880a49560f1ca7ec2aca50b87d51433bd87b56da30bbc52b3",
+    "cartpole_env.py": "8e051c37a675b7667e6ee9ef78d6543bb9477142b2ef5917e90114ede7998335",
+    "core_smoke.py": "a243cdd677f2c220fcdceaef0ea323a500f2ed997b5eb8e4a20c9db904869c15",
+    "cartpole.xml": "c84f251ff520fafe4cf6effe3182a310a3a7a4966d3508f00b9077c2f37f1f07"
+  },
+  "protocol": {
+    "training_seed": 9101,
+    "distinct_training_seeds": 1,
+    "validation_seed": 8080,
+    "holdout_seeds": [
+      28081,
+      28082
+    ],
+    "holdout_episodes_per_seed": 16,
+    "control_dt": 0.02,
+    "evaluation_horizon": 500,
+    "candidate_selection": "fixed final 512-iteration checkpoint; holdout not used for selection or retuning",
+    "parameter_control": "FSQ precision changes no trainable parameters; tests verify identical initial learned weights",
+    "reference_interventions": "change policy tokenizer input only; physical initial states and true target trajectories unchanged"
+  },
+  "matched_budget_128": [
+    {
+      "fsq_levels": 5,
+      "learning_rate": 0.0003,
+      "iterations": 128,
+      "control_transitions": 131072,
+      "optimizer_steps": 512,
+      "survived": 0,
+      "episodes": 8,
+      "mean_seconds": 1.27,
+      "completed_mae": null,
+      "unique_token_vectors": 1
+    },
+    {
+      "fsq_levels": 32,
+      "learning_rate": 0.0003,
+      "iterations": 128,
+      "control_transitions": 131072,
+      "optimizer_steps": 512,
+      "survived": 0,
+      "episodes": 8,
+      "mean_seconds": 1.405,
+      "completed_mae": null,
+      "unique_token_vectors": 3
+    },
+    {
+      "fsq_levels": 5,
+      "learning_rate": 0.003,
+      "iterations": 128,
+      "control_transitions": 131072,
+      "optimizer_steps": 512,
+      "survived": 0,
+      "episodes": 8,
+      "mean_seconds": 1.98,
+      "completed_mae": null,
+      "unique_token_vectors": 2
+    },
+    {
+      "fsq_levels": 32,
+      "learning_rate": 0.003,
+      "iterations": 128,
+      "control_transitions": 131072,
+      "optimizer_steps": 512,
+      "survived": 0,
+      "episodes": 8,
+      "mean_seconds": 1.495,
+      "completed_mae": null,
+      "unique_token_vectors": 9
+    }
+  ],
+  "combined_learning_trajectory": [
+    {
+      "iteration": 0,
+      "survived": 0,
+      "episodes": 8,
+      "mean_seconds": 1.1625,
+      "completed_mae": null,
+      "push_survived": 0,
+      "push_reached": 0,
+      "unique_token_vectors": 2
+    },
+    {
+      "iteration": 16,
+      "survived": 0,
+      "episodes": 8,
+      "mean_seconds": 1.0875000000000001,
+      "completed_mae": null,
+      "push_survived": 0,
+      "push_reached": 0,
+      "unique_token_vectors": 3
+    },
+    {
+      "iteration": 64,
+      "survived": 0,
+      "episodes": 8,
+      "mean_seconds": 1.3625,
+      "completed_mae": null,
+      "push_survived": 0,
+      "push_reached": 0,
+      "unique_token_vectors": 11
+    },
+    {
+      "iteration": 128,
+      "survived": 0,
+      "episodes": 8,
+      "mean_seconds": 1.495,
+      "completed_mae": null,
+      "push_survived": 0,
+      "push_reached": 0,
+      "unique_token_vectors": 9
+    },
+    {
+      "iteration": 256,
+      "survived": 0,
+      "episodes": 8,
+      "mean_seconds": 3.495,
+      "completed_mae": null,
+      "push_survived": 0,
+      "push_reached": 8,
+      "unique_token_vectors": 11
+    },
+    {
+      "iteration": 512,
+      "survived": 8,
+      "episodes": 8,
+      "mean_seconds": 10.0,
+      "completed_mae": 0.09477779749920066,
+      "push_survived": 8,
+      "push_reached": 8,
+      "unique_token_vectors": 13
+    }
+  ],
+  "holdout_aggregate": {
+    "clean": {
+      "episodes": 32,
+      "survived": 32,
+      "completed_mae": 0.10730996924799142,
+      "completed_tail_mae": 0.09934560946347712,
+      "push_reached": 0,
+      "post_push_survived": 0,
+      "post_push_mae": null
+    },
+    "push": {
+      "episodes": 32,
+      "survived": 32,
+      "completed_mae": 0.12996591855396727,
+      "completed_tail_mae": 0.09262684487503609,
+      "push_reached": 32,
+      "post_push_survived": 32,
+      "post_push_mae": 0.12688960953454465
+    },
+    "zero_reference": {
+      "episodes": 32,
+      "survived": 32,
+      "completed_mae": 0.22673130495158622,
+      "completed_tail_mae": 0.25665845891449723,
+      "push_reached": 0,
+      "post_push_survived": 0,
+      "post_push_mae": null
+    },
+    "negated_reference": {
+      "episodes": 32,
+      "survived": 32,
+      "completed_mae": 0.35902446733501614,
+      "completed_tail_mae": 0.4259387373670013,
+      "push_reached": 0,
+      "post_push_survived": 0,
+      "post_push_mae": null
+    }
+  },
+  "candidate": {
+    "configuration": {
+      "fsq_levels": 32,
+      "learning_rate": 0.003,
+      "seed": 9101,
+      "tokens": 2,
+      "token_dim": 2,
+      "hidden_widths": [
+        32,
+        32
+      ],
+      "num_envs": 8,
+      "horizon": 128,
+      "epochs": 2,
+      "minibatches": 2
+    },
+    "iterations": 512,
+    "control_transitions": 524288,
+    "physics_steps": 1048576,
+    "optimizer_steps": 2048,
+    "official_method_calls": {
+      "train": 1,
+      "_rollout_step": 512,
+      "_compute_returns": 512,
+      "_compute_ppo_loss": 2048,
+      "_compute_aux_loss": 2048
+    },
+    "checkpoint_action_parity_max_abs": 0
+  },
+  "boundaries": [
+    "One training initialization, not a multi-training-seed robustness result.",
+    "Near-upright starts and goals in [-0.4,0.4] m; no humanoid, sensor-noise, delay, morphology or hardware validation.",
+    "Ten-second survival under the declared termination limits is not a formal stability guarantee.",
+    "Push survival is reported, not an unmeasured sustained-recovery or safety certificate.",
+    "Browser JS teaching runtime is unchanged; this checkpoint runs through the separate native Python path."
+  ],
+  "artifacts_sha256": {
+    "baseline.json": "294a88464d6de3caa9b50641f5526bc405c5a85780110dbcd34102f5995e718b",
+    "precision32.json": "45b4e94788755542c17975697ddc4f3785b91bc35f18596adc969a751af0f62c",
+    "learning_rate.json": "f3b65287302086ff8fd98fed8d2f7bd87f45f3052d98f7daeec8a8fc86e954af",
+    "combined512.json": "e10dc6261eaab71ab4605dac52ed1821a1e0792c67a41bae6d9f74ad5a0c27d2",
+    "holdout.json": "8436d6c3f504c8f80695a0f4253f7f62454d68fc85b31cbb75e4a1ea490c131f",
+    "weights-final.pt": "6ba8092aeda44b8fb69ea53dc48d68a99797e31b05d2d94c4ab2e0c3bbb3f84b"
+  }
+}

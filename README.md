@@ -963,3 +963,13 @@ Local periodic `/telemetry` now sends a bounded summary rather than repeatedly s
 ![Matched-budget PPO audit](media/optimizer-budget-50.png)
 
 ![Actual Adam, KL and token-change diagnostics](media/optimizer-diagnostics.png)
+
+## Native learned-control result — separate from the browser policy
+
+The original two-iteration native integration check above remains a smoke test, not the latest learning budget. The subsequent [native learning experiment](native/LEARNING.md) uses the **same original SONIC trainer**, with no teacher or hidden stabilizer, and records a 512-iteration run plus separate fixed-checkpoint evaluation.
+
+In 32 separate initial-condition cases, the native policy survived 10 seconds in both clean and specified-impulse conditions. Correct-reference tracking MAE was **0.1073 m**, versus **0.2267 m** with the reference input erased and **0.3590 m** with it sign-reversed while the true target remained unchanged. This distinguishes useful reference-conditioned tracking from merely remaining upright.
+
+[Measured summary](evidence/native_learning/summary.json) · [Per-episode audit](evidence/native_learning/holdout.json) · [Native weights](evidence/native_learning/weights-final.pt)
+
+This is one training initialization, a fixed CartPole plant, a narrow goal range and a 10-second evaluation—not a seed-robust, humanoid or sim-to-real guarantee. The 32-level setting is not established as necessary or optimal. **The browser controller is unchanged:** these native weights are evaluated through Python, not silently substituted into the JavaScript teaching demo.

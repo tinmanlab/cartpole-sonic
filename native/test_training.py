@@ -151,3 +151,16 @@ def test_committed_training_evidence_matches_fresh_run(report):
     for phase in ['before','after']:
         for scenario in ['clean','push']:
             assert report['evaluation'][phase][scenario]['survived']==expected['evaluation'][phase][scenario]['survived']
+
+
+def test_episode_logs_aggregate_when_failure_and_nonfailure_steps_mix(env):
+    from core_smoke import import_native
+    import_native(Path(os.environ['SONIC_UPSTREAM']))
+    from gear_sonic.trl.trainer.ppo_trainer import process_ep_infos
+    env.data[0].qpos[1]=.9
+    _,_,done,failed=env.step({'actions':torch.zeros(4,1)})
+    assert done[0]
+    _,_,_,normal=env.step({'actions':torch.zeros(4,1)})
+    assert failed['episode'].keys()==normal['episode'].keys(), 'official logger requires consistent metric keys'
+    values=process_ep_infos([failed['episode'],normal['episode']],torch.device('cpu'))
+    assert all(torch.isfinite(v).all() for v in values.values())

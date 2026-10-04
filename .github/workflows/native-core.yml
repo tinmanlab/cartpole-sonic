@@ -6,6 +6,7 @@ on:
       - 'native/**'
       - 'evidence/native_core_smoke.json'
       - 'evidence/native_training.json'
+      - 'evidence/native_learning/**'
       - '.github/workflows/native-core.yml'
   push:
     branches: [main]
@@ -13,6 +14,7 @@ on:
       - 'native/**'
       - 'evidence/native_core_smoke.json'
       - 'evidence/native_training.json'
+      - 'evidence/native_learning/**'
       - '.github/workflows/native-core.yml'
 
 permissions:
@@ -55,8 +57,8 @@ jobs:
           python -m pip install 'torch==2.7.0+cpu' 'torchvision==0.22.0+cpu' --index-url https://download.pytorch.org/whl/cpu
           python -m pip install -r native/training.lock
           python -m pip check
-      - name: Core, physical task and official-trainer tests
-        run: python -m pytest native/test_core_smoke.py native/test_training.py -q --junitxml=native-results.xml
+      - name: Core, physical task, official trainer and learning-measurement tests
+        run: python -m pytest native/test_core_smoke.py native/test_training.py native/test_learning.py -q --junitxml=native-results.xml
       - name: Record fresh module and trainer executions
         run: |
           python native/core_smoke.py --output native-core-result.json
