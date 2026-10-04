@@ -1,0 +1,42 @@
+{
+  "schema": "cartpole-sonic-temporal-audit-protocol/v1",
+  "purpose": "Separate full future-trajectory information from identical present, causal history and terminal-state cues, without any policy update.",
+  "base_commit": "b1145cb0394db87830978772e5f7081eaab46a3d",
+  "frozen_policy": "evidence/native_concepts/encoder-transfer.pt",
+  "frozen_policy_sha256": "711bf4cc9b753ed2d11e9f2124d74651bb5f44fd6a073b52e966dc7482dc21f5",
+  "physical_case_seed": 73421,
+  "declared_case_count": 12,
+  "interior_ticks": [8, 12, 16],
+  "interior_displacements_m": [0.001, 0.002, 0.004, 0.006],
+  "initial_cart_range_m": [-0.25, 0.25],
+  "branch_control_steps": 28,
+  "control_dt_s": 0.02,
+  "physics_substeps": 2,
+  "reference_offsets": [0, 4, 8, 12, 16, 20, 24, 28],
+  "actuator_input_bound": 0.25,
+  "actuator_force_scale_N": 10,
+  "endpoint_abs_tolerance_state4": [1e-7, 1e-7, 1e-7, 1e-7],
+  "minimum_branch_interior_position_difference_m": 0.0001,
+  "minimum_first_action_difference": 0.00001,
+  "generation": "Original MuJoCo least_squares plus actual nonlinear mj_step; no learned-policy scoring or model tuning during case construction. Record all rejected candidates.",
+  "input_conditions": ["full_future", "current_only", "history_only", "endpoints_only"],
+  "branches": ["joints", "markers"],
+  "rollout_steps": 28,
+  "initial_actual_state_offsets": [[0.0, 0.0, 0.0, 0.0], [0.0, 0.02, 0.001, -0.02]],
+  "primary_outcomes": [
+    "Physical feasibility and matching of the full initial/terminal state, not just cart position.",
+    "Frozen-policy action difference at identical actual state, shared causal history and canonical shared endpoint.",
+    "Similarity to the two recorded first actions and the equal-cue paired-mean action-prediction lower bound.",
+    "Executed/survivor-conditioned cart tracking MAE and full-state error on immutable references.",
+    "All candidate rejections, failures, horizons and counts."
+  ],
+  "comparison_rules": [
+    "No policy training, no encoder alignment, no hyperparameter search, no best-checkpoint selection.",
+    "Recorded raw endpoints are never altered; canonical shared input endpoints differ from them only by the declared tolerance and are separately labelled.",
+    "Future tail, if needed for fixed-size rolling inputs, is actually simulated under zero control; never repeat or invent missing states.",
+    "Reduced-cue frozen-policy inputs are interventions, not optimally retrained current/history/endpoint baselines.",
+    "The paired-action lower bound concerns prediction of these recorded controls, not every possible successful closed-loop control strategy.",
+    "This is a new equal-endpoint task distribution. A failure need not indicate implementation failure or CartPole insufficiency.",
+    "No formal stability, universal anticipation, humanoid or sim-to-real claim."
+  ]
+}

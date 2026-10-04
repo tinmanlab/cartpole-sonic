@@ -98,3 +98,7 @@ python native/encoder_transfer.py --concept-dir /tmp/sonic-concepts --output-dir
 **이번 음성 결과는 ENVIRONMENT_LIMIT이 아니라 학습/인터페이스 실험의 차이였다.** 고정된 기존 Decoder를 재사용하는 경로로 CartPole 안에서 공유 표현과 제어를 더 검증할 수 있었다. 따라서 아직 새 로봇으로 실행을 옮기지 않는다.
 
 다음으로 필요한 개념이 두 개 이상의 독립 actuator, 연속 kinematic redundancy, 발 접촉 전환 또는 일반적인 3D frame/heading이라면 CartPole에서 이를 검증했다고 주장할 수 없다. 그때 적용할 최소 환경·재사용 요소·porting checklist와 중단 조건은 [PIVOT.md](PIVOT.md)에 있다. 테스트하지 않은 항목과 현재 환경으로 표현할 수 없는 항목을 구분한다.
+
+## Subsequent same-endpoint audit
+
+The previously missing physically feasible same-current/same-terminal comparison is now implemented in [`TEMPORAL_AUDIT.md`](TEMPORAL_AUDIT.md). Nine of twelve declared paired maneuvers passed the full-state physics tolerances; three rejected candidates are preserved. The frozen transferred policy distinguished six accepted pairs from their interior future frames, but did not outperform endpoint-only inputs on the short-horizon cart-error aggregate. This refines—not erases—the earlier diagnostic result: temporal sensitivity is not automatic temporal-control superiority. No policy retraining or embodiment change was used in this audit.
