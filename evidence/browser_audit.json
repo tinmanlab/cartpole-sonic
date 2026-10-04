@@ -1,6 +1,6 @@
 {
   "schema": "cartpole-sonic-browser-audit/v1",
-  "base": "http://127.0.0.1:58412/",
+  "base": "http://127.0.0.1:57746/",
   "browser": "153.0.8010.12",
   "checks": [
     {
@@ -11,12 +11,12 @@
       "canvasSizes": [
         [
           "cart",
-          398,
-          223
+          358,
+          201
         ],
         [
           "optimizerRuns",
-          716,
+          776,
           173
         ]
       ]
@@ -29,12 +29,12 @@
       "canvasSizes": [
         [
           "cart",
-          398,
-          223
+          358,
+          201
         ],
         [
           "optimizerRuns",
-          716,
+          776,
           173
         ]
       ]
@@ -47,8 +47,8 @@
       "canvasSizes": [
         [
           "cart",
-          398,
-          223
+          358,
+          201
         ]
       ]
     },
@@ -60,8 +60,8 @@
       "canvasSizes": [
         [
           "cart",
-          398,
-          223
+          358,
+          201
         ]
       ]
     },
@@ -73,402 +73,2545 @@
       "canvasSizes": [
         [
           "cart",
-          398,
-          223
+          358,
+          201
         ]
       ]
     },
     {
-      "label": "task",
+      "label": "1440/easy/task",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ]
+      ]
+    },
+    {
+      "label": "1440/easy/generator",
       "documentXOverflow": false,
       "guideScrollNeeded": false,
       "guideOverflow": false,
       "canvasSizes": [
         [
           "cart",
-          398,
-          223
+          358,
+          201
+        ],
+        [
+          "lessonViz",
+          666,
+          542
         ]
       ]
     },
     {
-      "label": "generator",
+      "label": "1440/easy/reference",
       "documentXOverflow": false,
       "guideScrollNeeded": true,
       "guideOverflow": false,
       "canvasSizes": [
         [
           "cart",
-          398,
-          223
+          358,
+          201
         ],
         [
           "lessonViz",
-          766,
-          498
+          666,
+          542
         ]
       ]
     },
     {
-      "label": "reference",
+      "label": "1440/easy/encoder",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "lessonViz",
+          666,
+          507
+        ]
+      ]
+    },
+    {
+      "label": "1440/easy/encoder/core",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "lessonViz",
+          666,
+          507
+        ]
+      ]
+    },
+    {
+      "label": "1440/easy/encoder/ae",
       "documentXOverflow": false,
       "guideScrollNeeded": false,
       "guideOverflow": false,
       "canvasSizes": [
         [
           "cart",
-          398,
-          223
+          358,
+          201
         ],
         [
           "lessonViz",
-          766,
-          498
+          666,
+          507
         ]
       ]
     },
     {
-      "label": "encoder",
-      "documentXOverflow": false,
-      "guideScrollNeeded": true,
-      "guideOverflow": false,
-      "canvasSizes": [
-        [
-          "cart",
-          398,
-          223
-        ],
-        [
-          "lessonViz",
-          766,
-          498
-        ]
-      ]
-    },
-    {
-      "label": "encoder/core",
-      "documentXOverflow": false,
-      "guideScrollNeeded": true,
-      "guideOverflow": false,
-      "canvasSizes": [
-        [
-          "cart",
-          398,
-          223
-        ],
-        [
-          "lessonViz",
-          766,
-          498
-        ]
-      ]
-    },
-    {
-      "label": "encoder/ae",
-      "documentXOverflow": false,
-      "guideScrollNeeded": true,
-      "guideOverflow": false,
-      "canvasSizes": [
-        [
-          "cart",
-          398,
-          223
-        ],
-        [
-          "lessonViz",
-          766,
-          498
-        ]
-      ]
-    },
-    {
-      "label": "encoder/vae",
+      "label": "1440/easy/encoder/vae",
       "documentXOverflow": false,
       "guideScrollNeeded": false,
       "guideOverflow": false,
       "canvasSizes": [
         [
           "cart",
-          398,
-          223
+          358,
+          201
         ]
       ]
     },
     {
-      "label": "quantizer",
+      "label": "1440/easy/quantizer",
       "documentXOverflow": false,
       "guideScrollNeeded": true,
       "guideOverflow": false,
       "canvasSizes": [
         [
           "cart",
-          398,
-          223
+          358,
+          201
         ],
         [
           "lessonViz",
-          766,
-          498
+          666,
+          507
         ]
       ]
     },
     {
-      "label": "quantizer/vq",
-      "documentXOverflow": false,
-      "guideScrollNeeded": true,
-      "guideOverflow": false,
-      "canvasSizes": [
-        [
-          "cart",
-          398,
-          223
-        ],
-        [
-          "lessonViz",
-          766,
-          498
-        ]
-      ]
-    },
-    {
-      "label": "quantizer/vqvae",
+      "label": "1440/easy/quantizer/vq",
       "documentXOverflow": false,
       "guideScrollNeeded": false,
       "guideOverflow": false,
       "canvasSizes": [
         [
           "cart",
-          398,
-          223
-        ]
-      ]
-    },
-    {
-      "label": "quantizer/fsq",
-      "documentXOverflow": false,
-      "guideScrollNeeded": true,
-      "guideOverflow": false,
-      "canvasSizes": [
-        [
-          "cart",
-          398,
-          223
+          358,
+          201
         ],
         [
           "lessonViz",
-          766,
-          498
+          666,
+          507
         ]
       ]
     },
     {
-      "label": "token",
+      "label": "1440/easy/quantizer/vqvae",
+      "documentXOverflow": false,
+      "guideScrollNeeded": false,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ]
+      ]
+    },
+    {
+      "label": "1440/easy/quantizer/fsq",
       "documentXOverflow": false,
       "guideScrollNeeded": true,
       "guideOverflow": false,
       "canvasSizes": [
         [
           "cart",
-          398,
-          223
+          358,
+          201
         ],
         [
           "lessonViz",
-          766,
-          498
+          666,
+          507
         ]
       ]
     },
     {
-      "label": "token/core",
+      "label": "1440/easy/token",
       "documentXOverflow": false,
       "guideScrollNeeded": true,
       "guideOverflow": false,
       "canvasSizes": [
         [
           "cart",
-          398,
-          223
+          358,
+          201
         ],
         [
           "lessonViz",
-          766,
-          498
+          666,
+          507
         ]
       ]
     },
     {
-      "label": "token/temporal",
+      "label": "1440/easy/token/core",
       "documentXOverflow": false,
       "guideScrollNeeded": true,
       "guideOverflow": false,
       "canvasSizes": [
         [
           "cart",
-          398,
-          223
+          358,
+          201
+        ],
+        [
+          "lessonViz",
+          666,
+          507
+        ]
+      ]
+    },
+    {
+      "label": "1440/easy/token/temporal",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
         ],
         [
           "temporalRecon",
-          300,
-          150
+          360,
+          313
         ],
         [
           "temporalCurve",
-          300,
-          150
+          266,
+          192
         ]
       ]
     },
     {
-      "label": "token/temporal-control",
+      "label": "1440/easy/token/temporal-control",
       "documentXOverflow": false,
       "guideScrollNeeded": true,
       "guideOverflow": false,
       "canvasSizes": [
         [
           "cart",
-          398,
-          223
+          358,
+          201
         ],
         [
           "temporalControlCurve",
-          436,
-          349
+          376,
+          345
         ]
       ]
     },
     {
-      "label": "motion-decoder",
+      "label": "1440/easy/motion-decoder",
       "documentXOverflow": false,
       "guideScrollNeeded": true,
       "guideOverflow": false,
       "canvasSizes": [
         [
           "cart",
-          398,
-          223
+          358,
+          201
         ],
         [
           "lessonViz",
-          766,
-          498
+          666,
+          542
         ]
       ]
     },
     {
-      "label": "control-decoder",
+      "label": "1440/easy/control-decoder",
       "documentXOverflow": false,
       "guideScrollNeeded": true,
       "guideOverflow": false,
       "canvasSizes": [
         [
           "cart",
-          398,
-          223
+          358,
+          201
         ],
         [
           "lessonViz",
-          766,
-          498
+          666,
+          542
         ]
       ]
     },
     {
-      "label": "robot",
+      "label": "1440/easy/robot",
       "documentXOverflow": false,
       "guideScrollNeeded": true,
       "guideOverflow": false,
       "canvasSizes": [
         [
           "cart",
-          398,
-          223
+          358,
+          201
         ],
         [
           "lessonViz",
-          766,
-          498
+          666,
+          542
         ]
       ]
     },
     {
-      "label": "training/loss-flow",
+      "label": "1440/easy/training/loss-flow",
       "documentXOverflow": false,
       "guideScrollNeeded": false,
       "guideOverflow": false,
       "canvasSizes": [
         [
           "cart",
-          398,
-          223
+          358,
+          201
         ]
       ]
     },
     {
-      "label": "training/what-learns",
+      "label": "1440/easy/training/what-learns",
       "documentXOverflow": false,
       "guideScrollNeeded": false,
       "guideOverflow": false,
       "canvasSizes": [
         [
           "cart",
-          398,
-          223
+          358,
+          201
         ]
       ]
     },
     {
-      "label": "training/alignment",
+      "label": "1440/easy/training/alignment",
       "documentXOverflow": false,
       "guideScrollNeeded": true,
       "guideOverflow": false,
       "canvasSizes": [
         [
           "cart",
-          398,
-          223
+          358,
+          201
         ],
         [
           "alignmentCurve",
-          418,
-          329
+          360,
+          338
         ]
       ]
     },
     {
-      "label": "training/optimizer-sensitivity",
+      "label": "1440/easy/training/optimizer-sensitivity",
       "documentXOverflow": false,
-      "guideScrollNeeded": true,
+      "guideScrollNeeded": false,
       "guideOverflow": false,
       "canvasSizes": [
         [
           "cart",
-          398,
-          223
+          358,
+          201
         ]
       ]
     },
     {
-      "label": "training/ppo",
+      "label": "1440/easy/training/ppo",
       "documentXOverflow": false,
-      "guideScrollNeeded": true,
+      "guideScrollNeeded": false,
       "guideOverflow": false,
       "canvasSizes": [
         [
           "cart",
-          398,
-          223
+          358,
+          201
         ],
         [
           "lessonViz",
-          766,
-          498
+          666,
+          507
         ]
       ]
     },
     {
-      "label": "actual native MuJoCo two-token control",
+      "label": "1440/mechanism/task",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ]
+      ]
+    },
+    {
+      "label": "1440/mechanism/generator",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "lessonViz",
+          666,
+          542
+        ]
+      ]
+    },
+    {
+      "label": "1440/mechanism/reference",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "lessonViz",
+          666,
+          542
+        ]
+      ]
+    },
+    {
+      "label": "1440/mechanism/encoder",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "lessonViz",
+          666,
+          507
+        ]
+      ]
+    },
+    {
+      "label": "1440/mechanism/encoder/core",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "lessonViz",
+          666,
+          507
+        ]
+      ]
+    },
+    {
+      "label": "1440/mechanism/encoder/ae",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "lessonViz",
+          666,
+          507
+        ]
+      ]
+    },
+    {
+      "label": "1440/mechanism/encoder/vae",
+      "documentXOverflow": false,
+      "guideScrollNeeded": false,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ]
+      ]
+    },
+    {
+      "label": "1440/mechanism/quantizer",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "lessonViz",
+          666,
+          507
+        ]
+      ]
+    },
+    {
+      "label": "1440/mechanism/quantizer/vq",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "lessonViz",
+          666,
+          507
+        ]
+      ]
+    },
+    {
+      "label": "1440/mechanism/quantizer/vqvae",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ]
+      ]
+    },
+    {
+      "label": "1440/mechanism/quantizer/fsq",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "lessonViz",
+          666,
+          507
+        ]
+      ]
+    },
+    {
+      "label": "1440/mechanism/token",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "lessonViz",
+          666,
+          507
+        ]
+      ]
+    },
+    {
+      "label": "1440/mechanism/token/core",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "lessonViz",
+          666,
+          507
+        ]
+      ]
+    },
+    {
+      "label": "1440/mechanism/token/temporal",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "temporalRecon",
+          360,
+          313
+        ],
+        [
+          "temporalCurve",
+          266,
+          192
+        ]
+      ]
+    },
+    {
+      "label": "1440/mechanism/token/temporal-control",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "temporalControlCurve",
+          376,
+          345
+        ]
+      ]
+    },
+    {
+      "label": "1440/mechanism/motion-decoder",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "lessonViz",
+          666,
+          542
+        ]
+      ]
+    },
+    {
+      "label": "1440/mechanism/control-decoder",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "lessonViz",
+          666,
+          542
+        ]
+      ]
+    },
+    {
+      "label": "1440/mechanism/robot",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "lessonViz",
+          666,
+          542
+        ]
+      ]
+    },
+    {
+      "label": "1440/mechanism/training/loss-flow",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ]
+      ]
+    },
+    {
+      "label": "1440/mechanism/training/what-learns",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ]
+      ]
+    },
+    {
+      "label": "1440/mechanism/training/alignment",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "alignmentCurve",
+          360,
+          338
+        ]
+      ]
+    },
+    {
+      "label": "1440/mechanism/training/optimizer-sensitivity",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ]
+      ]
+    },
+    {
+      "label": "1440/mechanism/training/ppo",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "lessonViz",
+          666,
+          507
+        ]
+      ]
+    },
+    {
+      "label": "1440/sonic/task",
+      "documentXOverflow": false,
+      "guideScrollNeeded": false,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ]
+      ]
+    },
+    {
+      "label": "1440/sonic/generator",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "lessonViz",
+          666,
+          542
+        ]
+      ]
+    },
+    {
+      "label": "1440/sonic/reference",
+      "documentXOverflow": false,
+      "guideScrollNeeded": false,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "lessonViz",
+          666,
+          542
+        ]
+      ]
+    },
+    {
+      "label": "1440/sonic/encoder",
+      "documentXOverflow": false,
+      "guideScrollNeeded": false,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "lessonViz",
+          666,
+          507
+        ]
+      ]
+    },
+    {
+      "label": "1440/sonic/encoder/core",
+      "documentXOverflow": false,
+      "guideScrollNeeded": false,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "lessonViz",
+          666,
+          507
+        ]
+      ]
+    },
+    {
+      "label": "1440/sonic/encoder/ae",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "lessonViz",
+          666,
+          507
+        ]
+      ]
+    },
+    {
+      "label": "1440/sonic/encoder/vae",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ]
+      ]
+    },
+    {
+      "label": "1440/sonic/quantizer",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "lessonViz",
+          666,
+          507
+        ]
+      ]
+    },
+    {
+      "label": "1440/sonic/quantizer/vq",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "lessonViz",
+          666,
+          507
+        ]
+      ]
+    },
+    {
+      "label": "1440/sonic/quantizer/vqvae",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ]
+      ]
+    },
+    {
+      "label": "1440/sonic/quantizer/fsq",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "lessonViz",
+          666,
+          507
+        ]
+      ]
+    },
+    {
+      "label": "1440/sonic/token",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "lessonViz",
+          666,
+          507
+        ]
+      ]
+    },
+    {
+      "label": "1440/sonic/token/core",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "lessonViz",
+          666,
+          507
+        ]
+      ]
+    },
+    {
+      "label": "1440/sonic/token/temporal",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "temporalRecon",
+          360,
+          313
+        ],
+        [
+          "temporalCurve",
+          266,
+          192
+        ]
+      ]
+    },
+    {
+      "label": "1440/sonic/token/temporal-control",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "temporalControlCurve",
+          376,
+          345
+        ]
+      ]
+    },
+    {
+      "label": "1440/sonic/motion-decoder",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "lessonViz",
+          666,
+          542
+        ]
+      ]
+    },
+    {
+      "label": "1440/sonic/control-decoder",
+      "documentXOverflow": false,
+      "guideScrollNeeded": false,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "lessonViz",
+          666,
+          542
+        ]
+      ]
+    },
+    {
+      "label": "1440/sonic/robot",
+      "documentXOverflow": false,
+      "guideScrollNeeded": false,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "lessonViz",
+          666,
+          542
+        ]
+      ]
+    },
+    {
+      "label": "1440/sonic/training/loss-flow",
+      "documentXOverflow": false,
+      "guideScrollNeeded": false,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ]
+      ]
+    },
+    {
+      "label": "1440/sonic/training/what-learns",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ]
+      ]
+    },
+    {
+      "label": "1440/sonic/training/alignment",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "alignmentCurve",
+          360,
+          338
+        ]
+      ]
+    },
+    {
+      "label": "1440/sonic/training/optimizer-sensitivity",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ]
+      ]
+    },
+    {
+      "label": "1440/sonic/training/ppo",
+      "documentXOverflow": false,
+      "guideScrollNeeded": false,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "lessonViz",
+          666,
+          507
+        ]
+      ]
+    },
+    {
+      "label": "1440/preset/playground",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ]
+      ]
+    },
+    {
+      "label": "preset drawing 1440/playground",
+      "geometry": {
+        "scale": 58.180234484849294,
+        "railY": 187,
+        "pivotY": 160.23709213696932,
+        "cx": 179,
+        "tx": 184.80833158993613,
+        "ty": 102.34751648769205,
+        "cartW": 37.23535007030355,
+        "cartH": 13.96325627636383,
+        "wheelY": 181.76377889636356
+      },
+      "rect": {
+        "x": 19,
+        "y": 265,
+        "width": 358,
+        "height": 200.5
+      }
+    },
+    {
+      "label": "1440/preset/long",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ]
+      ]
+    },
+    {
+      "label": "preset drawing 1440/long",
+      "geometry": {
+        "scale": 53.61467638438588,
+        "railY": 187,
+        "pivotY": 162.33724886318248,
+        "cx": 179,
+        "tx": 186.22592403992078,
+        "ty": 90.31903332781104,
+        "cartW": 34.313392886006966,
+        "cartH": 12.86752233225261,
+        "wheelY": 182.17467912540528
+      },
+      "rect": {
+        "x": 19,
+        "y": 265,
+        "width": 358,
+        "height": 200.5
+      }
+    },
+    {
+      "label": "1440/preset/heavy",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ]
+      ]
+    },
+    {
+      "label": "preset drawing 1440/heavy",
+      "geometry": {
+        "scale": 58.180234484849294,
+        "railY": 187,
+        "pivotY": 160.23709213696932,
+        "cx": 179,
+        "tx": 184.80833158993613,
+        "ty": 102.34751648769205,
+        "cartW": 37.23535007030355,
+        "cartH": 13.96325627636383,
+        "wheelY": 181.76377889636356
+      },
+      "rect": {
+        "x": 19,
+        "y": 265,
+        "width": 358,
+        "height": 200.5
+      }
+    },
+    {
+      "label": "1920/easy/task",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ]
+      ]
+    },
+    {
+      "label": "1920/easy/generator",
+      "documentXOverflow": false,
+      "guideScrollNeeded": false,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "lessonViz",
+          826,
+          542
+        ]
+      ]
+    },
+    {
+      "label": "1920/easy/reference",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "lessonViz",
+          826,
+          542
+        ]
+      ]
+    },
+    {
+      "label": "1920/easy/encoder",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "lessonViz",
+          826,
+          507
+        ]
+      ]
+    },
+    {
+      "label": "1920/easy/encoder/core",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "lessonViz",
+          826,
+          507
+        ]
+      ]
+    },
+    {
+      "label": "1920/easy/encoder/ae",
+      "documentXOverflow": false,
+      "guideScrollNeeded": false,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "lessonViz",
+          826,
+          507
+        ]
+      ]
+    },
+    {
+      "label": "1920/easy/encoder/vae",
+      "documentXOverflow": false,
+      "guideScrollNeeded": false,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ]
+      ]
+    },
+    {
+      "label": "1920/easy/quantizer",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "lessonViz",
+          826,
+          507
+        ]
+      ]
+    },
+    {
+      "label": "1920/easy/quantizer/vq",
+      "documentXOverflow": false,
+      "guideScrollNeeded": false,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "lessonViz",
+          826,
+          507
+        ]
+      ]
+    },
+    {
+      "label": "1920/easy/quantizer/vqvae",
+      "documentXOverflow": false,
+      "guideScrollNeeded": false,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ]
+      ]
+    },
+    {
+      "label": "1920/easy/quantizer/fsq",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "lessonViz",
+          826,
+          507
+        ]
+      ]
+    },
+    {
+      "label": "1920/easy/token",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "lessonViz",
+          826,
+          507
+        ]
+      ]
+    },
+    {
+      "label": "1920/easy/token/core",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "lessonViz",
+          826,
+          507
+        ]
+      ]
+    },
+    {
+      "label": "1920/easy/token/temporal",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "temporalRecon",
+          452,
+          313
+        ],
+        [
+          "temporalCurve",
+          334,
+          203
+        ]
+      ]
+    },
+    {
+      "label": "1920/easy/token/temporal-control",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "temporalControlCurve",
+          472,
+          356
+        ]
+      ]
+    },
+    {
+      "label": "1920/easy/motion-decoder",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "lessonViz",
+          826,
+          542
+        ]
+      ]
+    },
+    {
+      "label": "1920/easy/control-decoder",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "lessonViz",
+          826,
+          542
+        ]
+      ]
+    },
+    {
+      "label": "1920/easy/robot",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "lessonViz",
+          826,
+          542
+        ]
+      ]
+    },
+    {
+      "label": "1920/easy/training/loss-flow",
+      "documentXOverflow": false,
+      "guideScrollNeeded": false,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ]
+      ]
+    },
+    {
+      "label": "1920/easy/training/what-learns",
+      "documentXOverflow": false,
+      "guideScrollNeeded": false,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ]
+      ]
+    },
+    {
+      "label": "1920/easy/training/alignment",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "alignmentCurve",
+          452,
+          338
+        ]
+      ]
+    },
+    {
+      "label": "1920/easy/training/optimizer-sensitivity",
+      "documentXOverflow": false,
+      "guideScrollNeeded": false,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ]
+      ]
+    },
+    {
+      "label": "1920/easy/training/ppo",
+      "documentXOverflow": false,
+      "guideScrollNeeded": false,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "lessonViz",
+          826,
+          507
+        ]
+      ]
+    },
+    {
+      "label": "1920/mechanism/task",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ]
+      ]
+    },
+    {
+      "label": "1920/mechanism/generator",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "lessonViz",
+          826,
+          542
+        ]
+      ]
+    },
+    {
+      "label": "1920/mechanism/reference",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "lessonViz",
+          826,
+          542
+        ]
+      ]
+    },
+    {
+      "label": "1920/mechanism/encoder",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "lessonViz",
+          826,
+          507
+        ]
+      ]
+    },
+    {
+      "label": "1920/mechanism/encoder/core",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "lessonViz",
+          826,
+          507
+        ]
+      ]
+    },
+    {
+      "label": "1920/mechanism/encoder/ae",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "lessonViz",
+          826,
+          507
+        ]
+      ]
+    },
+    {
+      "label": "1920/mechanism/encoder/vae",
+      "documentXOverflow": false,
+      "guideScrollNeeded": false,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ]
+      ]
+    },
+    {
+      "label": "1920/mechanism/quantizer",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "lessonViz",
+          826,
+          507
+        ]
+      ]
+    },
+    {
+      "label": "1920/mechanism/quantizer/vq",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "lessonViz",
+          826,
+          507
+        ]
+      ]
+    },
+    {
+      "label": "1920/mechanism/quantizer/vqvae",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ]
+      ]
+    },
+    {
+      "label": "1920/mechanism/quantizer/fsq",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "lessonViz",
+          826,
+          507
+        ]
+      ]
+    },
+    {
+      "label": "1920/mechanism/token",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "lessonViz",
+          826,
+          507
+        ]
+      ]
+    },
+    {
+      "label": "1920/mechanism/token/core",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "lessonViz",
+          826,
+          507
+        ]
+      ]
+    },
+    {
+      "label": "1920/mechanism/token/temporal",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "temporalRecon",
+          452,
+          313
+        ],
+        [
+          "temporalCurve",
+          334,
+          203
+        ]
+      ]
+    },
+    {
+      "label": "1920/mechanism/token/temporal-control",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "temporalControlCurve",
+          472,
+          356
+        ]
+      ]
+    },
+    {
+      "label": "1920/mechanism/motion-decoder",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "lessonViz",
+          826,
+          542
+        ]
+      ]
+    },
+    {
+      "label": "1920/mechanism/control-decoder",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "lessonViz",
+          826,
+          542
+        ]
+      ]
+    },
+    {
+      "label": "1920/mechanism/robot",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "lessonViz",
+          826,
+          542
+        ]
+      ]
+    },
+    {
+      "label": "1920/mechanism/training/loss-flow",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ]
+      ]
+    },
+    {
+      "label": "1920/mechanism/training/what-learns",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ]
+      ]
+    },
+    {
+      "label": "1920/mechanism/training/alignment",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "alignmentCurve",
+          452,
+          338
+        ]
+      ]
+    },
+    {
+      "label": "1920/mechanism/training/optimizer-sensitivity",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ]
+      ]
+    },
+    {
+      "label": "1920/mechanism/training/ppo",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "lessonViz",
+          826,
+          507
+        ]
+      ]
+    },
+    {
+      "label": "1920/sonic/task",
+      "documentXOverflow": false,
+      "guideScrollNeeded": false,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ]
+      ]
+    },
+    {
+      "label": "1920/sonic/generator",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "lessonViz",
+          826,
+          542
+        ]
+      ]
+    },
+    {
+      "label": "1920/sonic/reference",
+      "documentXOverflow": false,
+      "guideScrollNeeded": false,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "lessonViz",
+          826,
+          542
+        ]
+      ]
+    },
+    {
+      "label": "1920/sonic/encoder",
+      "documentXOverflow": false,
+      "guideScrollNeeded": false,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "lessonViz",
+          826,
+          507
+        ]
+      ]
+    },
+    {
+      "label": "1920/sonic/encoder/core",
+      "documentXOverflow": false,
+      "guideScrollNeeded": false,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "lessonViz",
+          826,
+          507
+        ]
+      ]
+    },
+    {
+      "label": "1920/sonic/encoder/ae",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "lessonViz",
+          826,
+          507
+        ]
+      ]
+    },
+    {
+      "label": "1920/sonic/encoder/vae",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ]
+      ]
+    },
+    {
+      "label": "1920/sonic/quantizer",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "lessonViz",
+          826,
+          507
+        ]
+      ]
+    },
+    {
+      "label": "1920/sonic/quantizer/vq",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "lessonViz",
+          826,
+          507
+        ]
+      ]
+    },
+    {
+      "label": "1920/sonic/quantizer/vqvae",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ]
+      ]
+    },
+    {
+      "label": "1920/sonic/quantizer/fsq",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "lessonViz",
+          826,
+          507
+        ]
+      ]
+    },
+    {
+      "label": "1920/sonic/token",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "lessonViz",
+          826,
+          507
+        ]
+      ]
+    },
+    {
+      "label": "1920/sonic/token/core",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "lessonViz",
+          826,
+          507
+        ]
+      ]
+    },
+    {
+      "label": "1920/sonic/token/temporal",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "temporalRecon",
+          452,
+          313
+        ],
+        [
+          "temporalCurve",
+          334,
+          203
+        ]
+      ]
+    },
+    {
+      "label": "1920/sonic/token/temporal-control",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "temporalControlCurve",
+          472,
+          356
+        ]
+      ]
+    },
+    {
+      "label": "1920/sonic/motion-decoder",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "lessonViz",
+          826,
+          542
+        ]
+      ]
+    },
+    {
+      "label": "1920/sonic/control-decoder",
+      "documentXOverflow": false,
+      "guideScrollNeeded": false,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "lessonViz",
+          826,
+          542
+        ]
+      ]
+    },
+    {
+      "label": "1920/sonic/robot",
+      "documentXOverflow": false,
+      "guideScrollNeeded": false,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "lessonViz",
+          826,
+          542
+        ]
+      ]
+    },
+    {
+      "label": "1920/sonic/training/loss-flow",
+      "documentXOverflow": false,
+      "guideScrollNeeded": false,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ]
+      ]
+    },
+    {
+      "label": "1920/sonic/training/what-learns",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ]
+      ]
+    },
+    {
+      "label": "1920/sonic/training/alignment",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "alignmentCurve",
+          452,
+          338
+        ]
+      ]
+    },
+    {
+      "label": "1920/sonic/training/optimizer-sensitivity",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ]
+      ]
+    },
+    {
+      "label": "1920/sonic/training/ppo",
+      "documentXOverflow": false,
+      "guideScrollNeeded": false,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ],
+        [
+          "lessonViz",
+          826,
+          507
+        ]
+      ]
+    },
+    {
+      "label": "1920/preset/playground",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ]
+      ]
+    },
+    {
+      "label": "preset drawing 1920/playground",
+      "geometry": {
+        "scale": 58.180234484849294,
+        "railY": 187,
+        "pivotY": 160.23709213696932,
+        "cx": 179,
+        "tx": 184.80833158993613,
+        "ty": 102.34751648769205,
+        "cartW": 37.23535007030355,
+        "cartH": 13.96325627636383,
+        "wheelY": 181.76377889636356
+      },
+      "rect": {
+        "x": 179,
+        "y": 265,
+        "width": 358,
+        "height": 200.5
+      }
+    },
+    {
+      "label": "1920/preset/long",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ]
+      ]
+    },
+    {
+      "label": "preset drawing 1920/long",
+      "geometry": {
+        "scale": 53.61467638438588,
+        "railY": 187,
+        "pivotY": 162.33724886318248,
+        "cx": 179,
+        "tx": 186.22592403992078,
+        "ty": 90.31903332781104,
+        "cartW": 34.313392886006966,
+        "cartH": 12.86752233225261,
+        "wheelY": 182.17467912540528
+      },
+      "rect": {
+        "x": 179,
+        "y": 265,
+        "width": 358,
+        "height": 200.5
+      }
+    },
+    {
+      "label": "1920/preset/heavy",
+      "documentXOverflow": false,
+      "guideScrollNeeded": true,
+      "guideOverflow": false,
+      "canvasSizes": [
+        [
+          "cart",
+          358,
+          201
+        ]
+      ]
+    },
+    {
+      "label": "preset drawing 1920/heavy",
+      "geometry": {
+        "scale": 58.180234484849294,
+        "railY": 187,
+        "pivotY": 160.23709213696932,
+        "cx": 179,
+        "tx": 184.80833158993613,
+        "ty": 102.34751648769205,
+        "cartW": 37.23535007030355,
+        "cartH": 13.96325627636383,
+        "wheelY": 181.76377889636356
+      },
+      "rect": {
+        "x": 179,
+        "y": 265,
+        "width": 358,
+        "height": 200.5
+      }
+    },
+    {
+      "label": "LIVE browser MuJoCo WASM two-token control",
       "before": [
         0,
         0,
@@ -476,12 +2619,12 @@
         0
       ],
       "after": [
-        0.134664791325401,
-        0.32021345757758785,
-        -0.03190161764517997,
-        -0.24646662315535836
+        0.007726392278157801,
+        0.21710931034008682,
+        0.0917801069095171,
+        -0.23045588229794087
       ],
-      "force": -2.3690822136413945
+      "force": 3.34646489134684
     },
     {
       "label": "matched live PPO / WebMCP state",
@@ -510,9 +2653,16 @@
     },
     {
       "label": "bounded local telemetry",
-      "bytes": 2000
+      "bytes": 2001
     }
   ],
   "errors": [],
-  "passed": true
+  "passed": true,
+  "source_sha256": {
+    "app.js": "7aee4a212e58d04446fe6acaf0212ef5383dd912ff354ef00c41167b4387edf1",
+    "course.js": "4ad451baba1f6f75a65ff51a6697bc5578b8e9071d222d84e53a0e4a2d38b04b",
+    "index.html": "18c09873b395e1163cf38105038aaba20c9c77ffba663c02f91ff941c651e7ea",
+    "presentation.js": "9ca06c4a6f707f63664cb5ab7103a977f66d35e99901fbda6a7cabee6ac82315",
+    "scripts/browser_smoke.mjs": "7af32ed121787b4e9a17360f6d3a1b4eb360c87f01c5ac52ea761b70bf27e8f0"
+  }
 }

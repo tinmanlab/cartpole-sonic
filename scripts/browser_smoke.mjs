@@ -3,6 +3,9 @@ import path from 'node:path';
 import http from 'node:http';
 import assert from 'node:assert/strict';
 import {pathToFileURL} from 'node:url';
+const output=process.env.UI_TEST_OUTPUT||'/tmp/sonic-public-ui-test';
+fs.mkdirSync(output,{recursive:true});
+const screenshot=name=>page.screenshot({path:path.join(output,name),fullPage:true});
 const spec=process.env.PLAYWRIGHT_MODULE;
 const {chromium}=await import(spec?pathToFileURL(spec).href:'playwright');
 // A static HTTP server owned by this test process: no persistent shell, desktop or process to kill.
@@ -26,17 +29,19 @@ if(!base){
     const types={'.html':'text/html','.js':'text/javascript','.json':'application/json','.wasm':'application/wasm','.png':'image/png','.svg':'image/svg+xml'};
     res.setHeader('Content-Type',types[path.extname(file)]||'application/octet-stream');res.setHeader('Cache-Control','no-store');fs.createReadStream(file).pipe(res);
   });
-  await new Promise(resolve=>server.listen(0,'127.0.0.1',resolve));base='http://127.0.0.1:'+server.address().port+'/';
+  await new Promise((resolve,reject)=>{server.once('error',reject);server.listen(0,'127.0.0.1',resolve);}).catch(error=>{fs.writeFileSync(path.join(output,'browser_audit.json'),JSON.stringify({passed:false,stage:'local HTTP server startup',failure:error.message,screenshots:[]},null,2));throw error;});base='http://127.0.0.1:'+server.address().port+'/';
 }
 const browser=await chromium.launch({headless:true,executablePath:process.env.CHROMIUM_PATH||undefined,args:['--enable-experimental-web-platform-features']});
 const page=await browser.newPage({viewport:{width:1600,height:1000},deviceScaleFactor:1});
 const errors=[],checks=[];
 page.on('pageerror',e=>errors.push(e.message));
+page.on('console',m=>{if(m.type()==='error')errors.push(m.text());});
 const report={schema:'cartpole-sonic-browser-audit/v1',base,browser:browser.version(),checks,errors};
 const state=()=>page.evaluate(()=>window.__cartpoleSonic.getState());
 const waitReady=async()=>{
   await page.waitForFunction(()=>window.__cartpoleSonic?.getState().backends.physics?.includes('MuJoCo'));
-  await page.waitForFunction(()=>document.querySelector('.optimizer-audit canvas'));
+  await page.waitForFunction(()=>window.__cartpoleSonic?.getState().signals.token?.length>0);
+  if(new URL(page.url()).searchParams.get('training')==='optimizer-sensitivity')await page.waitForFunction(()=>document.querySelector('.optimizer-audit canvas'));
 };
 const bounds=async label=>{
   await page.waitForTimeout(35);
@@ -45,36 +50,92 @@ const bounds=async label=>{
     return {documentXOverflow:document.documentElement.scrollWidth>innerWidth+1,guideScrollNeeded:guide.scrollHeight>guide.clientHeight+2,guideOverflow:guide.scrollHeight>guide.clientHeight+2&&!['auto','scroll'].includes(getComputedStyle(guide).overflowY),canvasSizes:[...document.querySelectorAll('canvas')].filter(c=>c.getClientRects().length&&getComputedStyle(c).display!=='none').map(c=>[c.id,c.width,c.height])};
   });
   checks.push({label,...result});
+  assert.ok(result.canvasSizes.some(([id])=>id==='cart'),label+' missing visible simulation canvas');
+  if((await state()).system.focus?.node==='control-decoder'){
+    const layout=await page.evaluate(async()=>{const c=document.querySelector('#lessonViz'),r=c.getBoundingClientRect();return {width:r.width,height:r.height,boxes:(await import('./presentation.js')).decoderLayout(r.width)};});
+    for(const r of layout.boxes)assert.ok(r.x>=0&&r.x+r.w<=layout.width&&r.y+r.h<=layout.height,label+' decoder box clipped');
+  }
   assert.equal(result.documentXOverflow,false,label+' page horizontal overflow');
   assert.equal(result.guideOverflow,false,label+' hidden guide content');
   for(const [id,w,h] of result.canvasSizes)assert.ok(w>0&&h>0,label+' empty canvas '+id);
 };
 try{
   await page.goto(base+'?training=optimizer-sensitivity&depth=mechanism');await waitReady();
-  assert.equal((await state()).system.version,'2.6');
-  await page.screenshot({path:'media/optimizer-budget-50.png',fullPage:true});
+  assert.equal((await state()).system.version,'2.7');
+  await screenshot('optimizer-budget-50.png');
   assert.equal(await page.locator('.opt-data tbody tr').count(),16);
   await bounds('optimizer +50');
   await page.click('#opt10');
   assert.equal((await state()).training.optimizerEvidenceView.budget,10);
-  await page.screenshot({path:'media/optimizer-budget-10.png',fullPage:true});await bounds('optimizer +10');
+  await screenshot('optimizer-budget-10.png');await bounds('optimizer +10');
   await page.click('#optDiagnostics');await bounds('optimizer diagnostics');
   await page.selectOption('#optVariant','two-matched-capacity');
   assert.ok((await page.locator('.opt-cards').innerText()).includes('1220 / 643'));
   await page.selectOption('#optVariant','two-matched-actor');
   assert.ok((await page.locator('.opt-cards').innerText()).includes('1268 / 607'));
   await page.selectOption('#optVariant','two-default');
-  await page.screenshot({path:'media/optimizer-diagnostics.png',fullPage:true});
+  await screenshot('optimizer-diagnostics.png');
   for(const width of [1440,1920]){await page.setViewportSize({width,height:1000});await bounds('optimizer '+width+'px');}
   await page.setViewportSize({width:1600,height:1000});
   const map=await page.evaluate(async()=>{const c=await import('./course.js');return {nodes:c.SONIC_FLOW.map(n=>({id:n.id,concepts:n.concepts})),training:c.TRAINING_TOPICS.map(t=>t.id)};});
-  for(const node of map.nodes){
-    await page.evaluate(id=>window.__cartpoleSonic.focus(id),node.id);await bounds(node.id);
-    for(const c of node.concepts||[]){await page.evaluate(({id,c})=>window.__cartpoleSonic.focus(id,c.id),{id:node.id,c});await bounds(node.id+'/'+c.id);}
+  for(const [width,height] of [[1440,900],[1920,1080]]){
+    await page.setViewportSize({width,height});
+    for(const depth of ['easy','mechanism','sonic']){
+      await page.click('[data-depth="'+depth+'"]');
+      for(const node of map.nodes){
+        await page.evaluate(id=>window.__cartpoleSonic.focus(id),node.id);await bounds(width+'/'+depth+'/'+node.id);
+        for(const c of node.concepts||[]){await page.evaluate(({id,c})=>window.__cartpoleSonic.focus(id,c.id),{id:node.id,c});await bounds(width+'/'+depth+'/'+node.id+'/'+c.id);}
+      }
+      for(const id of map.training){await page.evaluate(id=>window.__cartpoleSonic.openTraining(id),id);await bounds(width+'/'+depth+'/training/'+id);}
+    }
+    await page.evaluate(()=>window.__cartpoleSonic.focus('task'));
+    await page.click('[data-depth="easy"]');
+    await screenshot('overview-'+width+'.png');
+    for(const preset of ['playground','long','heavy']){
+      await page.selectOption('#simPreset',preset);
+      await page.waitForFunction(p=>window.__cartpoleSonic.getState().experiment.preset===p&&!window.__cartpoleSonic.getState().experiment.busy,preset);
+      await page.waitForFunction(()=>!document.querySelector('#stepBtn').disabled);
+      await bounds(width+'/preset/'+preset);
+      const g=(await state()).signals.drawing;
+      const rect=await page.locator('#cart').boundingBox();
+      assert.ok(g.ty>=0&&g.ty<=rect.height&&g.tx>=0&&g.tx<=rect.width,'pole fits '+preset);
+      checks.push({label:'preset drawing '+width+'/'+preset,geometry:g,rect});
+    }
+    await page.selectOption('#simPreset','playground');
+    await page.waitForFunction(()=>!window.__cartpoleSonic.getState().experiment.busy);
   }
-  for(const id of map.training){await page.evaluate(id=>window.__cartpoleSonic.openTraining(id),id);await bounds('training/'+id);}
+  await page.click('[data-depth="easy"]');
+  await page.evaluate(()=>window.__cartpoleSonic.focus('control-decoder'));
+  await screenshot('control-decoder.png');
+  const pushed=await page.evaluate(()=>{
+    const before=window.__cartpoleSonic.getState();document.querySelector('#pushBtn').click();
+    return {before,after:window.__cartpoleSonic.getState()};
+  });
+  assert.deepEqual(pushed.before.signals.reference,pushed.after.signals.reference);
+  assert.deepEqual(pushed.before.signals.token,pushed.after.signals.token);
+  assert.equal(pushed.before.signals.sampleTime,pushed.after.signals.sampleTime);
+  assert.notDeepEqual(pushed.before.signals.proprioception,pushed.after.signals.proprioception);
+  assert.equal(pushed.before.signals.lastAppliedForce,pushed.after.signals.lastAppliedForce);
+  assert.notEqual(pushed.before.signals.plannedForce,pushed.after.signals.plannedForce);
+  await page.evaluate(()=>window.__cartpoleSonic.step(3));
+  const sampled=(await state()).signals;
+  assert.equal(sampled.targetTime,sampled.sampleTime);
+  assert.equal(await page.locator('#vForce').innerText(),sampled.lastAppliedForce.toFixed(2)+' N');
+  for(const h of sampled.liveHistory){assert.equal(h.targetTime,h.t);assert.equal(h.previewTargetTime,h.t+.08);assert.equal(h.plannedForce,h.force);}
+  await page.evaluate(()=>window.__cartpoleSonic.focus('robot'));
+  const robot=(await state()).signals;
+  assert.ok((await page.locator('#guideLive').innerText()).includes(Math.abs(robot.proprioception[0]-robot.referenceNow).toFixed(3)+' m'));
+  assert.ok(!(await page.locator('body').innerText()).includes('native MuJoCo'));
+  assert.ok((await page.locator('.identity-strip').innerText()).includes('브라우저 교육용 모델 · MuJoCo WASM 시뮬레이션'));
+  const scale=await page.evaluate(async()=> (await import('./sonic_toy.js')).SONIC_TOY_CONSTANTS.STATE_SCALE[0]);
+  for(const h of sampled.liveHistory)assert.equal(h.referencePreview,h.reference[0]*scale);
   await page.evaluate(()=>window.__cartpoleSonic.focus('token','temporal-control'));
-  await page.click('#driveTwoBtn');const before=(await state()).signals.proprioception;
+  assert.equal((await state()).signals.activeController.flattenedDim,2);
+  await page.click('#driveTwoBtn');
+  assert.equal((await state()).signals.activeController.flattenedDim,4);
+  assert.equal((await state()).signals.activeController.tokens,2);
+  await screenshot('two-token.png');
+  const before=(await state()).signals.proprioception;
   await page.click('#liveBtn');
   await page.waitForFunction(s=>window.__cartpoleSonic.getState().signals.proprioception.some((v,i)=>Math.abs(v-s[i])>.005),before);
   await page.click('#liveBtn');
@@ -82,8 +143,15 @@ try{
   assert.equal(live.representationLabs.temporalControl.selectedController,'two');
   assert.ok(Number.isFinite(live.signals.force));
   assert.equal(await page.locator('#simPreset').isDisabled(),true);
-  checks.push({label:'actual native MuJoCo two-token control',before,after:live.signals.proprioception,force:live.signals.force});
-  await page.screenshot({path:'media/optimizer-token-live.png',fullPage:true});
+  checks.push({label:'LIVE browser MuJoCo WASM two-token control',before,after:live.signals.proprioception,force:live.signals.force});
+  await screenshot('optimizer-token-live.png');
+  await page.evaluate(()=>window.__cartpoleSonic.focus('encoder','ae'));
+  assert.equal((await state()).signals.activeController.mode,'ae');
+  assert.equal((await state()).signals.activeController.flattenedDim,2);
+  assert.ok((await page.locator('#activeController').innerText()).includes('AE'));
+  await page.evaluate(()=>window.__cartpoleSonic.focus('quantizer','vq'));
+  assert.equal((await state()).signals.activeController.mode,'vq');
+  await page.evaluate(()=>window.__cartpoleSonic.focus('token','temporal-control'));
   await page.evaluate(()=>window.__cartpoleSonic.runTemporalControlPPO(1));
   const trained=await state(),lab=trained.representationLabs.temporalControl;
   assert.equal(lab.one.iter,1);assert.equal(lab.two.iter,1);
@@ -103,7 +171,7 @@ try{
   assert.deepEqual(errors,[]);report.passed=true;
 }catch(error){report.passed=false;report.failure=error.stack;throw error;
 }finally{
-  fs.writeFileSync('evidence/browser_audit.json',JSON.stringify(report,null,2));
-  console.log(JSON.stringify(report,null,2));await browser.close();
+  fs.writeFileSync(path.join(output,'browser_audit.json'),JSON.stringify(report,null,2));
+  console.log(JSON.stringify({passed:report.passed,checks:checks.length,errors,failure:report.failure},null,2));await browser.close();
   if(server)await new Promise(resolve=>server.close(resolve));
 }

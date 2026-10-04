@@ -1,4 +1,4 @@
-export const COURSE_VERSION = "2.6";
+export const COURSE_VERSION = "2.7";
 
 export const SONIC_FLOW = [
   {
@@ -55,9 +55,9 @@ export const SONIC_FLOW = [
     viz:"encoder",
     input:"future reference",
     output:"continuous latent z",
-    why:"bottleneck이 모든 입력값을 그대로 복사하지 못하게 하고 motion에 중요한 정보를 compact하게 만든다.",
+    why:"bottleneck(좁은 표현 공간)은 복사할 수 있는 정보를 제한한다. 중요한 정보가 남는지는 학습 목표와 검증 결과로 확인해야 한다.",
     misconception:"Encoder는 robot-state observer가 아니다.",
-    question:"왜 16D를 2D로 줄이고, 왜 reconstruction으로 다시 확인할까?",
+    question:"이 기본 실험에서 왜 16D를 2D로 줄일까? 복원 검증은 무엇을 확인하며 제어 성능과 어떻게 다를까?",
     action:"change-goal",
     concepts:[
       {id:"core",label:"Core"},
@@ -268,7 +268,7 @@ export const RUNTIME_DETAILS = {
     easy:"token을 다시 future motion으로 풀어 보고, token이 원하는 움직임 정보를 잃지 않았는지 검사하는 decoder다.",
     mechanism:"toy Kinematic Decoder는 q에서 16D future [x,ẋ] reconstruction을 출력하고 reconstruction MSE auxiliary signal을 제공한다.",
     sonic:"공식 SONIC의 Robot Motion Decoder 역할과 대응시키되, 이 CartPole 구현에서는 Kinematic Decoder를 training auxiliary path로 사용한다. physical motor action은 별도 Control Decoder가 낸다.",
-    ifMissing:"token이 control reward에 필요한 최소 정보만 남기고 motion semantic을 잃어도 이를 직접 제약할 reconstruction signal이 없다.",
+    ifMissing:"이 실험에서는 복원 보조 손실이 사라져 입력 정보의 보존을 직접 확인하기 어렵다. 모든 제어기에 복원이 필수인 것은 아니며 제어 성능은 따로 평가해야 한다.",
     next:"future motion을 복원하는 것만으로 robot을 안정적으로 움직일 수 없으므로 actual proprioception을 포함한 Robot Control Decoder가 필요하다.",
     toyShape:"q(2D) → future reconstruction(16D)",
     sonicShape:"universal token → robot-motion representation"
@@ -284,7 +284,7 @@ export const RUNTIME_DETAILS = {
   },
   robot:{
     easy:"controller가 낸 action을 실제 dynamics에 적용하고 결과를 다시 센서 state로 돌려주는 단계다.",
-    mechanism:"toy는 native MuJoCo 10 ms physics를 사용하고 50 Hz policy action을 두 physics step 동안 hold한다. x,ẋ,θ,θ̇가 다음 Control Decoder proprioception이 된다.",
+    mechanism:"toy는 브라우저 MuJoCo WASM 10 ms physics를 사용하고 50 Hz policy action을 두 physics step 동안 hold한다. x,ẋ,θ,θ̇가 다음 Control Decoder proprioception이 된다.",
     sonic:"실제 deployment에서는 humanoid body, actuator, contact, sensors가 이 closed-loop plant를 구성한다. 이 toy는 multi-contact/sim2real을 재현하지 않는다.",
     ifMissing:"physics feedback이 없으면 reference tracking이 실제로 되는지 검증할 수 없고 disturbance correction도 불가능하다.",
     next:"feedback state가 다시 Robot Control Decoder 입력으로 돌아가며 loop가 반복된다.",
@@ -296,7 +296,7 @@ export const RUNTIME_DETAILS = {
 export const TRAINING_DETAILS = {
   "loss-flow":{
     easy:"SONIC에는 두 종류의 선생이 있다: 실제로 잘 움직이게 만드는 PPO와, representation을 잘 정리하는 auxiliary loss.",
-    mechanism:"총 update는 physical rollout의 PPO objective와 reconstruction/alignment auxiliary terms를 함께 사용한다. 각각 gradient가 도달하는 module이 다르다.",
+    mechanism:"브라우저 제어기는 PPO(정책 개선)와 reconstruction(입력 복원) 보조 손실로 갱신한다. alignment(표현 정렬)는 별도 실험이다. 공식 구조의 보조 손실과 이 실험의 갱신 경로를 구분한다.",
     sonic:"release training은 PPO와 token reconstruction / cross-encoder latent-alignment auxiliary losses를 결합한다.",
     ifMissing:"PPO만 있으면 representation semantic이 약해질 수 있고, aux만 있으면 실제 physics tracking 능력을 학습할 수 없다.",
     toyShape:"PPO + reconstruction aux",
@@ -430,7 +430,7 @@ export const CONCEPT_TEXT = {
   "temporal-control":{
     title:"1 token vs 2 token control — 표현력 증가가 실제 제어도 좋아지게 할까?",
     input:"same future reference + same actual proprioception",
-    output:"1-token vs 2-token Dynamic Decoder actions → native MuJoCo",
+    output:"1-token vs 2-token Dynamic Decoder actions → 브라우저 MuJoCo WASM",
     short:"두 controller를 같은 teacher/bootstrap과 같은 PPO budget으로 학습해 실제 tracking과 disturbance recovery를 비교한다.",
     why:"reconstruction이 좋아졌다는 사실만으로 physical control이 좋아졌다고 결론낼 수 없기 때문이다.",
     mechanism:"1-token controller는 16D reference→2D→FSQ q2, 2-token controller는 16D→4D→reshape 2×2→FSQ q4를 사용한다. 각 q는 같은 4D proprioception과 결합되어 별도 Dynamic Decoder가 force를 낸다. 두 controller는 동일 300-step teacher imitation과 동일 PPO hyperparameter/budget을 받는다.",
