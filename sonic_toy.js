@@ -1,10 +1,7 @@
 import { MuJoCoCartPole } from "./mujoco_sim.js";
 
-const REF_FRAMES = 8;
-const REF_DIM = REF_FRAMES * 2;
-const STATE_SCALE = [1.8, 3.0, 0.55, 4.0];
-const ACTION_FORCE = 10.0;
-const FIXED_STD = 0.12;
+import {REF_FRAMES,REF_DIM,STATE_SCALE,ACTION_FORCE,FIXED_STD,planReference,advancePlannerContext,normalizeState,doneFor,gae,CartPoleTrainEnv,numericVector,integerCount,validateRng} from "./control_contract.js";
+export {planReference,advancePlannerContext} from "./control_contract.js";
 const LOG_SQRT_2PI = 0.9189385332046727;
 
 function clamp(x,a,b){ return Math.max(a,Math.min(b,x)); }
@@ -58,6 +55,21 @@ export class MLP {
     this.lastUpdate={preClipNorm:norm,postClipNorm:norm*scale,clipScale:scale,updateNorm:Math.sqrt(deltaSq),relativeUpdateNorm:Math.sqrt(deltaSq)/(Math.sqrt(paramSq)+1e-12),updateRms:Math.sqrt(deltaSq/this.p.length)};
     return norm;
   }
+  validateSnapshot(src,name="MLP"){
+    if(!src||typeof src!=="object")throw new Error("invalid "+name+" checkpoint");
+    for(const key of ["n","h","o","outTanh"])if(Object.hasOwn(src,key)&&src[key]!==this[key])throw new Error(name+" architecture mismatch: "+key);
+    numericVector(src.p,this.p.length,name+" p");
+    if(Object.hasOwn(src,"m"))numericVector(src.m,this.m.length,name+" m");
+    if(Object.hasOwn(src,"v"))numericVector(src.v,this.v.length,name+" v",{nonnegative:true});
+    if(Object.hasOwn(src,"t"))integerCount(src.t,name+" optimizer t",0,Number.MAX_SAFE_INTEGER);
+    return src;
+  }
+  applySnapshot(src){
+    this.p.set(src.p);if(Object.hasOwn(src,"m"))this.m.set(src.m);else this.m.fill(0);
+    if(Object.hasOwn(src,"v"))this.v.set(src.v);else this.v.fill(0);
+    this.t=Object.hasOwn(src,"t")?src.t:0;return this;
+  }
+  restore(src){this.validateSnapshot(src);return this.applySnapshot(src);}
   snapshot(){return{n:this.n,h:this.h,o:this.o,outTanh:this.outTanh,p:Array.from(this.p),m:Array.from(this.m),v:Array.from(this.v),t:this.t};}
 }
 
@@ -70,31 +82,11 @@ function logProbGaussian(a,mu,std=FIXED_STD){
   const z=(a-mu)/std;return -.5*z*z-Math.log(std)-LOG_SQRT_2PI;
 }
 
-export function planReference(context,goal,{frames=REF_FRAMES,frameDt=.08,k=2.5}={}){
-  const [x,xd]=context;
-  const out=new Float64Array(frames*2);
-  const e=x-goal,B=xd+k*e;
-  for(let i=0;i<frames;i++){
-    const t=(i+1)*frameDt,exp=Math.exp(-k*t);
-    const xr=goal+(e+B*t)*exp;
-    const vr=(xd-k*B*t)*exp;
-    out[i*2]=clamp(xr/STATE_SCALE[0],-1,1);
-    out[i*2+1]=clamp(vr/STATE_SCALE[1],-1,1);
-  }
-  return out;
-}
-
-export function advancePlannerContext(context,goal,dt=.02,k=2.5){
-  const [x,xd]=context,e=x-goal,B=xd+k*e,exp=Math.exp(-k*dt);
-  return [goal+(e+B*dt)*exp,(xd-k*B*dt)*exp];
-}
-
 function plannerPhysical(ref){
   const frames=[];for(let i=0;i<REF_FRAMES;i++)frames.push({x:ref[i*2]*STATE_SCALE[0],xd:ref[i*2+1]*STATE_SCALE[1],t:(i+1)*.08});
   return frames;
 }
 
-function normalizeState(s){return s.map((v,i)=>clamp(v/STATE_SCALE[i],-1.5,1.5));}
 
 export class SonicCartPolePolicy {
   constructor(seed=123,mode="fsq"){
@@ -124,75 +116,23 @@ export class SonicCartPolePolicy {
   }
 }
 
-function rewardFor(nextState,goal,action){
-  const [x,xd,th,thd]=nextState;
-  return 1
-    - 0.65*Math.min((x-goal)*(x-goal),4)
-    - 8.0*th*th
-    - .020*xd*xd
-    - .020*thd*thd
-    - .002*action*action;
-}
-
-function doneFor(s){return Math.abs(s[0])>1.78||Math.abs(s[2])>.65||!s.every(Number.isFinite);}
-
-class TrainEnv {
-  constructor(sim,rng){
-    this.sim=sim;this.rng=rng;this.data=sim.makeData();this.goal=0;this.steps=0;this.reset();
-  }
-  reset(){
-    this.data.qpos[0]=(this.rng.uniform()*2-1)*.12;this.data.qpos[1]=(this.rng.uniform()*2-1)*.08;
-    this.data.qvel[0]=(this.rng.uniform()*2-1)*.08;this.data.qvel[1]=(this.rng.uniform()*2-1)*.08;this.data.ctrl[0]=0;this.data.time=0;
-    this.sim.mujoco.mj_forward(this.sim.model,this.data);this.goal=(this.rng.uniform()*2-1)*0.8;this.refContext=[0,0];this.steps=0;return this.sim.getState(this.data);
-  }
-  state(){return this.sim.getState(this.data);}
-  reference(){return planReference(this.refContext,this.goal);}
-  step(action){
-    this.data.ctrl[0]=clamp(action,-1,1);
-    // 50 Hz policy/control rate over native MuJoCo 10 ms physics.
-    this.sim.mujoco.mj_step(this.sim.model,this.data);
-    this.sim.mujoco.mj_step(this.sim.model,this.data);
-    this.steps++;
-    this.refContext=advancePlannerContext(this.refContext,this.goal,.02);
-    const s=this.state(),targetX=this.refContext[0],done=doneFor(s)||this.steps>=500,r=rewardFor(s,targetX,action);
-    return{s,r,targetX,done,terminated:doneFor(s)};
-  }
-  delete(){this.data.delete();}
-}
-
-function gae(data,n,gamma=.99,lambda=.95){
-  const carry=new Float64Array(n);
-  for(let i=data.length-1;i>=0;i--){const q=data[i];q.delta=q.r+gamma*(q.terminated?0:q.nextV)-q.oldV;q.rawAdv=q.delta+gamma*lambda*(q.done?0:carry[q.env]);q.ret=q.rawAdv+q.oldV;carry[q.env]=q.rawAdv;}
-  const m=mean(data.map(q=>q.rawAdv)),sd=Math.sqrt(mean(data.map(q=>(q.rawAdv-m)**2))+1e-8);for(const q of data)q.adv=(q.rawAdv-m)/(sd+1e-8);
-}
-
 export class SonicToyTrainer {
   constructor(sim,{seed=20261003,mode="fsq",n=8,horizon=96,epochs=4,batch=128}={}){
+    integerCount(n,"environment count",1,1024);integerCount(horizon,"rollout horizon",1,100000);
+    integerCount(epochs,"epochs",1,1000);integerCount(batch,"batch",1,1000000);
     this.sim=sim;this.rng=new RNG(seed);this.policy=new SonicCartPolePolicy(seed,mode);this.mode=mode;this.n=n;this.horizon=horizon;this.epochs=epochs;this.batch=batch;
-    this.envs=Array.from({length:n},()=>new TrainEnv(sim,this.rng));this.iter=0;this.envSteps=0;this.episodes=0;this.history=[];this.last={reward:NaN,tracking:NaN,piLoss:NaN,valueLoss:NaN,auxLoss:NaN,entropy:Math.log(FIXED_STD*Math.sqrt(2*Math.PI*Math.E)),clipFraction:NaN};
+    this.envs=Array.from({length:n},()=>new CartPoleTrainEnv(sim,this.rng));this.iter=0;this.envSteps=0;this.episodes=0;this.history=[];this.last={reward:NaN,tracking:NaN,piLoss:NaN,valueLoss:NaN,auxLoss:NaN,entropy:Math.log(FIXED_STD*Math.sqrt(2*Math.PI*Math.E)),clipFraction:NaN};
   }
   setMode(mode){this.mode=mode;this.policy.mode=mode;}
   restorePolicy(snapshot,{teacherBootstrap=null,rngState=null}={}){
     if(!snapshot)throw new Error("policy snapshot required");
-    const load=(net,src,name)=>{
-      if(!src?.p||src.p.length!==net.p.length)throw new Error("invalid "+name+" checkpoint");
-      net.p.set(src.p);
-      if(src.m?.length===net.m.length)net.m.set(src.m);else net.m.fill(0);
-      if(src.v?.length===net.v.length)net.v.set(src.v);else net.v.fill(0);
-      net.t=Number.isFinite(src.t)?src.t:0;
-    };
-    load(this.policy.encoder,snapshot.encoder,"encoder");
-    load(this.policy.dynamicDecoder,snapshot.dynamicDecoder,"dynamicDecoder");
-    load(this.policy.kinematicDecoder,snapshot.kinematicDecoder,"kinematicDecoder");
-    load(this.policy.critic,snapshot.critic,"critic");
-    if(snapshot.codebook){
-      if(snapshot.codebook.length!==this.policy.codebook.length)throw new Error("invalid codebook checkpoint");
-      this.policy.codebook.set(snapshot.codebook);
-    }
-    if(rngState){
-      this.rng.s=(rngState.s>>>0);
-      this.rng.spare=Number.isFinite(rngState.spare)?rngState.spare:null;
-    }
+    const names=["encoder","dynamicDecoder","kinematicDecoder","critic"];
+    for(const name of names)this.policy[name].validateSnapshot(snapshot[name],name);
+    if(Object.hasOwn(snapshot,"codebook"))numericVector(snapshot.codebook,this.policy.codebook.length,"codebook");
+    if(rngState!==null)validateRng(rngState);
+    for(const name of names)this.policy[name].applySnapshot(snapshot[name]);
+    if(Object.hasOwn(snapshot,"codebook"))this.policy.codebook.set(snapshot.codebook);
+    if(rngState!==null){this.rng.s=rngState.s;this.rng.spare=rngState.spare;}
     this.teacherBootstrap=teacherBootstrap;
     return this;
   }
@@ -293,7 +233,7 @@ export class SonicToyTrainer {
   evaluate(episodes=6,seed=8080){
     const rng=new RNG(seed);let successes=0,steps=[],allErrs=[],completedErrs=[];
     for(let ep=0;ep<episodes;ep++){
-      const e=new TrainEnv(this.sim,rng);let err=0,n=0;
+      const e=new CartPoleTrainEnv(this.sim,rng);let err=0,n=0;
       while(e.steps<500){const s=e.state(),ref=e.reference(),o=this.policy.forward(s,ref,e.goal,{sample:false}),r=e.step(o.mu);err+=Math.abs(r.s[0]-r.targetX);n++;if(r.done)break;}
       const epMae=err/Math.max(1,n),completed=e.steps>=500&&!doneFor(e.state());
       if(completed){successes++;completedErrs.push(epMae);}

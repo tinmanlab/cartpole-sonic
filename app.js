@@ -1,3 +1,4 @@
+import {physicalFailureReason,finiteNumber,integerCount,CONTROL_DT,CONTROL_SUBSTEPS} from "./control_contract.js";
 import { controlSample, controllerIdentity, controllerSummary, blockShape, decoderLayout, decoderConnections, robotGeometry } from "./presentation.js";
 import { MuJoCoCartPole } from "./mujoco_sim.js";
 import {
@@ -61,6 +62,9 @@ const trainerCache = new Map();
 let physicsReady = false;
 let live = false;
 let busy = false;
+let executionState="ready", executionReason="", episodeTerminated=false;
+let lastTrainingTargets=[];
+const busyDisabledControls=new Map();
 let plannerContext = [0,0];
 let lastForce = 0;
 let lastFrame = performance.now();
@@ -98,18 +102,37 @@ function temporalControlModeRequested(){
 function temporalControlActive(){
   return temporalControlModeRequested()&&temporalControlLab;
 }
+function resolveActiveController(){
+  const temporal=Boolean(temporalControlActive());
+  const trainer=temporal?(temporalControlSelected==="two"?temporalControlLab.two:temporalControlLab.one):currentTrainer;
+  return {trainer,id:temporal?"temporal-"+temporalControlSelected:trainer?"student-"+trainer.mode:null,
+    trainingTargets:temporal?[temporalControlLab.one,temporalControlLab.two]:trainer?[trainer]:[],
+    trainingIds:temporal?["temporal-one","temporal-two"]:trainer?["student-"+trainer.mode]:[],
+    demo:trainingMode&&trainingTopic.id==="alignment"?"sparse-keypoint alignment":!trainingMode&&conceptId==="temporal"?"temporal reconstruction":null};
+}
 function preview(){
-  if(temporalControlActive()){
-    const trainer=temporalControlSelected==="two"?temporalControlLab.two:temporalControlLab.one;
-    const out=trainer.preview(state(),currentReference(),goal);
-    return{...out,ref:Array.from(currentReference())};
-  }
-  return currentTrainer ? currentTrainer.preview(state(),currentReference(),goal) : null;
+  const {trainer}=resolveActiveController();
+  const out=trainer?.preview(state(),currentReference(),goal);
+  return out?{...out,ref:Array.from(currentReference())}:null;
 }
 function activeController(p=preview()){
-  const policy=temporalControlActive()?(temporalControlSelected==="two"?temporalControlLab.two:temporalControlLab.one).policy:null;
-  return controllerIdentity(p,currentTrainer?.mode||requiredMode(),policy);
+  const {trainer,id,demo}=resolveActiveController();
+  return {...controllerIdentity(p,trainer?.mode||requiredMode(),temporalControlActive()?trainer?.policy:null),id,demo};
 }
+function executionSnapshot(){return{state:busy?"busy":live?"running":executionState,reason:executionReason,resetRequired:episodeTerminated};}
+function assertIdle(){if(busy)throw new Error("작업 중입니다. 완료 후 다시 시도하세요.");}
+function assertEpisodeReady(){
+  assertIdle();if(!physicsReady||!resolveActiveController().trainer)throw new Error("시뮬레이션/모델 준비가 필요합니다.");
+  if(episodeTerminated||executionState==="error")throw new Error("Reset 필요: "+executionReason);
+}
+function showError(error){live=false;executionState="error";executionReason=error.message||String(error);}
+async function withOperation(label,work){
+  assertIdle();const priorReason=executionReason;busy=true;live=false;executionReason=label;
+  try{render();const result=await work();executionState=episodeTerminated?"terminated":"ready";executionReason=episodeTerminated?priorReason:"";return result;}
+  catch(error){showError(error);throw error;}
+  finally{busy=false;render();}
+}
+function uiAction(work){try{Promise.resolve(work()).catch(()=>{});}catch(error){showError(error);render();}}
 function setBadge(id,text,ok=true){
   const el=$(id); if(!el) return;
   el.textContent=text;
@@ -135,19 +158,13 @@ function requiredMode(){
 async function getTrainer(mode){
   if(trainerCache.has(mode)) return trainerCache.get(mode);
   const t=new SonicToyTrainer(sim,{seed:20261003,mode,n:8,horizon:96,epochs:4,batch:128});
-  let restored=false;
   try{
     const ckpt=await fetch("./assets/student_"+mode+"_bootstrap.json",{cache:"force-cache"}).then(r=>r.ok?r.json():Promise.reject(new Error("checkpoint "+r.status)));
     if(ckpt.schema!=="cartpole-sonic-student-bootstrap/v1"||ckpt.mode!==mode) throw new Error("checkpoint schema/mode mismatch");
     t.restorePolicy(ckpt.policy,{teacherBootstrap:ckpt.teacherBootstrap,rngState:ckpt.rng});
     t.bootstrapEval=ckpt.defaultPresetEval||null;
-    restored=true;
   }catch(err){
-    console.warn("student checkpoint unavailable",err);
-  }
-  if(!restored){
-    if(!teacher&&teacherPromise) teacher=await teacherPromise;
-    if(teacher) t.bootstrapFromTeacher(teacher,{steps:500,batch:256,lr:.0015,auxCoef:.08});
+    t.delete();throw new Error("학생 체크포인트 로드 실패 · 다시 시도: "+err.message);
   }
   trainerCache.set(mode,t);
   return t;
@@ -183,75 +200,78 @@ function recordControlSample(p,s){
   controlTick++;
   if(signalHistory.length>MAX_SIGNAL_HISTORY) signalHistory.shift();
 }
-function terminationReason(s){
-  if(!s.every(Number.isFinite)) return "non-finite state";
-  if(Math.abs(s[0])>1.78) return "track limit";
-  if(Math.abs(s[2])>.75) return "pole angle";
-  return null;
-}
-function resetRobot(reason="manual reset"){
-  if(!physicsReady) return;
+function terminationReason(s){return physicalFailureReason(s);}
+function resetRobotState(reason="로봇 상태 초기화"){
+  if(!physicsReady)throw new Error("physics not ready");
   sim.reset({x:0,xDot:0,theta:.1,thetaDot:0});
-  plannerContext=[0,0];
-  lastForce=0;accumulator=0;episodeIndex++;
-  resetSignalHistory(reason);
-  render();
+  plannerContext=[0,0];lastForce=0;accumulator=0;episodeIndex++;live=false;
+  episodeTerminated=false;executionState="ready";executionReason="";
+  resetSignalHistory(reason);render();
 }
-function autoResetEpisode(reason){
-  autoResetCount++;
-  resetRobot("auto-reset: "+reason);
+function resetRobot(){assertIdle();resetRobotState();}
+function latchTermination(reason){
+  episodeTerminated=true;live=false;executionState="terminated";executionReason=reason+" · 로봇 상태 초기화 후 다시 실행";
+  lastEpisodeEvent="terminated: "+reason;accumulator=0;
 }
 function pushRobot(){
-  if(!physicsReady) return;
-  sim.applyImpulse({xDotDelta:.75,thetaDotDelta:-1.25});
+  assertEpisodeReady();sim.applyImpulse({xDotDelta:.75,thetaDotDelta:-1.25});
   lastEpisodeEvent="external impulse · reference unchanged";
-  render();
+  const reason=terminationReason(state());if(reason)latchTermination(reason);render();
+}
+function advanceOneControlStep(){
+  const before=terminationReason(state());if(before){latchTermination(before);return false;}
+  const p=preview(),s0=state();recordControlSample(p,s0);
+  sim.stepForce(p.force,CONTROL_SUBSTEPS);plannerContext=advancePlannerContext(plannerContext,goal,CONTROL_DT);lastForce=p.force;
+  const reason=terminationReason(state());if(reason)latchTermination(reason);
+  return !reason;
 }
 function stepPolicy(steps=1){
-  if(!currentTrainer||!physicsReady) return;
-  const n=clamp(Math.floor(steps)||1,1,100);
-  for(let i=0;i<n;i++){
-    const p=preview(),s0=state();
-    recordControlSample(p,s0);
-    sim.stepForce(p.force,2);
-    plannerContext=advancePlannerContext(plannerContext,goal,.02);
-    lastForce=p.force;
-    const reason=terminationReason(state());
-    if(reason){lastEpisodeEvent="terminated: "+reason;break;}
-  }
-  render();
+  integerCount(steps,"control steps",1,100);assertEpisodeReady();
+  try{for(let i=0;i<steps;i++)if(!advanceOneControlStep())break;}
+  catch(error){showError(error);throw error;}finally{render();}
+}
+function setLive(enabled){
+  if(typeof enabled!=="boolean")throw new Error("live must be boolean");
+  if(enabled)assertEpisodeReady();else assertIdle();
+  live=enabled;accumulator=0;if(!episodeTerminated&&executionState!=="error")executionState=enabled?"running":"paused";render();
+}
+function simulationControl({action,steps=1}){
+  if(!["step","live_on","live_off","push","reset"].includes(action))throw new Error("unknown simulation action: "+action);
+  integerCount(steps,"control steps",1,100);assertIdle();
+  if(action==="step")stepPolicy(steps);else if(action==="live_on")setLive(true);else if(action==="live_off")setLive(false);else if(action==="push")pushRobot();else resetRobot();
 }
 function setGoal(x){
-  goal=clamp(Number(x),-1.2,1.2);
+  finiteNumber(x,"goal x",-1.2,1.2);assertIdle();goal=x;
   $("goal").value=goal;
   resetSignalHistory("goal changed");
   updateUrl();
   render();
 }
+async function changePresetInternal(next){
+  if(!Object.hasOwn(MuJoCoCartPole.presets,next))throw new Error("unknown preset: "+next);
+  if(temporalControlModeRequested()&&next!=="playground")throw new Error("temporal comparison requires playground");
+  clearTrainers();preset=next;await sim.loadPreset(preset);resetRobotState();
+  currentTrainer=await getTrainer(requiredMode());$("simPreset").value=preset;updateUrl();
+}
 async function changePreset(next){
-  if(temporalControlModeRequested()&&next!=="playground")return;
-  if(!MuJoCoCartPole.presets[next]||busy) return;
-  live=false;busy=true;
-  clearTrainers();preset=next;
-  await sim.loadPreset(preset);
-  resetRobot();
-  currentTrainer=await getTrainer(requiredMode());
-  busy=false;$("simPreset").value=preset;
-  updateUrl();render();
+  assertIdle();if(!Object.hasOwn(MuJoCoCartPole.presets,next))throw new Error("unknown preset: "+next);
+  if(temporalControlModeRequested()&&next!=="playground")throw new Error("temporal comparison requires playground");
+  return withOperation("모델 로드",()=>changePresetInternal(next));
+}
+async function trainControllers(targets,ids,n,lab=null){
+  lastTrainingTargets=ids.slice();
+  for(let i=0;i<n;i++){
+    for(const target of targets)target.iteration();render();await new Promise(r=>requestAnimationFrame(r));
+  }
+  if(lab)lab.evaluate();else{
+    heldoutEval=targets[0].evaluate(12);ppoHeldoutHistory.push({iterations:targets[0].iter,mae:heldoutEval.trackingMae});alignmentLab=null;
+  }
 }
 async function runPPO(iterations){
-  if(!currentTrainer||busy) return;
-  busy=true;live=false;render();
-  const n=clamp(Math.floor(iterations)||1,1,50);
-  for(let i=0;i<n;i++){
-    currentTrainer.iteration();
-    render();
-    await new Promise(r=>requestAnimationFrame(r));
-  }
-  heldoutEval=currentTrainer.evaluate(12);
-  ppoHeldoutHistory.push({iterations:currentTrainer.iter,mae:heldoutEval.trackingMae});
-  alignmentLab=null;
-  busy=false;render();
+  integerCount(iterations,"PPO iterations",1,30);assertIdle();
+  const resolved=resolveActiveController(),lab=temporalControlActive()?temporalControlLab:null;
+  if(!resolved.trainingTargets.length)throw new Error("controller not ready");
+  return withOperation("PPO 학습",()=>trainControllers(resolved.trainingTargets,resolved.trainingIds,iterations,lab));
 }
 function ensureAlignmentLab(){
   if(!currentTrainer)return null;
@@ -259,20 +279,16 @@ function ensureAlignmentLab(){
   return alignmentLab;
 }
 async function runAlignment(steps=50){
-  if(!currentTrainer||busy)return;
-  const lab=ensureAlignmentLab();if(!lab)return;
-  busy=true;live=false;render();
-  const n=clamp(Math.floor(steps)||1,1,200);
-  for(let i=0;i<n;i++){
-    lab.trainStep();
-    if(i%2===1||i===n-1){
-      render();
-      await new Promise(r=>requestAnimationFrame(r));
-    }
-  }
-  busy=false;render();
+  integerCount(steps,"training steps",1,200);assertIdle();
+  const lab=ensureAlignmentLab();if(!lab)throw new Error("lab not ready");
+  return withOperation("표현 학습",async()=>{
+    lastTrainingTargets=["alignment-secondary"];
+    for(let i=0;i<steps;i++){lab.trainStep();if(i%2===1||i===steps-1){render();await new Promise(r=>requestAnimationFrame(r));}}
+  });
 }
+
 function resetAlignment(){
+  assertIdle();
   const lab=ensureAlignmentLab();if(!lab)return;
   lab.reset();render();
 }
@@ -281,20 +297,16 @@ function ensureTemporalTokenLab(){
   return temporalTokenLab;
 }
 async function runTemporalTokenTraining(steps=50){
-  if(busy)return;
-  const lab=ensureTemporalTokenLab();
-  busy=true;live=false;render();
-  const n=clamp(Math.floor(steps)||1,1,250);
-  for(let i=0;i<n;i++){
-    lab.trainStep();
-    if(i%2===1||i===n-1){
-      render();
-      await new Promise(r=>requestAnimationFrame(r));
-    }
-  }
-  busy=false;render();
+  integerCount(steps,"training steps",1,250);assertIdle();
+  const lab=ensureTemporalTokenLab();if(!lab)throw new Error("lab not ready");
+  return withOperation("표현 학습",async()=>{
+    lastTrainingTargets=["temporal-reconstruction-one/two"];
+    for(let i=0;i<steps;i++){lab.trainStep();if(i%2===1||i===steps-1){render();await new Promise(r=>requestAnimationFrame(r));}}
+  });
 }
+
 function resetTemporalTokenLab(){
+  assertIdle();
   ensureTemporalTokenLab().reset();
   render();
 }
@@ -304,7 +316,7 @@ async function ensureTemporalControlLabReady(){
   temporalControlLoadPromise=(async()=>{
     const snap=await fetch("./assets/temporal_control_bootstrap.json",{cache:"force-cache"}).then(r=>r.ok?r.json():Promise.reject(new Error("temporal control checkpoint "+r.status)));
     const lab=new TemporalControlLab(sim);
-    lab.restore(snap);
+    try{lab.restore(snap);}catch(error){lab.delete();throw error;}
     temporalControlLab=lab;
     temporalControlBootstrapSnapshot=snap;
     return lab;
@@ -312,30 +324,26 @@ async function ensureTemporalControlLabReady(){
   return temporalControlLoadPromise;
 }
 async function runTemporalControlPPO(steps=5){
-  const lab=await ensureTemporalControlLabReady();
-  if(!lab||busy)return;
-  busy=true;live=false;render();
-  const n=clamp(Math.floor(steps)||1,1,30);
-  for(let i=0;i<n;i++){
-    lab.one.iteration();lab.two.iteration();
-    render();
-    await new Promise(r=>requestAnimationFrame(r));
-  }
-  lab.evaluate();
-  busy=false;render();
+  integerCount(steps,"PPO iterations",1,30);assertIdle();
+  return withOperation("두 컨트롤러 PPO 학습",async()=>{
+    const lab=await ensureTemporalControlLabReady();
+    return trainControllers([lab.one,lab.two],["temporal-one","temporal-two"],steps,lab);
+  });
 }
 function resetTemporalControlLab(){
+  assertIdle();
   if(!temporalControlLab||!temporalControlBootstrapSnapshot)return;
   temporalControlLab.restore(temporalControlBootstrapSnapshot);
   temporalControlSelected="one";
   resetSignalHistory("temporal control reset");
-  resetRobot("temporal control reset");
+  render();
 }
 function selectTemporalController(which){
-  if(!["one","two"].includes(which)||!temporalControlLab)return;
+  assertIdle();if(!["one","two"].includes(which))throw new Error("unknown controller: "+which);
+  if(!temporalControlLab)throw new Error("temporal controller not ready");
   temporalControlSelected=which;
   resetSignalHistory("controller switched");
-  resetRobot("controller switched to "+which+"-token");
+  render();
 }
 
 function normalizeConcept(){
@@ -366,25 +374,35 @@ async function switchTrainerIfNeeded(){
   resetSignalHistory("representation changed");
 }
 async function focusNode(id,concept=null){
-  if(busy) return;
+  if(!SONIC_FLOW.some(n=>n.id===id))throw new Error("unknown node: "+id);
+  if(concept!==null&&!(getNode(id).concepts||[]).some(c=>c.id===concept))throw new Error("unknown concept: "+concept);
+  return withOperation("화면/표현 로드",()=>focusNodeInternal(id,concept));
+}
+async function focusNodeInternal(id,concept){
   const next=getNode(id);
   trainingMode=false;focus=next;focusId=next.id;
   conceptId=concept;normalizeConcept();
-  if(focus.id==="token"&&conceptId==="temporal-control"&&preset!=="playground")await changePreset("playground");
+  if(focus.id==="token"&&conceptId==="temporal-control"&&preset!=="playground")await changePresetInternal("playground");
   await switchTrainerIfNeeded();
   if(focus.id==="token"&&conceptId==="temporal-control")await ensureTemporalControlLabReady();
   updateUrl();render();
 }
 async function setConcept(id){
-  if(!(focus.concepts||[]).some(x=>x.id===id)||busy)return;
+  if(!(focus.concepts||[]).some(x=>x.id===id))throw new Error("unknown concept: "+id);
+  return withOperation("표현 로드",()=>setConceptInternal(id));
+}
+async function setConceptInternal(id){
   conceptId=id;
-  if(focus.id==="token"&&conceptId==="temporal-control"&&preset!=="playground")await changePreset("playground");
+  if(focus.id==="token"&&conceptId==="temporal-control"&&preset!=="playground")await changePresetInternal("playground");
   await switchTrainerIfNeeded();
   if(focus.id==="token"&&conceptId==="temporal-control")await ensureTemporalControlLabReady();
   updateUrl();render();
 }
 async function openTraining(topicId="loss-flow"){
-  if(busy)return;
+  if(!TRAINING_TOPICS.some(t=>t.id===topicId))throw new Error("unknown training topic: "+topicId);
+  return withOperation("학습 화면 로드",()=>openTrainingInternal(topicId));
+}
+async function openTrainingInternal(topicId){
   trainingMode=true;
   trainingTopic=getTrainingTopic(topicId);trainingTopicId=trainingTopic.id;
   await switchTrainerIfNeeded();
@@ -406,7 +424,7 @@ function buildSystemMap(){
     b.classList.toggle("active",!trainingMode&&focus.id===id);
     b.classList.toggle("training-hit",trainingMode&&trainingHits.includes(id));
     b.innerHTML='<b>'+n.nav+'</b><span class="official">'+n.official+'</span><span class="toy">browser: '+blockShape(id,activeController(),n.toy)+'</span>';
-    b.onclick=()=>{void focusNode(id);};host.appendChild(b);
+    b.onclick=()=>{uiAction(()=>focusNode(id));};host.appendChild(b);
     if(i<topIds.length-1){const a=document.createElement("span");a.className="map-arrow";a.textContent="→";host.appendChild(a);}
   });
   const motion=getNode("motion-decoder");
@@ -414,9 +432,9 @@ function buildSystemMap(){
   mb.classList.toggle("active",!trainingMode&&focus.id==="motion-decoder");
   mb.classList.toggle("training-hit",trainingMode&&trainingHits.includes("motion-decoder"));
   mb.innerHTML='<b>'+motion.nav+'</b><span>official: '+motion.official+' · toy: '+motion.toy+'</span>';
-  mb.onclick=()=>{void focusNode("motion-decoder");};
+  mb.onclick=()=>{uiAction(()=>focusNode("motion-decoder"));};
   $("trainingButton").classList.toggle("active",trainingMode);
-  $("trainingButton").onclick=()=>{void openTraining(trainingTopicId);};
+  $("trainingButton").onclick=()=>{uiAction(()=>openTraining(trainingTopicId));};
 }
 function buildConceptTabs(){
   const host=$("conceptTabs");host.innerHTML="";
@@ -426,7 +444,7 @@ function buildConceptTabs(){
     const id=trainingMode?item.id:item.id;
     b.textContent=trainingMode?item.label:item.label;
     b.classList.toggle("active",trainingMode?trainingTopic.id===id:conceptId===id);
-    b.onclick=()=>{trainingMode?void openTraining(id):void setConcept(id);};
+    b.onclick=()=>{uiAction(()=>trainingMode?openTraining(id):setConcept(id));};
     host.appendChild(b);
   }
 }
@@ -450,12 +468,12 @@ function renderSimulation(){
     for(const dx of [-.19*scale,.19*scale]){ctx.beginPath();ctx.arc(cx+dx,wheelY,.07*scale,0,Math.PI*2);ctx.fill();}
   }
   $("goal").value=goal;$("goalVal").textContent=(goal>=0?"+":"")+fmt(goal,2)+" m";
-  $("simPreset").disabled=temporalControlModeRequested();
-  $("liveBtn").textContent="Live "+(live?"ON":"OFF");$("liveBtn").classList.toggle("active",live);
+  $("simPreset").disabled=busy||temporalControlModeRequested();
+  $("liveBtn").textContent=live?"실행 멈추기":"계속 실행";$("liveBtn").classList.toggle("active",live);
   $("vX").textContent=fmt(s[0],3)+" m";$("vXd").textContent=fmt(s[1],3)+" m/s";
   $("vTh").textContent=fmt(s[2]*180/Math.PI,1)+"°";$("vThd").textContent=fmt(s[3]*180/Math.PI,1)+" °/s";
   $("vForce").textContent=fmt(lastForce,2)+" N";
-  $("episodeStatus").textContent="ep "+episodeIndex+" · trace="+fmt(controlTick*.02,2)+"s"+(autoResetCount?" · ↻"+autoResetCount:"");
+  $("episodeStatus").textContent=executionSnapshot().state+" · "+(executionReason||"한 단계 또는 계속 실행")+" · 학습 대상: "+(lastTrainingTargets.join(", ")||"아직 없음");
   $("episodeStatus").title=lastEpisodeEvent;
   const identity=activeController();
   $("activeController").textContent="현재 제어기 · "+controllerSummary(identity);
@@ -759,7 +777,7 @@ function renderTemporalTokenViz(){
       '<div class="temporal-bottom">'+
         '<div class="temporal-left">'+
           '<div class="temporal-recon"><canvas id="temporalRecon"></canvas></div>'+
-          '<div class="temporal-actions"><button id="temporalTrain50" class="primary">Train +50</button><button id="temporalTrain200">Train to 200</button><button id="temporalReset">Reset</button></div>'+
+          '<div class="temporal-actions"><button id="temporalTrain50" class="primary">Train +50</button><button id="temporalTrain200">Train to 200</button><button id="temporalReset">학습 기준 복원</button></div>'+
         '</div>'+
         '<div class="temporal-right">'+
           '<div class="temporal-curve"><canvas id="temporalCurve"></canvas></div>'+
@@ -780,7 +798,7 @@ function renderTemporalTokenViz(){
     drawTemporalRecon(lab,ref);
     drawTemporalCurve(lab);
     const b50=$("temporalTrain50"),b200=$("temporalTrain200"),reset=$("temporalReset");
-    if(b50)b50.onclick=()=>{void runTemporalTokenTraining(50);};
+    if(b50)b50.onclick=()=>{uiAction(()=>runTemporalTokenTraining(50));};
     if(b200){b200.disabled=lab.step>=200;b200.onclick=()=>{if(lab.step<200)void runTemporalTokenTraining(200-lab.step);};}
     if(reset)reset.onclick=()=>resetTemporalTokenLab();
   });
@@ -866,7 +884,7 @@ function renderTemporalControlViz(){
             '<button id="driveOneBtn" class="'+(temporalControlSelected==="one"?"primary":"")+'">Drive robot: 1 token</button>'+
             '<button id="driveTwoBtn" class="'+(temporalControlSelected==="two"?"primary":"")+'">Drive robot: 2 tokens</button>'+
             '<button id="controlPpo5" class="primary">PPO both +5</button><button id="controlPpo10">PPO both +10</button>'+
-            '<button id="controlReset" style="grid-column:1/-1">Reset matched bootstrap</button>'+
+            '<button id="controlReset" style="grid-column:1/-1">학습 기준 복원</button>'+
           '</div>'+
           '<div class="control-note"><b>Interpretation:</b> the 2-token reconstruction lab had more capacity, but this matched-control ablation asks a different question. Extra token slots also enlarge the policy interface and can make PPO optimization harder. Same hyperparameters are intentionally used; neither controller is individually tuned.</div>'+
         '</div>'+
@@ -880,8 +898,8 @@ function renderTemporalControlViz(){
     const one=$("driveOneBtn"),two=$("driveTwoBtn"),p5=$("controlPpo5"),p10=$("controlPpo10"),reset=$("controlReset");
     if(one)one.onclick=()=>selectTemporalController("one");
     if(two)two.onclick=()=>selectTemporalController("two");
-    if(p5)p5.onclick=()=>{void runTemporalControlPPO(5);};
-    if(p10)p10.onclick=()=>{void runTemporalControlPPO(10);};
+    if(p5)p5.onclick=()=>{uiAction(()=>runTemporalControlPPO(5));};
+    if(p10)p10.onclick=()=>{uiAction(()=>runTemporalControlPPO(10));};
     if(reset)reset.onclick=()=>resetTemporalControlLab();
   });
 }
@@ -1024,7 +1042,7 @@ function renderAlignmentViz(){
             '<tr><td>FSQ q</td><td>['+cmp.primary.q.map(v=>fmt(v,2)).join(',')+']</td><td>['+cmp.secondary.q.map(v=>fmt(v,2)).join(',')+']</td></tr>'+
             '<tr><td>force, same state</td><td>'+fmt(cmp.primary.force,3)+' N</td><td>'+fmt(cmp.secondary.force,3)+' N</td></tr>'+
           '</tbody></table>'+
-          '<div class="align-actions"><button id="alignmentTrainBtn" class="primary">Train +50</button><button id="alignmentResetBtn">Reset unaligned</button></div>'+
+          '<div class="align-actions"><button id="alignmentTrainBtn" class="primary">Train +50</button><button id="alignmentResetBtn">학습 기준 복원</button></div>'+
           '<div style="font-size:8.7px;line-height:1.35;color:#667085;margin-top:6px">Toy simplification: Encoder A is a frozen anchor. SONIC aligns multiple modality Encoders jointly; the toy reproduces the alignment mechanism, not the real G1/SMPL/teleop modalities.</div>'+
         '</div>'+
       '</div>'+
@@ -1035,7 +1053,7 @@ function renderAlignmentViz(){
   requestAnimationFrame(()=>{
     drawAlignmentCurve(lab);
     const train=$("alignmentTrainBtn"),reset=$("alignmentResetBtn");
-    if(train)train.onclick=()=>{void runAlignment(50);};
+    if(train)train.onclick=()=>{uiAction(()=>runAlignment(50));};
     if(reset)reset.onclick=()=>resetAlignment();
   });
 }
@@ -1197,7 +1215,7 @@ function guideLiveValues(){
   }
 }
 function setGuideDepth(depth){
-  if(!["easy","mechanism","sonic"].includes(depth))return;
+  assertIdle();if(!["easy","mechanism","sonic"].includes(depth))throw new Error("unknown explanation depth: "+depth);
   guideDepth=depth;updateUrl();renderGuide();
 }
 
@@ -1286,6 +1304,7 @@ function renderGuide(){
 }
 
 async function runFocusAction(){
+  assertIdle();
   if(trainingMode){
     if(trainingTopic.id==="ppo")await runPPO(10);
     else if(trainingTopic.id==="alignment")await runAlignment(50);
@@ -1295,7 +1314,7 @@ async function runFocusAction(){
   if(focus.id==="control-decoder"){pushRobot();stepPolicy(1);return;}
   if(focus.id==="token"&&conceptId==="temporal"){await runTemporalTokenTraining(50);return;}
   if(focus.id==="token"&&conceptId==="temporal-control"){await runTemporalControlPPO(5);return;}
-  if(["quantizer","token","robot"].includes(focus.id)){live=!live;accumulator=0;render();return;}
+  if(["quantizer","token","robot"].includes(focus.id)){setLive(!live);return;}
   if(focus.id==="encoder"&&conceptId==="vae")return;
   setGoal(goal>0?-0.8:0.8);
 }
@@ -1350,8 +1369,17 @@ function renderPreload(){
   }
 }
 function render(){
-  if(!physicsReady||!currentTrainer)return;
-  buildSystemMap();renderSimulation();renderVisualization();renderGuide();renderHeaderState();
+  for(const [el,wasDisabled] of busyDisabledControls)el.disabled=wasDisabled;
+  busyDisabledControls.clear();
+  if(physicsReady&&currentTrainer){buildSystemMap();renderSimulation();renderVisualization();renderGuide();renderHeaderState();}
+  const status=$("episodeStatus");
+  if(status)status.textContent=executionSnapshot().state+" · "+(executionReason||"한 단계 또는 계속 실행")+" · 학습 대상: "+(lastTrainingTargets.join(", ")||"아직 없음");
+  // Recreated lesson buttons retain their own bounded/lesson-specific disabled rules.
+  if(busy)for(const el of document.querySelectorAll("button,input,select")){busyDisabledControls.set(el,el.disabled);el.disabled=true;}
+  for(const id of ["stepBtn","liveBtn","pushBtn"])$(id).disabled=busy||episodeTerminated||executionState==="error"||!currentTrainer;
+  $("resetBtn").disabled=busy||!physicsReady;$("goal").disabled=busy;
+  $("simPreset").disabled=busy||temporalControlModeRequested();
+  if(!busy)for(const el of document.querySelectorAll("[data-depth]"))el.disabled=false;
 }
 
 function systemSnapshot(){
@@ -1367,6 +1395,7 @@ function systemSnapshot(){
       trainingTopic:trainingMode?trainingTopic.id:null,
       outline:getSystemOutline(),
     },
+    activeController:activeController(p),lastTrainingTargets:lastTrainingTargets.slice(),execution:executionSnapshot(),
     experiment:{goal,live,preset,busy,representationMode:requiredMode(),episode:episodeIndex,autoResets:autoResetCount,lastEpisodeEvent},
     semantics:{
       reference:"desired future motion upstream of Encoder/FSQ; not measured robot state",
@@ -1416,7 +1445,8 @@ function telemetrySnapshot(){
   return {
     schema:"cartpole-sonic-telemetry/v2",
     system:{version:COURSE_VERSION,mode:trainingMode?"training":"runtime",focus:trainingMode?null:{node:focus.id,concept:conceptId},trainingTopic:trainingMode?trainingTopic.id:null},
-    experiment:{goal,live,preset,episode:episodeIndex,autoResets:autoResetCount},
+    activeController:activeController(p),lastTrainingTargets:lastTrainingTargets.slice(),execution:executionSnapshot(),
+    experiment:{goal,live,preset,busy,episode:episodeIndex,autoResets:autoResetCount},
     signals:{reference:Array.from(currentReference()),latent:p?.z||null,token:p?.q||null,proprioception:state(),actionMean:p?.mu??null,force:p?.force??null},
     training:currentTrainer?{ppoIterations:currentTrainer.iter,envSteps:currentTrainer.envSteps,last:currentTrainer.last}:null,
     representationLabs:{temporalControl:temporalControlLab?{selectedController:temporalControlSelected,one:brief(temporalControlLab.one),two:brief(temporalControlLab.two)}:null},
@@ -1435,20 +1465,20 @@ async function registerWebMCP(){
     {name:"sonic_open_training",description:"Open a training-only topic without pretending it is part of the deployment runtime graph.",inputSchema:{type:"object",properties:{topic_id:{type:"string",enum:trainingIds}},required:["topic_id"]},annotations:{readOnlyHint:false},execute:async({topic_id})=>{await openTraining(topic_id);return systemSnapshot();}},
     {name:"sonic_set_explanation_depth",description:"Switch the right-side explanation between easy intuition, internal mechanism, and actual SONIC structure.",inputSchema:{type:"object",properties:{depth:{type:"string",enum:["easy","mechanism","sonic"]}},required:["depth"]},annotations:{readOnlyHint:false},execute:async({depth})=>{setGuideDepth(depth);return systemSnapshot();}},
     {name:"sonic_run_focus_action",description:"Run the canonical experiment for the currently focused block.",inputSchema:{type:"object",properties:{}},annotations:{readOnlyHint:false},execute:async()=>{await runFocusAction();return systemSnapshot();}},
-    {name:"simulation_control",description:"Control the shared browser MuJoCo WASM robot.",inputSchema:{type:"object",properties:{action:{type:"string",enum:["step","live_on","live_off","push","reset"]},steps:{type:"integer",minimum:1,maximum:100}},required:["action"]},annotations:{readOnlyHint:false},execute:async({action,steps=1})=>{if(action==="step")stepPolicy(steps);else if(action==="live_on"){live=true;render();}else if(action==="live_off"){live=false;render();}else if(action==="push")pushRobot();else if(action==="reset")resetRobot();return systemSnapshot();}},
+    {name:"simulation_control",description:"Control the shared browser MuJoCo WASM robot.",inputSchema:{type:"object",properties:{action:{type:"string",enum:["step","live_on","live_off","push","reset"]},steps:{type:"integer",minimum:1,maximum:100}},required:["action"]},annotations:{readOnlyHint:false},execute:async(args)=>{simulationControl(args);return systemSnapshot();}},
     {name:"experiment_set_goal",description:"Set the high-level task goal used by the motion generator.",inputSchema:{type:"object",properties:{x:{type:"number",minimum:-1.2,maximum:1.2}},required:["x"]},annotations:{readOnlyHint:false},execute:async({x})=>{setGoal(x);return systemSnapshot();}},
     {name:"training_run",description:"Run bounded PPO iterations on the current student policy.",inputSchema:{type:"object",properties:{iterations:{type:"integer",minimum:1,maximum:30}},required:["iterations"]},annotations:{readOnlyHint:false},execute:async({iterations})=>{await runPPO(iterations);return systemSnapshot();}},
-    {name:"alignment_control",description:"Train or reset the live CartPole multi-encoder alignment lab. The tool first switches to the alignment training view/FSQ student, then aligns a sparse-keypoint Encoder to the frozen full-trajectory Encoder and reports latent/token/action agreement.",inputSchema:{type:"object",properties:{action:{type:"string",enum:["train","reset"]},steps:{type:"integer",minimum:1,maximum:200}},required:["action"]},annotations:{readOnlyHint:false},execute:async({action,steps=50})=>{if(!trainingMode||trainingTopic.id!=="alignment")await openTraining("alignment");if(action==="reset")resetAlignment();else await runAlignment(steps);return systemSnapshot();}},
-    {name:"temporal_token_control",description:"Train or reset the live 1-token vs 2-token temporal-slot lab. The tool switches to Universal Token → 1 vs 2 token slots and compares reconstruction capacity without assigning near/far semantics to token indices.",inputSchema:{type:"object",properties:{action:{type:"string",enum:["train","reset"]},steps:{type:"integer",minimum:1,maximum:250}},required:["action"]},annotations:{readOnlyHint:false},execute:async({action,steps=50})=>{if(trainingMode||focus.id!=="token"||conceptId!=="temporal")await focusNode("token","temporal");if(action==="reset")resetTemporalTokenLab();else await runTemporalTokenTraining(steps);return systemSnapshot();}},
-    {name:"temporal_control_control",description:"Operate the matched 1-token vs 2-token closed-loop control ablation. Switches to Universal Token → Closed-loop 1 vs 2 on the default Playground model, can select which controller drives the shared MuJoCo robot, train both with the same PPO budget, or reset to the matched teacher-bootstrap checkpoint.",inputSchema:{type:"object",properties:{action:{type:"string",enum:["train","reset","select"]},steps:{type:"integer",minimum:1,maximum:30},controller:{type:"string",enum:["one","two"]}},required:["action"]},annotations:{readOnlyHint:false},execute:async({action,steps=5,controller="one"})=>{if(!temporalControlModeRequested())await focusNode("token","temporal-control");await ensureTemporalControlLabReady();if(action==="reset")resetTemporalControlLab();else if(action==="select")selectTemporalController(controller);else await runTemporalControlPPO(steps);return systemSnapshot();}},
+    {name:"alignment_control",description:"Train or reset the live CartPole multi-encoder alignment lab. The tool first switches to the alignment training view/FSQ student, then aligns a sparse-keypoint Encoder to the frozen full-trajectory Encoder and reports latent/token/action agreement.",inputSchema:{type:"object",properties:{action:{type:"string",enum:["train","reset"]},steps:{type:"integer",minimum:1,maximum:200}},required:["action"]},annotations:{readOnlyHint:false},execute:async({action,steps=50})=>{assertIdle();if(!["train","reset"].includes(action))throw new Error("unknown alignment action");integerCount(steps,"alignment steps",1,200);if(!trainingMode||trainingTopic.id!=="alignment")await openTraining("alignment");if(action==="reset")resetAlignment();else await runAlignment(steps);return systemSnapshot();}},
+    {name:"temporal_token_control",description:"Train or reset the live 1-token vs 2-token temporal-slot lab. The tool switches to Universal Token → 1 vs 2 token slots and compares reconstruction capacity without assigning near/far semantics to token indices.",inputSchema:{type:"object",properties:{action:{type:"string",enum:["train","reset"]},steps:{type:"integer",minimum:1,maximum:250}},required:["action"]},annotations:{readOnlyHint:false},execute:async({action,steps=50})=>{assertIdle();if(!["train","reset"].includes(action))throw new Error("unknown token action");integerCount(steps,"token steps",1,250);if(trainingMode||focus.id!=="token"||conceptId!=="temporal")await focusNode("token","temporal");if(action==="reset")resetTemporalTokenLab();else await runTemporalTokenTraining(steps);return systemSnapshot();}},
+    {name:"temporal_control_control",description:"Operate the matched 1-token vs 2-token closed-loop control ablation. Switches to Universal Token → Closed-loop 1 vs 2 on the default Playground model, can select which controller drives the shared MuJoCo robot, train both with the same PPO budget, or reset to the matched teacher-bootstrap checkpoint.",inputSchema:{type:"object",properties:{action:{type:"string",enum:["train","reset","select"]},steps:{type:"integer",minimum:1,maximum:30},controller:{type:"string",enum:["one","two"]}},required:["action"]},annotations:{readOnlyHint:false},execute:async({action,steps=5,controller="one"})=>{assertIdle();if(!["train","reset","select"].includes(action))throw new Error("unknown temporal action");integerCount(steps,"PPO steps",1,30);if(!["one","two"].includes(controller))throw new Error("unknown controller");if(!temporalControlModeRequested())await focusNode("token","temporal-control");await ensureTemporalControlLabReady();if(action==="reset")resetTemporalControlLab();else if(action==="select")selectTemporalController(controller);else await runTemporalControlPPO(steps);return systemSnapshot();}},
     {name:"simulation_set_model",description:"Switch browser MuJoCo WASM CartPole dynamics/morphology preset.",inputSchema:{type:"object",properties:{preset:{type:"string",enum:["playground","long","heavy"]}},required:["preset"]},annotations:{readOnlyHint:false},execute:async({preset})=>{await changePreset(preset);return systemSnapshot();}}
   ];
   for(const t of tools)await mc.registerTool(t);webmcpTools=tools.map(t=>t.name);renderHeaderState();
 }
 function attachUI(){
-  $("goal").oninput=()=>setGoal($("goal").value);$("stepBtn").onclick=()=>stepPolicy(1);$("liveBtn").onclick=()=>{live=!live;accumulator=0;render();};
-  $("pushBtn").onclick=pushRobot;$("resetBtn").onclick=()=>resetRobot();$("simPreset").onchange=()=>changePreset($("simPreset").value);
-  $("focusAction").onclick=()=>{void runFocusAction();};
+  $("goal").oninput=()=>uiAction(()=>setGoal(Number($("goal").value)));$("stepBtn").onclick=()=>uiAction(()=>simulationControl({action:"step"}));$("liveBtn").onclick=()=>uiAction(()=>simulationControl({action:live?"live_off":"live_on"}));
+  $("pushBtn").onclick=()=>uiAction(()=>simulationControl({action:"push"}));$("resetBtn").onclick=()=>uiAction(()=>simulationControl({action:"reset"}));$("simPreset").onchange=()=>uiAction(()=>changePreset($("simPreset").value));
+  $("focusAction").onclick=()=>{uiAction(()=>runFocusAction());};
 }
 function installCanvasResizeObserver(){
   if(!("ResizeObserver" in window))return;
@@ -1459,8 +1489,9 @@ function loop(now){
   if(live&&!busy&&currentTrainer&&physicsReady){
     accumulator+=dt;let n=0;
     while(accumulator>=.02&&n<4){
-      const p=preview(),s0=state();recordControlSample(p,s0);sim.stepForce(p.force,2);plannerContext=advancePlannerContext(plannerContext,goal,.02);lastForce=p.force;accumulator-=.02;n++;
-      const reason=terminationReason(state());if(reason){autoResetEpisode(reason);break;}
+      accumulator-=CONTROL_DT;n++;
+      try{if(!advanceOneControlStep())break;}catch(error){showError(error);break;}
+
     }
     render();
   }
@@ -1474,7 +1505,7 @@ async function init(){
   fetch("./evidence/ppo_eval.json",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(x=>{ppoReferenceEvidence=x;if(trainingMode&&trainingTopic.id==="ppo"&&!busy)render();}).catch(()=>{});
   fetch("./evidence/temporal_control_eval.json",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(x=>{temporalControlEvidence=x;if(!trainingMode&&focus.id==="token"&&conceptId==="temporal-control"&&!busy)render();}).catch(()=>{});
   fetch("./evidence/control_optimization_eval.json",{cache:"no-store"}).then(r=>r.ok?r.json():null).then(x=>{optimizerEvidence=x;if(trainingMode&&trainingTopic.id==="optimizer-sensitivity"&&!busy)render();}).catch(()=>{});
-  await sim.init(preset);physicsReady=true;$("simPreset").value=preset;resetRobot();
+  await sim.init(preset);physicsReady=true;$("simPreset").value=preset;resetRobotState();
   setBadge("physicsBadge",sim.backend,true);
   currentTrainer=await getTrainer(requiredMode());
   if(!trainingMode&&focus.id==="token"&&conceptId==="temporal-control")await ensureTemporalControlLabReady();
@@ -1487,7 +1518,7 @@ async function init(){
   if(location.hostname==="localhost"||location.hostname==="127.0.0.1"){setInterval(()=>{fetch("/telemetry",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(telemetrySnapshot()),keepalive:true}).catch(()=>{});},900);}
   installCanvasResizeObserver();requestAnimationFrame(loop);
 }
-init().catch(err=>{console.error(err);setBadge("physicsBadge","init error",false);});
+init().catch(err=>{busy=false;showError(err);render();setBadge("physicsBadge","model load error",false);requestAnimationFrame(loop);});
 
 window.__cartpoleSonic={
   getState:systemSnapshot,
@@ -1497,6 +1528,11 @@ window.__cartpoleSonic={
   openTraining,
   runFocusAction,
   step:stepPolicy,
+  simulationControl,
+  setLive,
+  reset:resetRobot,
+  push:pushRobot,
+  changePreset,
   setGoal,
   runPPO,
   runAlignment,

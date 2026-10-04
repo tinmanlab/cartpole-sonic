@@ -110,11 +110,12 @@ button,select{border:1px solid #cfd5df;border-radius:7px;background:#fff;padding
 
 <main class="shell">
   <section class="card sim-card">
-    <div class="head"><div><h2>시뮬레이션 상태</h2><div class="sub">LIVE 브라우저 계산 · 목표 궤적은 중앙에서 분리</div></div><div style="display:flex;align-items:center;gap:5px"><span id="episodeStatus" class="sub">ep 1</span><select id="simPreset"><option value="playground">Playground</option><option value="long">Long pole</option><option value="heavy">Heavy pole</option></select></div></div>
+    <div class="head"><div><h2>시뮬레이션 상태</h2><div class="sub">LIVE 브라우저 계산 · 목표 궤적은 중앙에서 분리</div></div><div style="display:flex;align-items:center;gap:5px"><select id="simPreset"><option value="playground">Playground</option><option value="long">Long pole</option><option value="heavy">Heavy pole</option></select></div></div>
     <div class="sim"><canvas id="cart"></canvas></div>
     <div class="legend"><span><i class="line" style="border-color:#d64f4f"></i>simulated robot</span><span><i class="line dashed" style="border-color:#16805d"></i>high-level goal</span></div>
     <div class="goal"><input id="goal" type="range" min="-1.2" max="1.2" step="0.05"><output id="goalVal">+0.80 m</output></div>
-    <div class="sim-controls"><button id="stepBtn">1 Step</button><button id="liveBtn" class="primary">Live OFF</button><button id="pushBtn">Push</button><button id="resetBtn">Reset</button></div>
+    <div id="episodeStatus" aria-live="polite" class="sub" style="margin:4px 0;line-height:1.4">모델 준비 중</div>
+    <div class="sim-controls"><button id="stepBtn">한 단계</button><button id="liveBtn" class="primary">계속 실행</button><button id="pushBtn">외란 주기</button><button id="resetBtn">로봇 상태 초기화</button></div>
     <div class="state-grid"><div class="state"><span>x</span><b id="vX">—</b></div><div class="state"><span>ẋ</span><b id="vXd">—</b></div><div class="state"><span>θ</span><b id="vTh">—</b></div><div class="state"><span>θ̇</span><b id="vThd">—</b></div><div class="state"><span>last applied</span><b id="vForce">—</b></div></div>
     <div id="simNote" class="sim-note">Robot world는 measured state만 표시한다. future reference / latent / token은 별도 세계다.</div>
     <div class="sim-spacer"></div>

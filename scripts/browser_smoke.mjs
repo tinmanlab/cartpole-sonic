@@ -65,6 +65,53 @@ const bounds=async label=>{
   for(const [id,w,h] of result.canvasSizes)assert.ok(w>0&&h>0,label+' empty canvas '+id);
 };
 try{
+  if(process.env.EXECUTION_ONLY==='1'){
+    await page.goto(base);await waitReady();
+    const api=code=>page.evaluate(code);
+    const reject=async work=>{const result=await page.evaluate(async source=>{try{await Function('return ('+source+')')()();return null;}catch(e){return e.message;}},work.toString());assert.ok(result,'expected API rejection');};
+    const before=await state();
+    const telemetryBefore=await api(()=>window.__cartpoleSonic.getTelemetry());
+    for(const key of ['sampleTime','targetTime','referenceNow','referencePreview','plannedForce','lastAppliedForce'])assert.equal(telemetryBefore.signals[key],before.signals[key],key+' must use the same signal definition');
+    for(const work of [()=>window.__cartpoleSonic.step(NaN),()=>window.__cartpoleSonic.step(1.5),()=>window.__cartpoleSonic.setGoal('1'),()=>window.__cartpoleSonic.setGoal(Infinity),()=>window.__cartpoleSonic.simulationControl({action:'unknown'}),()=>window.__cartpoleSonic.runPPO(0)])await reject(work);
+    assert.deepEqual((await state()).signals.proprioception,before.signals.proprioception);
+    assert.equal((await state()).experiment.goal,before.experiment.goal);
+    await api(()=>window.__cartpoleSonic.step(2));
+    assert.equal((await state()).signals.simulationTime,.04);
+    await api(()=>window.__cartpoleSonic.setLive(true));await page.waitForTimeout(150);await api(()=>window.__cartpoleSonic.setLive(false));
+    assert.equal((await state()).execution.state,'paused');
+    await api(()=>window.__cartpoleSonic.reset());
+    await api(()=>{for(let i=0;i<40&&!window.__cartpoleSonic.getState().execution.resetRequired;i++){window.__cartpoleSonic.push();window.__cartpoleSonic.step(1);}});
+    assert.equal((await state()).execution.state,'terminated');
+    const failed=(await state()).signals.proprioception;
+    for(const work of [()=>window.__cartpoleSonic.step(),()=>window.__cartpoleSonic.setLive(true),()=>window.__cartpoleSonic.push()])await reject(work);
+    assert.deepEqual((await state()).signals.proprioception,failed);
+    await api(()=>window.__cartpoleSonic.reset());await api(()=>window.__cartpoleSonic.step());
+    assert.equal((await state()).execution.resetRequired,false);
+    const ordinary=(await state()).training.ppoIterations;
+    await api(()=>window.__cartpoleSonic.focus('token','temporal-control'));
+    const pair=(await state()).representationLabs.temporalControl;
+    const concurrent=await api(async()=>{
+      const running=window.__cartpoleSonic.runPPO(1);
+      const disabled=document.querySelector('#stepBtn').disabled;
+      let rejection;try{await window.__cartpoleSonic.focus('robot');}catch(e){rejection=e.message;}
+      await running;return{disabled,rejection};
+    });
+    assert.equal(concurrent.disabled,true);assert.ok(concurrent.rejection);
+    const trained=await state();assert.equal(trained.representationLabs.temporalControl.one.iter,pair.one.iter+1);assert.equal(trained.representationLabs.temporalControl.two.iter,pair.two.iter+1);
+    assert.equal(trained.training.ppoIterations,ordinary);
+    assert.deepEqual(trained.lastTrainingTargets,['temporal-one','temporal-two']);
+    assert.equal(trained.execution.state,'ready');
+    await api(()=>window.__cartpoleSonic.focus('robot'));
+    await page.route('**/assets/student_ae_bootstrap.json',route=>route.fulfill({status:200,contentType:'application/json',body:'{"schema":"cartpole-sonic-student-bootstrap/v1","mode":"ae","policy":{}}'}));
+    await reject(()=>window.__cartpoleSonic.focus('encoder','ae'));
+    assert.equal((await state()).experiment.busy,false);assert.equal((await state()).experiment.live,false);assert.equal((await state()).execution.state,'error');
+    assert.ok((await page.locator('#episodeStatus').innerText()).includes('체크포인트'));
+    await page.unroute('**/assets/student_ae_bootstrap.json');await api(()=>window.__cartpoleSonic.focus('encoder','ae'));
+    assert.equal((await state()).activeController.mode,'ae');assert.equal((await state()).execution.state,'ready');
+    checks.push({label:'execution boundaries, latch, matched generic training, busy rejection, corrupt checkpoint recovery'});
+    await screenshot('execution-recovered.png');
+    assert.deepEqual(errors,[]);report.passed=true;
+  }else{
   await page.goto(base+'?training=optimizer-sensitivity&depth=mechanism');await waitReady();
   assert.equal((await state()).system.version,'2.7');
   await screenshot('optimizer-budget-50.png');
@@ -174,6 +221,7 @@ try{
     assert.ok(JSON.stringify(telemetry).length<65536,'keepalive telemetry must stay within its byte budget');
   }
   assert.deepEqual(errors,[]);report.passed=true;
+  }
 }catch(error){report.passed=false;report.failure=error.stack;throw error;
 }finally{
   fs.writeFileSync(path.join(output,'browser_audit.json'),JSON.stringify(report,null,2));
