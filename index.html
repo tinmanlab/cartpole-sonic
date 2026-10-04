@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>CartPole SONIC Learning Lab</title>
 <link rel="icon" href="data:,">
+<link rel="stylesheet" href="./native_lesson.css">
 <script src="https://unpkg.com/@mcp-b/global@5.1.0/dist/index.iife.js"></script>
 <style>
 :root{font-family:Inter,Pretendard,system-ui,-apple-system,"Segoe UI",sans-serif;color:#172033;background:#f4f6f8;--line:#dce1e8;--muted:#667085;--card:#fff;--blue:#315dc9;--navy:#172554;--red:#d64f4f;--green:#16805d;--purple:#795fc5;--amber:#b76a12}
@@ -92,9 +93,11 @@ button,select{border:1px solid #cfd5df;border-radius:7px;background:#fff;padding
 <body>
 <header class="header">
   <div class="brand"><h1>CartPole SONIC</h1><span>SONIC 구조를 설명하는 브라우저 학습 실험</span></div>
+  <nav class="surface-tabs" aria-label="학습 화면"><button id="nativeLessonTab">실험 수업</button><button id="explorationTab">구조 탐색</button></nav>
   <div class="identity-strip">브라우저 교육용 모델 · MuJoCo WASM 시뮬레이션<br><span id="activeController">제어기 준비 중</span> · <a href="https://github.com/tinmanlab/cartpole-sonic/blob/main/native/README.md">공식 코드 검증은 별도</a></div>
   <div class="badges"><span id="physicsBadge" class="badge">MuJoCo</span><span id="webgpuBadge" class="badge">WebGPU</span><span id="mcpBadge" class="badge">WebMCP</span></div>
 </header>
+<section id="nativeLesson" class="native-lesson" aria-label="native 기록 실험 수업" hidden></section>
 
 <section class="system-map">
   <div class="map-title"><b>SONIC의 역할과 현재 브라우저 경로</b><span>click a system block → explanation + live visualization · training is a separate view</span></div>

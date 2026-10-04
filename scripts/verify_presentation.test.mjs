@@ -80,7 +80,7 @@ test('captured browser evidence is bound to the current rendering source',()=>{
   const report=JSON.parse(fs.readFileSync(new URL('../evidence/browser_audit.json',import.meta.url)));
   assert.equal(report.passed,true);assert.deepEqual(report.errors,[]);
   assert.ok(report.checks.length>=150);
-  for(const file of ['app.js','course.js','index.html','presentation.js','optimizer_evidence_view.js','control_contract.js','mujoco_sim.js','sonic_toy.js','temporal_control_lab.js','scripts/browser_smoke.mjs']){
+  for(const file of ['app.js','course.js','index.html','presentation.js','optimizer_evidence_view.js','control_contract.js','mujoco_sim.js','sonic_toy.js','temporal_control_lab.js','native_lesson.js','native_lesson.css','evidence/guided_lesson/traces.json','scripts/browser_smoke.mjs']){
     const actual=createHash('sha256').update(fs.readFileSync(new URL('../'+file,import.meta.url))).digest('hex');
     assert.equal(actual,report.source_sha256[file],file+' changed after the captured browser audit');
   }

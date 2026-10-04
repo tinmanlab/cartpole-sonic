@@ -1,4 +1,4 @@
-export const COURSE_VERSION = "2.8";
+export const COURSE_VERSION = "2.9";
 
 export const SONIC_FLOW = [
   {
