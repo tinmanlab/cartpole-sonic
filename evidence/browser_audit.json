@@ -1,6 +1,6 @@
 {
   "schema": "cartpole-sonic-browser-audit/v1",
-  "base": "http://127.0.0.1:57746/",
+  "base": "http://127.0.0.1:58270/",
   "browser": "153.0.8010.12",
   "checks": [
     {
@@ -19,7 +19,8 @@
           776,
           173
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "optimizer +10",
@@ -37,7 +38,8 @@
           776,
           173
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "optimizer diagnostics",
@@ -50,7 +52,8 @@
           358,
           201
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "optimizer 1440px",
@@ -63,7 +66,8 @@
           358,
           201
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "optimizer 1920px",
@@ -76,7 +80,8 @@
           358,
           201
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1440/easy/task",
@@ -89,7 +94,8 @@
           358,
           201
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1440/easy/generator",
@@ -107,7 +113,8 @@
           666,
           542
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1440/easy/reference",
@@ -125,7 +132,8 @@
           666,
           542
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1440/easy/encoder",
@@ -143,7 +151,8 @@
           666,
           507
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1440/easy/encoder/core",
@@ -161,7 +170,8 @@
           666,
           507
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1440/easy/encoder/ae",
@@ -179,7 +189,8 @@
           666,
           507
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1440/easy/encoder/vae",
@@ -192,7 +203,8 @@
           358,
           201
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1440/easy/quantizer",
@@ -210,7 +222,8 @@
           666,
           507
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1440/easy/quantizer/vq",
@@ -228,7 +241,8 @@
           666,
           507
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1440/easy/quantizer/vqvae",
@@ -241,7 +255,8 @@
           358,
           201
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1440/easy/quantizer/fsq",
@@ -259,7 +274,8 @@
           666,
           507
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1440/easy/token",
@@ -277,7 +293,8 @@
           666,
           507
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1440/easy/token/core",
@@ -295,7 +312,8 @@
           666,
           507
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1440/easy/token/temporal",
@@ -318,7 +336,8 @@
           266,
           192
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1440/easy/token/temporal-control",
@@ -336,7 +355,8 @@
           376,
           345
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1440/easy/motion-decoder",
@@ -354,7 +374,8 @@
           666,
           542
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1440/easy/control-decoder",
@@ -372,7 +393,8 @@
           666,
           542
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1440/easy/robot",
@@ -390,7 +412,8 @@
           666,
           542
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1440/easy/training/loss-flow",
@@ -403,7 +426,8 @@
           358,
           201
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1440/easy/training/what-learns",
@@ -416,7 +440,8 @@
           358,
           201
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1440/easy/training/alignment",
@@ -434,7 +459,8 @@
           360,
           338
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1440/easy/training/optimizer-sensitivity",
@@ -447,7 +473,8 @@
           358,
           201
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1440/easy/training/ppo",
@@ -465,7 +492,8 @@
           666,
           507
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1440/mechanism/task",
@@ -478,7 +506,8 @@
           358,
           201
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1440/mechanism/generator",
@@ -496,7 +525,8 @@
           666,
           542
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1440/mechanism/reference",
@@ -514,7 +544,8 @@
           666,
           542
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1440/mechanism/encoder",
@@ -532,7 +563,8 @@
           666,
           507
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1440/mechanism/encoder/core",
@@ -550,7 +582,8 @@
           666,
           507
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1440/mechanism/encoder/ae",
@@ -568,7 +601,8 @@
           666,
           507
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1440/mechanism/encoder/vae",
@@ -581,7 +615,8 @@
           358,
           201
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1440/mechanism/quantizer",
@@ -599,7 +634,8 @@
           666,
           507
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1440/mechanism/quantizer/vq",
@@ -617,7 +653,8 @@
           666,
           507
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1440/mechanism/quantizer/vqvae",
@@ -630,7 +667,8 @@
           358,
           201
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1440/mechanism/quantizer/fsq",
@@ -648,7 +686,8 @@
           666,
           507
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1440/mechanism/token",
@@ -666,7 +705,8 @@
           666,
           507
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1440/mechanism/token/core",
@@ -684,7 +724,8 @@
           666,
           507
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1440/mechanism/token/temporal",
@@ -707,7 +748,8 @@
           266,
           192
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1440/mechanism/token/temporal-control",
@@ -725,7 +767,8 @@
           376,
           345
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1440/mechanism/motion-decoder",
@@ -743,7 +786,8 @@
           666,
           542
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1440/mechanism/control-decoder",
@@ -761,7 +805,8 @@
           666,
           542
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1440/mechanism/robot",
@@ -779,7 +824,8 @@
           666,
           542
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1440/mechanism/training/loss-flow",
@@ -792,7 +838,8 @@
           358,
           201
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1440/mechanism/training/what-learns",
@@ -805,7 +852,8 @@
           358,
           201
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1440/mechanism/training/alignment",
@@ -823,7 +871,8 @@
           360,
           338
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1440/mechanism/training/optimizer-sensitivity",
@@ -836,7 +885,8 @@
           358,
           201
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1440/mechanism/training/ppo",
@@ -854,7 +904,8 @@
           666,
           507
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1440/sonic/task",
@@ -867,7 +918,8 @@
           358,
           201
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1440/sonic/generator",
@@ -885,7 +937,8 @@
           666,
           542
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1440/sonic/reference",
@@ -903,7 +956,8 @@
           666,
           542
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1440/sonic/encoder",
@@ -921,7 +975,8 @@
           666,
           507
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1440/sonic/encoder/core",
@@ -939,7 +994,8 @@
           666,
           507
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1440/sonic/encoder/ae",
@@ -957,7 +1013,8 @@
           666,
           507
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1440/sonic/encoder/vae",
@@ -970,7 +1027,8 @@
           358,
           201
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1440/sonic/quantizer",
@@ -988,7 +1046,8 @@
           666,
           507
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1440/sonic/quantizer/vq",
@@ -1006,7 +1065,8 @@
           666,
           507
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1440/sonic/quantizer/vqvae",
@@ -1019,7 +1079,8 @@
           358,
           201
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1440/sonic/quantizer/fsq",
@@ -1037,7 +1098,8 @@
           666,
           507
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1440/sonic/token",
@@ -1055,7 +1117,8 @@
           666,
           507
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1440/sonic/token/core",
@@ -1073,7 +1136,8 @@
           666,
           507
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1440/sonic/token/temporal",
@@ -1096,7 +1160,8 @@
           266,
           192
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1440/sonic/token/temporal-control",
@@ -1114,7 +1179,8 @@
           376,
           345
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1440/sonic/motion-decoder",
@@ -1132,7 +1198,8 @@
           666,
           542
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1440/sonic/control-decoder",
@@ -1150,7 +1217,8 @@
           666,
           542
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1440/sonic/robot",
@@ -1168,7 +1236,8 @@
           666,
           542
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1440/sonic/training/loss-flow",
@@ -1181,7 +1250,8 @@
           358,
           201
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1440/sonic/training/what-learns",
@@ -1194,7 +1264,8 @@
           358,
           201
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1440/sonic/training/alignment",
@@ -1212,7 +1283,8 @@
           360,
           338
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1440/sonic/training/optimizer-sensitivity",
@@ -1225,7 +1297,8 @@
           358,
           201
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1440/sonic/training/ppo",
@@ -1243,7 +1316,8 @@
           666,
           507
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1440/preset/playground",
@@ -1256,7 +1330,8 @@
           358,
           201
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "preset drawing 1440/playground",
@@ -1273,7 +1348,7 @@
       },
       "rect": {
         "x": 19,
-        "y": 265,
+        "y": 278,
         "width": 358,
         "height": 200.5
       }
@@ -1289,7 +1364,8 @@
           358,
           201
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "preset drawing 1440/long",
@@ -1306,7 +1382,7 @@
       },
       "rect": {
         "x": 19,
-        "y": 265,
+        "y": 278,
         "width": 358,
         "height": 200.5
       }
@@ -1322,7 +1398,8 @@
           358,
           201
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "preset drawing 1440/heavy",
@@ -1339,7 +1416,7 @@
       },
       "rect": {
         "x": 19,
-        "y": 265,
+        "y": 278,
         "width": 358,
         "height": 200.5
       }
@@ -1355,7 +1432,8 @@
           358,
           201
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1920/easy/generator",
@@ -1373,7 +1451,8 @@
           826,
           542
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1920/easy/reference",
@@ -1391,7 +1470,8 @@
           826,
           542
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1920/easy/encoder",
@@ -1409,7 +1489,8 @@
           826,
           507
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1920/easy/encoder/core",
@@ -1427,7 +1508,8 @@
           826,
           507
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1920/easy/encoder/ae",
@@ -1445,7 +1527,8 @@
           826,
           507
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1920/easy/encoder/vae",
@@ -1458,7 +1541,8 @@
           358,
           201
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1920/easy/quantizer",
@@ -1476,7 +1560,8 @@
           826,
           507
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1920/easy/quantizer/vq",
@@ -1494,7 +1579,8 @@
           826,
           507
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1920/easy/quantizer/vqvae",
@@ -1507,7 +1593,8 @@
           358,
           201
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1920/easy/quantizer/fsq",
@@ -1525,7 +1612,8 @@
           826,
           507
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1920/easy/token",
@@ -1543,7 +1631,8 @@
           826,
           507
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1920/easy/token/core",
@@ -1561,7 +1650,8 @@
           826,
           507
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1920/easy/token/temporal",
@@ -1584,7 +1674,8 @@
           334,
           203
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1920/easy/token/temporal-control",
@@ -1602,7 +1693,8 @@
           472,
           356
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1920/easy/motion-decoder",
@@ -1620,7 +1712,8 @@
           826,
           542
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1920/easy/control-decoder",
@@ -1638,7 +1731,8 @@
           826,
           542
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1920/easy/robot",
@@ -1656,7 +1750,8 @@
           826,
           542
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1920/easy/training/loss-flow",
@@ -1669,7 +1764,8 @@
           358,
           201
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1920/easy/training/what-learns",
@@ -1682,7 +1778,8 @@
           358,
           201
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1920/easy/training/alignment",
@@ -1700,7 +1797,8 @@
           452,
           338
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1920/easy/training/optimizer-sensitivity",
@@ -1713,7 +1811,8 @@
           358,
           201
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1920/easy/training/ppo",
@@ -1731,7 +1830,8 @@
           826,
           507
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1920/mechanism/task",
@@ -1744,7 +1844,8 @@
           358,
           201
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1920/mechanism/generator",
@@ -1762,7 +1863,8 @@
           826,
           542
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1920/mechanism/reference",
@@ -1780,7 +1882,8 @@
           826,
           542
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1920/mechanism/encoder",
@@ -1798,7 +1901,8 @@
           826,
           507
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1920/mechanism/encoder/core",
@@ -1816,7 +1920,8 @@
           826,
           507
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1920/mechanism/encoder/ae",
@@ -1834,7 +1939,8 @@
           826,
           507
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1920/mechanism/encoder/vae",
@@ -1847,7 +1953,8 @@
           358,
           201
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1920/mechanism/quantizer",
@@ -1865,7 +1972,8 @@
           826,
           507
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1920/mechanism/quantizer/vq",
@@ -1883,7 +1991,8 @@
           826,
           507
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1920/mechanism/quantizer/vqvae",
@@ -1896,7 +2005,8 @@
           358,
           201
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1920/mechanism/quantizer/fsq",
@@ -1914,7 +2024,8 @@
           826,
           507
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1920/mechanism/token",
@@ -1932,7 +2043,8 @@
           826,
           507
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1920/mechanism/token/core",
@@ -1950,7 +2062,8 @@
           826,
           507
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1920/mechanism/token/temporal",
@@ -1973,7 +2086,8 @@
           334,
           203
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1920/mechanism/token/temporal-control",
@@ -1991,7 +2105,8 @@
           472,
           356
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1920/mechanism/motion-decoder",
@@ -2009,7 +2124,8 @@
           826,
           542
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1920/mechanism/control-decoder",
@@ -2027,7 +2143,8 @@
           826,
           542
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1920/mechanism/robot",
@@ -2045,7 +2162,8 @@
           826,
           542
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1920/mechanism/training/loss-flow",
@@ -2058,7 +2176,8 @@
           358,
           201
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1920/mechanism/training/what-learns",
@@ -2071,7 +2190,8 @@
           358,
           201
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1920/mechanism/training/alignment",
@@ -2089,7 +2209,8 @@
           452,
           338
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1920/mechanism/training/optimizer-sensitivity",
@@ -2102,7 +2223,8 @@
           358,
           201
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1920/mechanism/training/ppo",
@@ -2120,7 +2242,8 @@
           826,
           507
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1920/sonic/task",
@@ -2133,7 +2256,8 @@
           358,
           201
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1920/sonic/generator",
@@ -2151,7 +2275,8 @@
           826,
           542
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1920/sonic/reference",
@@ -2169,7 +2294,8 @@
           826,
           542
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1920/sonic/encoder",
@@ -2187,7 +2313,8 @@
           826,
           507
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1920/sonic/encoder/core",
@@ -2205,7 +2332,8 @@
           826,
           507
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1920/sonic/encoder/ae",
@@ -2223,7 +2351,8 @@
           826,
           507
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1920/sonic/encoder/vae",
@@ -2236,7 +2365,8 @@
           358,
           201
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1920/sonic/quantizer",
@@ -2254,7 +2384,8 @@
           826,
           507
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1920/sonic/quantizer/vq",
@@ -2272,7 +2403,8 @@
           826,
           507
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1920/sonic/quantizer/vqvae",
@@ -2285,7 +2417,8 @@
           358,
           201
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1920/sonic/quantizer/fsq",
@@ -2303,7 +2436,8 @@
           826,
           507
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1920/sonic/token",
@@ -2321,7 +2455,8 @@
           826,
           507
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1920/sonic/token/core",
@@ -2339,7 +2474,8 @@
           826,
           507
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1920/sonic/token/temporal",
@@ -2362,7 +2498,8 @@
           334,
           203
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1920/sonic/token/temporal-control",
@@ -2380,7 +2517,8 @@
           472,
           356
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1920/sonic/motion-decoder",
@@ -2398,7 +2536,8 @@
           826,
           542
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1920/sonic/control-decoder",
@@ -2416,7 +2555,8 @@
           826,
           542
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1920/sonic/robot",
@@ -2434,7 +2574,8 @@
           826,
           542
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1920/sonic/training/loss-flow",
@@ -2447,7 +2588,8 @@
           358,
           201
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1920/sonic/training/what-learns",
@@ -2460,7 +2602,8 @@
           358,
           201
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1920/sonic/training/alignment",
@@ -2478,7 +2621,8 @@
           452,
           338
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1920/sonic/training/optimizer-sensitivity",
@@ -2491,7 +2635,8 @@
           358,
           201
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1920/sonic/training/ppo",
@@ -2509,7 +2654,8 @@
           826,
           507
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "1920/preset/playground",
@@ -2522,7 +2668,8 @@
           358,
           201
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "preset drawing 1920/playground",
@@ -2539,7 +2686,7 @@
       },
       "rect": {
         "x": 179,
-        "y": 265,
+        "y": 278,
         "width": 358,
         "height": 200.5
       }
@@ -2555,7 +2702,8 @@
           358,
           201
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "preset drawing 1920/long",
@@ -2572,7 +2720,7 @@
       },
       "rect": {
         "x": 179,
-        "y": 265,
+        "y": 278,
         "width": 358,
         "height": 200.5
       }
@@ -2588,7 +2736,8 @@
           358,
           201
         ]
-      ]
+      ],
+      "clippedMap": []
     },
     {
       "label": "preset drawing 1920/heavy",
@@ -2605,7 +2754,7 @@
       },
       "rect": {
         "x": 179,
-        "y": 265,
+        "y": 278,
         "width": 358,
         "height": 200.5
       }
@@ -2619,12 +2768,12 @@
         0
       ],
       "after": [
-        0.007726392278157801,
-        0.21710931034008682,
-        0.0917801069095171,
-        -0.23045588229794087
+        0.05417867222752018,
+        0.48731693135880544,
+        0.043418778428934796,
+        -0.49846749846906013
       ],
-      "force": 3.34646489134684
+      "force": 0.7420899863633111
     },
     {
       "label": "matched live PPO / WebMCP state",
@@ -2659,10 +2808,11 @@
   "errors": [],
   "passed": true,
   "source_sha256": {
-    "app.js": "7aee4a212e58d04446fe6acaf0212ef5383dd912ff354ef00c41167b4387edf1",
+    "app.js": "6b47f99ca5b430b902d65afdad49bd794ed05095d3fbd379f74f0a3038a64786",
     "course.js": "4ad451baba1f6f75a65ff51a6697bc5578b8e9071d222d84e53a0e4a2d38b04b",
-    "index.html": "18c09873b395e1163cf38105038aaba20c9c77ffba663c02f91ff941c651e7ea",
-    "presentation.js": "9ca06c4a6f707f63664cb5ab7103a977f66d35e99901fbda6a7cabee6ac82315",
-    "scripts/browser_smoke.mjs": "7af32ed121787b4e9a17360f6d3a1b4eb360c87f01c5ac52ea761b70bf27e8f0"
+    "index.html": "f94a1b8b6f84d99e85d79bd6b85605241ed4178afcde1cd3b71ab8b8c1824a02",
+    "presentation.js": "a3775054bfb68c44876c2374cb8f9d3ae5e5c0de34f302894a740d636840c9ff",
+    "optimizer_evidence_view.js": "d0c97a8bfeb5a0553d66025e9bc0553aed7c41f3a2307228fd53cfb074771ae5",
+    "scripts/browser_smoke.mjs": "c666d7a9901948b86e223a9dae0178717f84c66d6680f35e8607d0601241934c"
   }
 }

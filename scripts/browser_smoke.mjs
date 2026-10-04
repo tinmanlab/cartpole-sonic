@@ -49,7 +49,12 @@ const bounds=async label=>{
     const guide=document.querySelector('.guide-card');
     return {documentXOverflow:document.documentElement.scrollWidth>innerWidth+1,guideScrollNeeded:guide.scrollHeight>guide.clientHeight+2,guideOverflow:guide.scrollHeight>guide.clientHeight+2&&!['auto','scroll'].includes(getComputedStyle(guide).overflowY),canvasSizes:[...document.querySelectorAll('canvas')].filter(c=>c.getClientRects().length&&getComputedStyle(c).display!=='none').map(c=>[c.id,c.width,c.height])};
   });
-  checks.push({label,...result});
+  const clippedMap=await page.evaluate(()=>{
+    const bottom=document.querySelector('.system-map').getBoundingClientRect().bottom;
+    return [...document.querySelectorAll('.system-map .map-node,.system-map .map-lower,.system-map #motionBranch')].filter(e=>e.getBoundingClientRect().bottom>bottom+1).map(e=>e.id||e.className);
+  });
+  assert.deepEqual(clippedMap,[],label+' clipped system-map content');
+  checks.push({label,...result,clippedMap});
   assert.ok(result.canvasSizes.some(([id])=>id==='cart'),label+' missing visible simulation canvas');
   if((await state()).system.focus?.node==='control-decoder'){
     const layout=await page.evaluate(async()=>{const c=document.querySelector('#lessonViz'),r=c.getBoundingClientRect();return {width:r.width,height:r.height,boxes:(await import('./presentation.js')).decoderLayout(r.width)};});

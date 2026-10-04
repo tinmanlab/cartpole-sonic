@@ -29,3 +29,13 @@ export function robotGeometry(w,h,length,x,theta){
   const railY=h-14,pivotY=railY-.46*scale,cx=w/2+x*scale;
   return {scale,railY,pivotY,cx,tx:cx+Math.sin(theta)*length*scale,ty:pivotY-Math.cos(theta)*length*scale,cartW:.64*scale,cartH:.24*scale,wheelY:railY-.09*scale};
 }
+
+export function decoderConnections(w){
+  const [token,state,decoder,force]=decoderLayout(w);
+  const tx=token.x+token.w/2,sx=state.x+state.w/2,dy=decoder.y-11;
+  return [
+    {points:[[tx,token.y+token.h],[tx,dy],[tx,decoder.y]],arrow:'down'},
+    {points:[[sx,state.y+state.h],[sx,dy],[tx,dy]],arrow:null},
+    {points:[[decoder.x+decoder.w,decoder.y+decoder.h/2],[force.x,force.y+force.h/2]],arrow:'right'}
+  ];
+}

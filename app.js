@@ -1,4 +1,4 @@
-import { controlSample, controllerIdentity, controllerSummary, blockShape, decoderLayout, robotGeometry } from "./presentation.js";
+import { controlSample, controllerIdentity, controllerSummary, blockShape, decoderLayout, decoderConnections, robotGeometry } from "./presentation.js";
 import { MuJoCoCartPole } from "./mujoco_sim.js";
 import {
   SonicToyTrainer,
@@ -872,7 +872,7 @@ function renderTemporalControlViz(){
         '</div>'+
       '</div>'+
     '</div>',
-    '<b>LIVE closed-loop control ablation.</b> 왼쪽 browser MuJoCo WASM robot은 선택한 controller가 직접 구동한다. 두 controller는 같은 future reference, same proprioception, 같은 teacher bootstrap/PPO budget을 사용한다. representation 이득이 control 이득으로 자동 전이되는지 직접 분리 검증한다.',
+    '<b>주황 = 1-token, 파랑 = 2-token. 실선·점 = 현재 브라우저 평가, 옅은 점선 = 저장된 평가.</b><br>왼쪽 MuJoCo WASM 시뮬레이션은 선택한 교육용 제어기가 구동한다. 두 제어기의 reference·현재 상태·teacher bootstrap·PPO 예산을 맞춰 비교한다. 복원이 좋아져도 제어가 자동으로 좋아지는 것은 아니다.',
     ["selected="+temporalControlSelected+"-token","1-token q dim=2","2-token q dim=4","matched 300-step teacher bootstrap"]
   );
   requestAnimationFrame(()=>{
@@ -899,7 +899,12 @@ function renderControlDecoderViz(){
     {title:"다음 힘 · next force",text:p?fmt(p.force,2)+" N":"—",color:"#16805d"},
   ];
   boxes.forEach((b,i)=>{const r=layout[i];ctx.strokeStyle=b.color;ctx.lineWidth=2;ctx.strokeRect(r.x,r.y,r.w,r.h);ctx.fillStyle="#172033";ctx.font="700 12px system-ui";ctx.fillText(b.title,r.x+8,r.y+22);ctx.fillStyle="#596273";ctx.font="11px system-ui";ctx.fillText(b.text,r.x+8,r.y+44);if(b.text2)ctx.fillText(b.text2,r.x+8,r.y+62);});
-  ctx.fillStyle="#9aa3af";ctx.font="20px system-ui";ctx.fillText("+",w/2-7,70);ctx.fillText("↓",w/2-7,112);ctx.fillText("→",w/2-7,164);
+  ctx.strokeStyle="#7b8492";ctx.fillStyle="#7b8492";ctx.lineWidth=1.5;
+  for(const edge of decoderConnections(w)){
+    ctx.beginPath();edge.points.forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y));ctx.stroke();
+    const [x,y]=edge.points.at(-1);
+    if(edge.arrow){ctx.beginPath();ctx.moveTo(x,y);if(edge.arrow==="down"){ctx.lineTo(x-4,y-6);ctx.lineTo(x+4,y-6);}else{ctx.lineTo(x-6,y-4);ctx.lineTo(x-6,y+4);}ctx.closePath();ctx.fill();}
+  }
   const pad={l:52,r:25,t:topH+25,b:40},pts=hist.length?hist:[{t:0,force:lastForce}],tMax=Math.max(.2,...pts.map(x=>x.t)),maxF=Math.max(10,...pts.map(x=>Math.abs(x.force)));
   const X=t=>pad.l+t/tMax*(w-pad.l-pad.r),Y=v=>h-pad.b-(v+maxF)/(2*maxF)*(h-pad.t-pad.b);
   ctx.strokeStyle="#e9ecf1";ctx.beginPath();ctx.moveTo(pad.l,Y(0));ctx.lineTo(w-pad.r,Y(0));ctx.stroke();

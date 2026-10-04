@@ -45,3 +45,44 @@ test('AE is continuous, and the system-map dimensions follow the selected contro
   assert.equal(blockShape('encoder',two,''),'16D reference → 4D latent');
   assert.equal(blockShape('token',two,''),'2 token × 2 scalars');
 });
+
+test('system-map height grows with wrapped labels instead of clipping its motion branch',()=>{
+  assert.match(html,/\.system-map\{[^}]*height:auto/);
+});
+
+import {decoderConnections} from '../presentation.js';
+test('both input boxes connect to the actual decoder, which alone connects to force',()=>{
+  for(const width of [480,700,900]){
+    const b=decoderLayout(width),e=decoderConnections(width);
+    assert.deepEqual(e[0].points[0],[b[0].x+b[0].w/2,b[0].y+b[0].h]);
+    assert.deepEqual(e[1].points[0],[b[1].x+b[1].w/2,b[1].y+b[1].h]);
+    assert.deepEqual(e[0].points.at(-1),[b[2].x+b[2].w/2,b[2].y]);
+    assert.deepEqual(e[2].points.at(-1),[b[3].x,b[3].y+b[3].h/2]);
+  }
+});
+
+import {renderOptimizerEvidencePanel} from '../optimizer_evidence_view.js';
+test('evidence controls are interactive immediately, before the next paint frame',()=>{
+  const originalDocument=globalThis.document,originalFrame=globalThis.requestAnimationFrame;
+  const elements=Object.fromEntries(['optBudget','optDiagnostics','opt10','opt50','optVariant'].map(k=>[k,{}]));
+  globalThis.document={getElementById:id=>elements[id]||null};
+  globalThis.requestAnimationFrame=()=>0;
+  try{
+    const evidence=JSON.parse(fs.readFileSync(new URL('../evidence/control_optimization_eval.json',import.meta.url)));
+    renderOptimizerEvidencePanel({evidence,showHtml:()=>{},beginCanvas:()=>{},rerender:()=>{}});
+    assert.equal(typeof elements.optBudget.onclick,'function');
+    assert.equal(typeof elements.optVariant.onchange,'function');
+  }finally{globalThis.document=originalDocument;globalThis.requestAnimationFrame=originalFrame;}
+});
+
+import {createHash} from 'node:crypto';
+test('captured browser evidence is bound to the current rendering source',()=>{
+  const report=JSON.parse(fs.readFileSync(new URL('../evidence/browser_audit.json',import.meta.url)));
+  assert.equal(report.passed,true);assert.deepEqual(report.errors,[]);
+  assert.ok(report.checks.length>=150);
+  for(const file of ['app.js','course.js','index.html','presentation.js','optimizer_evidence_view.js','scripts/browser_smoke.mjs']){
+    const actual=createHash('sha256').update(fs.readFileSync(new URL('../'+file,import.meta.url))).digest('hex');
+    assert.equal(actual,report.source_sha256[file],file+' changed after the captured browser audit');
+  }
+  assert.ok(report.checks.filter(c=>Object.hasOwn(c,'clippedMap')).every(c=>c.clippedMap.length===0));
+});
