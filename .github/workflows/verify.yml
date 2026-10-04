@@ -5,9 +5,15 @@ on:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   verify:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      UI_TEST_OUTPUT: ${{ runner.temp }}/sonic-browser-audit
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -16,6 +22,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run check
+      - run: npm run verify:execution
       - run: npm run verify:presentation
       - run: npm run verify:public
       - run: npm run verify:contracts
@@ -28,11 +35,20 @@ jobs:
       - run: npm run verify:temporal
       - run: npm run verify:temporal-control
       - run: npm run verify:optimization
+      - name: Install the pinned browser-test engine
+        run: npx --no-install playwright install --with-deps chromium
+      - name: Execute the current page in Chromium
+        run: npm run verify:browser
+      - name: Execute invalid-input, terminal, training-target and recovery paths
+        run: npm run verify:browser-execution
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: public-learning-visual-audit
           path: |
+            ${{ runner.temp }}/sonic-browser-audit/
             media/public-*.png
             media/optimizer-*.png
             evidence/browser_audit.json
+            evidence/browser_execution_audit.json
           if-no-files-found: error

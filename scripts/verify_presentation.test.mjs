@@ -80,9 +80,22 @@ test('captured browser evidence is bound to the current rendering source',()=>{
   const report=JSON.parse(fs.readFileSync(new URL('../evidence/browser_audit.json',import.meta.url)));
   assert.equal(report.passed,true);assert.deepEqual(report.errors,[]);
   assert.ok(report.checks.length>=150);
-  for(const file of ['app.js','course.js','index.html','presentation.js','optimizer_evidence_view.js','scripts/browser_smoke.mjs']){
+  for(const file of ['app.js','course.js','index.html','presentation.js','optimizer_evidence_view.js','control_contract.js','mujoco_sim.js','sonic_toy.js','temporal_control_lab.js','scripts/browser_smoke.mjs']){
     const actual=createHash('sha256').update(fs.readFileSync(new URL('../'+file,import.meta.url))).digest('hex');
     assert.equal(actual,report.source_sha256[file],file+' changed after the captured browser audit');
   }
   assert.ok(report.checks.filter(c=>Object.hasOwn(c,'clippedMap')).every(c=>c.clippedMap.length===0));
+});
+
+test('terminal-latched UI does not advertise automatic episode restarts',()=>{
+  assert.doesNotMatch(app,/"auto resets="/);
+});
+
+test('execution recovery evidence uses the same current sources as the visual audit',()=>{
+  const visual=JSON.parse(fs.readFileSync(new URL('../evidence/browser_audit.json',import.meta.url)));
+  const execution=JSON.parse(fs.readFileSync(new URL('../evidence/browser_execution_audit.json',import.meta.url)));
+  assert.equal(execution.passed,true);assert.deepEqual(execution.errors,[]);
+  assert.equal(execution.executionOnly,true);
+  assert.deepEqual(execution.source_sha256,visual.source_sha256);
+  assert.ok(execution.checks.some(x=>x.label.includes('corrupt checkpoint recovery')));
 });

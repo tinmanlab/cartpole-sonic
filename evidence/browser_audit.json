@@ -1,7 +1,20 @@
 {
   "schema": "cartpole-sonic-browser-audit/v1",
-  "base": "http://127.0.0.1:58270/",
+  "base": "http://127.0.0.1:58798/",
   "browser": "153.0.8010.12",
+  "executionOnly": false,
+  "source_sha256": {
+    "app.js": "648791a95cd787a55a514cba5bc33a04811c49d7f6cd9044545a85d2725477d1",
+    "course.js": "acc76596da5ca5a1471193121d4e5f9c5d51219f1f176ac11d390fad67420e19",
+    "index.html": "3adfee76b84bd1eccaf0f984fac6e9bcea95f57796245a4961b204fb50bd5b1d",
+    "presentation.js": "a3775054bfb68c44876c2374cb8f9d3ae5e5c0de34f302894a740d636840c9ff",
+    "optimizer_evidence_view.js": "d0c97a8bfeb5a0553d66025e9bc0553aed7c41f3a2307228fd53cfb074771ae5",
+    "control_contract.js": "ecf8c6fca2d77f915ef7ccab361dc6b942d2674794feac411a161fdf22b861ab",
+    "mujoco_sim.js": "40ed2088fa0eca59c76b8014c9cfb9e410509a80fd2b32f163c4626420761ce8",
+    "sonic_toy.js": "fc757363230fb19c3a20f9744aa50a2873cb66a85f15f6171320dc930294b087",
+    "temporal_control_lab.js": "20e9abe34433bb4e189f10eb7b8921dc113fae14ca0711408a726474e50e2323",
+    "scripts/browser_smoke.mjs": "1ccd05f7d90be8bc22937f0da1a9985baf279b0b0be1c35c6439181055d5bd60"
+  },
   "checks": [
     {
       "label": "optimizer +50",
@@ -740,13 +753,13 @@
         ],
         [
           "temporalRecon",
-          360,
-          313
+          300,
+          150
         ],
         [
           "temporalCurve",
-          266,
-          192
+          300,
+          150
         ]
       ],
       "clippedMap": []
@@ -1152,13 +1165,13 @@
         ],
         [
           "temporalRecon",
-          360,
-          313
+          300,
+          150
         ],
         [
           "temporalCurve",
-          266,
-          192
+          300,
+          150
         ]
       ],
       "clippedMap": []
@@ -1348,7 +1361,7 @@
       },
       "rect": {
         "x": 19,
-        "y": 278,
+        "y": 265,
         "width": 358,
         "height": 200.5
       }
@@ -1382,7 +1395,7 @@
       },
       "rect": {
         "x": 19,
-        "y": 278,
+        "y": 265,
         "width": 358,
         "height": 200.5
       }
@@ -1416,7 +1429,7 @@
       },
       "rect": {
         "x": 19,
-        "y": 278,
+        "y": 265,
         "width": 358,
         "height": 200.5
       }
@@ -1666,13 +1679,13 @@
         ],
         [
           "temporalRecon",
-          452,
-          313
+          300,
+          150
         ],
         [
           "temporalCurve",
-          334,
-          203
+          300,
+          150
         ]
       ],
       "clippedMap": []
@@ -2686,7 +2699,7 @@
       },
       "rect": {
         "x": 179,
-        "y": 278,
+        "y": 265,
         "width": 358,
         "height": 200.5
       }
@@ -2720,7 +2733,7 @@
       },
       "rect": {
         "x": 179,
-        "y": 278,
+        "y": 265,
         "width": 358,
         "height": 200.5
       }
@@ -2754,7 +2767,7 @@
       },
       "rect": {
         "x": 179,
-        "y": 278,
+        "y": 265,
         "width": 358,
         "height": 200.5
       }
@@ -2762,18 +2775,18 @@
     {
       "label": "LIVE browser MuJoCo WASM two-token control",
       "before": [
-        0,
-        0,
-        0.1,
-        0
+        0.04246986733597791,
+        0.6484536320257167,
+        0.031055009761194997,
+        -1.0428543249066369
       ],
       "after": [
-        0.05417867222752018,
-        0.48731693135880544,
-        0.043418778428934796,
-        -0.49846749846906013
+        0.047808171349062366,
+        -0.5178695358019539,
+        -0.01805374681072755,
+        0.5263694712086976
       ],
-      "force": 0.7420899863633111
+      "force": -1.8955953754828045
     },
     {
       "label": "matched live PPO / WebMCP state",
@@ -2802,17 +2815,9 @@
     },
     {
       "label": "bounded local telemetry",
-      "bytes": 2001
+      "bytes": 2791
     }
   ],
   "errors": [],
-  "passed": true,
-  "source_sha256": {
-    "app.js": "6b47f99ca5b430b902d65afdad49bd794ed05095d3fbd379f74f0a3038a64786",
-    "course.js": "4ad451baba1f6f75a65ff51a6697bc5578b8e9071d222d84e53a0e4a2d38b04b",
-    "index.html": "f94a1b8b6f84d99e85d79bd6b85605241ed4178afcde1cd3b71ab8b8c1824a02",
-    "presentation.js": "a3775054bfb68c44876c2374cb8f9d3ae5e5c0de34f302894a740d636840c9ff",
-    "optimizer_evidence_view.js": "d0c97a8bfeb5a0553d66025e9bc0553aed7c41f3a2307228fd53cfb074771ae5",
-    "scripts/browser_smoke.mjs": "c666d7a9901948b86e223a9dae0178717f84c66d6680f35e8607d0601241934c"
-  }
+  "passed": true
 }

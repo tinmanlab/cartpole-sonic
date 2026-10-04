@@ -120,6 +120,12 @@ function activeController(p=preview()){
   return {...controllerIdentity(p,trainer?.mode||requiredMode(),temporalControlActive()?trainer?.policy:null),id,demo};
 }
 function executionSnapshot(){return{state:busy?"busy":live?"running":executionState,reason:executionReason,resetRequired:episodeTerminated};}
+function executionText(){
+  const labels={ready:"준비",running:"실행 중",paused:"일시정지",terminated:"실패로 멈춤",error:"확인 필요",busy:"작업 중"};
+  const names={"student-ae":"AE 모델","student-vq":"VQ 모델","student-fsq":"FSQ 모델","temporal-one":"1-token","temporal-two":"2-token","alignment-secondary":"입력 표현 정렬","temporal-reconstruction-one/two":"1·2-token 복원 비교"};
+  const reason=executionReason.replace("track limit (1.78 m)","카트 이동 한계(1.78m)").replace("pole angle (0.65 rad)","막대 각도 한계(0.65rad)");
+  return labels[executionSnapshot().state]+" · "+(reason||"한 단계 또는 계속 실행")+" · 학습 대상: "+(lastTrainingTargets.map(id=>names[id]||id).join(" · ")||"아직 없음");
+}
 function assertIdle(){if(busy)throw new Error("작업 중입니다. 완료 후 다시 시도하세요.");}
 function assertEpisodeReady(){
   assertIdle();if(!physicsReady||!resolveActiveController().trainer)throw new Error("시뮬레이션/모델 준비가 필요합니다.");
@@ -196,7 +202,7 @@ function resetSignalHistory(reason="reset"){
 }
 function recordControlSample(p,s){
   if(!p) return;
-  signalHistory.push({...controlSample(controlTick*.02,s,plannerContext[0],p.ref,p,lastForce,SONIC_TOY_CONSTANTS.STATE_SCALE[0]),episode:episodeIndex});
+  signalHistory.push({...controlSample(controlTick*CONTROL_DT,s,plannerContext[0],p.ref,p,lastForce,SONIC_TOY_CONSTANTS.STATE_SCALE[0]),episode:episodeIndex});
   controlTick++;
   if(signalHistory.length>MAX_SIGNAL_HISTORY) signalHistory.shift();
 }
@@ -221,7 +227,7 @@ function pushRobot(){
 function advanceOneControlStep(){
   const before=terminationReason(state());if(before){latchTermination(before);return false;}
   const p=preview(),s0=state();recordControlSample(p,s0);
-  sim.stepForce(p.force,CONTROL_SUBSTEPS);plannerContext=advancePlannerContext(plannerContext,goal,CONTROL_DT);lastForce=p.force;
+  sim.stepForce(p.force,CONTROL_SUBSTEPS);plannerContext=advancePlannerContext(plannerContext,goal,CONTROL_DT);lastForce=sim.data.ctrl[0]*SONIC_TOY_CONSTANTS.ACTION_FORCE;
   const reason=terminationReason(state());if(reason)latchTermination(reason);
   return !reason;
 }
@@ -473,7 +479,7 @@ function renderSimulation(){
   $("vX").textContent=fmt(s[0],3)+" m";$("vXd").textContent=fmt(s[1],3)+" m/s";
   $("vTh").textContent=fmt(s[2]*180/Math.PI,1)+"°";$("vThd").textContent=fmt(s[3]*180/Math.PI,1)+" °/s";
   $("vForce").textContent=fmt(lastForce,2)+" N";
-  $("episodeStatus").textContent=executionSnapshot().state+" · "+(executionReason||"한 단계 또는 계속 실행")+" · 학습 대상: "+(lastTrainingTargets.join(", ")||"아직 없음");
+  $("episodeStatus").textContent=executionText();
   $("episodeStatus").title=lastEpisodeEvent;
   const identity=activeController();
   $("activeController").textContent="현재 제어기 · "+controllerSummary(identity);
@@ -948,7 +954,7 @@ function renderRobotTrackingViz(){
   ctx.fillStyle="#667085";ctx.fillText("applied command (N) · sample time (s)",pad.l,top2+12);
   const err=p?Math.abs(state()[0]-plannerContext[0]):NaN;
   $("vizCaption").innerHTML='<b>LIVE closed-loop result.</b> actual robot과 desired reference는 같은 것이 아니다. Dynamic Decoder action이 physics를 바꾸고 measured state가 다시 feedback된다.';
-  setMetrics(["current x error="+fmt(err,3)+"m","episode="+episodeIndex,"auto resets="+autoResetCount]);
+  setMetrics(["current x error="+fmt(err,3)+"m","episode="+episodeIndex,"상태="+executionSnapshot().state]);
 }
 function renderTrainingFlowViz(){
   showHtml(
@@ -1306,7 +1312,8 @@ function renderGuide(){
 async function runFocusAction(){
   assertIdle();
   if(trainingMode){
-    if(trainingTopic.id==="ppo")await runPPO(10);
+    if(trainingTopic.id==="optimizer-sensitivity")await focusNode("token","temporal-control");
+    else if(trainingTopic.id==="ppo")await runPPO(10);
     else if(trainingTopic.id==="alignment")await runAlignment(50);
     else if(trainingTopic.id==="loss-flow"||trainingTopic.id==="what-learns")await runPPO(1);
     return;
@@ -1373,7 +1380,7 @@ function render(){
   busyDisabledControls.clear();
   if(physicsReady&&currentTrainer){buildSystemMap();renderSimulation();renderVisualization();renderGuide();renderHeaderState();}
   const status=$("episodeStatus");
-  if(status)status.textContent=executionSnapshot().state+" · "+(executionReason||"한 단계 또는 계속 실행")+" · 학습 대상: "+(lastTrainingTargets.join(", ")||"아직 없음");
+  if(status)status.textContent=executionText();
   // Recreated lesson buttons retain their own bounded/lesson-specific disabled rules.
   if(busy)for(const el of document.querySelectorAll("button,input,select")){busyDisabledControls.set(el,el.disabled);el.disabled=true;}
   for(const id of ["stepBtn","liveBtn","pushBtn"])$(id).disabled=busy||episodeTerminated||executionState==="error"||!currentTrainer;
@@ -1382,6 +1389,17 @@ function render(){
   if(!busy)for(const el of document.querySelectorAll("[data-depth]"))el.disabled=false;
 }
 
+function liveSignals(p=preview(),ref=currentReference(),s=state()){
+  const sampleTime=controlTick*CONTROL_DT;
+  return {
+    timeBase:"seconds since signal trace reset",simulationTime:sim.data?.time??null,
+    sampleTime,targetTime:sampleTime,referenceNow:plannerContext[0],
+    previewTargetTime:sampleTime+.08,referencePreview:ref[0]*SONIC_TOY_CONSTANTS.STATE_SCALE[0],
+    plannedForce:p?.force??null,lastAppliedForce:lastForce,activeController:activeController(p),
+    reference:Array.from(ref),latent:p?.z||null,token:p?.q||null,proprioception:s,
+    actionMean:p?.mu??null,force:p?.force??null,
+  };
+}
 function systemSnapshot(){
   const p=preview(),ref=currentReference(),s=state();
   return {
@@ -1406,7 +1424,8 @@ function systemSnapshot(){
       motionDecoder:"token → reconstructed future motion; auxiliary/kinematic role",
     },
     signals:{
-      timeBase:"seconds since signal trace reset",simulationTime:sim.data?.time??null,sampleTime:controlTick*.02,targetTime:controlTick*.02,referenceNow:plannerContext[0],previewTargetTime:controlTick*.02+.08,referencePreview:ref[0]*SONIC_TOY_CONSTANTS.STATE_SCALE[0],plannedForce:p?.force??null,lastAppliedForce:lastForce,activeController:activeController(p),drawing:robotGeometry($("cart").clientWidth,$("cart").clientHeight,sim.spec?.poleLength||1,s[0],s[2]),reference:Array.from(ref),latent:p?.z||null,token:p?.q||null,proprioception:s,actionMean:p?.mu??null,force:p?.force??null,
+      ...liveSignals(p,ref,s),
+      drawing:robotGeometry($("cart").clientWidth,$("cart").clientHeight,sim.spec?.poleLength||1,s[0],s[2]),
       kinematicReconstruction:p?.kinRecon||null,
       liveHistory:signalHistory.slice(-80).map(x=>({...x}))
     },
@@ -1447,7 +1466,7 @@ function telemetrySnapshot(){
     system:{version:COURSE_VERSION,mode:trainingMode?"training":"runtime",focus:trainingMode?null:{node:focus.id,concept:conceptId},trainingTopic:trainingMode?trainingTopic.id:null},
     activeController:activeController(p),lastTrainingTargets:lastTrainingTargets.slice(),execution:executionSnapshot(),
     experiment:{goal,live,preset,busy,episode:episodeIndex,autoResets:autoResetCount},
-    signals:{reference:Array.from(currentReference()),latent:p?.z||null,token:p?.q||null,proprioception:state(),actionMean:p?.mu??null,force:p?.force??null},
+    signals:liveSignals(p),
     training:currentTrainer?{ppoIterations:currentTrainer.iter,envSteps:currentTrainer.envSteps,last:currentTrainer.last}:null,
     representationLabs:{temporalControl:temporalControlLab?{selectedController:temporalControlSelected,one:brief(temporalControlLab.one),two:brief(temporalControlLab.two)}:null},
     optimizerEvidence:{revision:optimizerEvidence?.revision??null,uri:"./evidence/control_optimization_eval.json",view:optimizerViewState()},
@@ -1467,7 +1486,7 @@ async function registerWebMCP(){
     {name:"sonic_run_focus_action",description:"Run the canonical experiment for the currently focused block.",inputSchema:{type:"object",properties:{}},annotations:{readOnlyHint:false},execute:async()=>{await runFocusAction();return systemSnapshot();}},
     {name:"simulation_control",description:"Control the shared browser MuJoCo WASM robot.",inputSchema:{type:"object",properties:{action:{type:"string",enum:["step","live_on","live_off","push","reset"]},steps:{type:"integer",minimum:1,maximum:100}},required:["action"]},annotations:{readOnlyHint:false},execute:async(args)=>{simulationControl(args);return systemSnapshot();}},
     {name:"experiment_set_goal",description:"Set the high-level task goal used by the motion generator.",inputSchema:{type:"object",properties:{x:{type:"number",minimum:-1.2,maximum:1.2}},required:["x"]},annotations:{readOnlyHint:false},execute:async({x})=>{setGoal(x);return systemSnapshot();}},
-    {name:"training_run",description:"Run bounded PPO iterations on the current student policy.",inputSchema:{type:"object",properties:{iterations:{type:"integer",minimum:1,maximum:30}},required:["iterations"]},annotations:{readOnlyHint:false},execute:async({iterations})=>{await runPPO(iterations);return systemSnapshot();}},
+    {name:"training_run",description:"Train the displayed student policy; in the 1/2-token comparison train both controllers equally. Read lastTrainingTargets and execution status for the actual target and outcome.",inputSchema:{type:"object",properties:{iterations:{type:"integer",minimum:1,maximum:30}},required:["iterations"]},annotations:{readOnlyHint:false},execute:async({iterations})=>{await runPPO(iterations);return systemSnapshot();}},
     {name:"alignment_control",description:"Train or reset the live CartPole multi-encoder alignment lab. The tool first switches to the alignment training view/FSQ student, then aligns a sparse-keypoint Encoder to the frozen full-trajectory Encoder and reports latent/token/action agreement.",inputSchema:{type:"object",properties:{action:{type:"string",enum:["train","reset"]},steps:{type:"integer",minimum:1,maximum:200}},required:["action"]},annotations:{readOnlyHint:false},execute:async({action,steps=50})=>{assertIdle();if(!["train","reset"].includes(action))throw new Error("unknown alignment action");integerCount(steps,"alignment steps",1,200);if(!trainingMode||trainingTopic.id!=="alignment")await openTraining("alignment");if(action==="reset")resetAlignment();else await runAlignment(steps);return systemSnapshot();}},
     {name:"temporal_token_control",description:"Train or reset the live 1-token vs 2-token temporal-slot lab. The tool switches to Universal Token → 1 vs 2 token slots and compares reconstruction capacity without assigning near/far semantics to token indices.",inputSchema:{type:"object",properties:{action:{type:"string",enum:["train","reset"]},steps:{type:"integer",minimum:1,maximum:250}},required:["action"]},annotations:{readOnlyHint:false},execute:async({action,steps=50})=>{assertIdle();if(!["train","reset"].includes(action))throw new Error("unknown token action");integerCount(steps,"token steps",1,250);if(trainingMode||focus.id!=="token"||conceptId!=="temporal")await focusNode("token","temporal");if(action==="reset")resetTemporalTokenLab();else await runTemporalTokenTraining(steps);return systemSnapshot();}},
     {name:"temporal_control_control",description:"Operate the matched 1-token vs 2-token closed-loop control ablation. Switches to Universal Token → Closed-loop 1 vs 2 on the default Playground model, can select which controller drives the shared MuJoCo robot, train both with the same PPO budget, or reset to the matched teacher-bootstrap checkpoint.",inputSchema:{type:"object",properties:{action:{type:"string",enum:["train","reset","select"]},steps:{type:"integer",minimum:1,maximum:30},controller:{type:"string",enum:["one","two"]}},required:["action"]},annotations:{readOnlyHint:false},execute:async({action,steps=5,controller="one"})=>{assertIdle();if(!["train","reset","select"].includes(action))throw new Error("unknown temporal action");integerCount(steps,"PPO steps",1,30);if(!["one","two"].includes(controller))throw new Error("unknown controller");if(!temporalControlModeRequested())await focusNode("token","temporal-control");await ensureTemporalControlLabReady();if(action==="reset")resetTemporalControlLab();else if(action==="select")selectTemporalController(controller);else await runTemporalControlPPO(steps);return systemSnapshot();}},
@@ -1488,7 +1507,7 @@ function loop(now){
   const dt=Math.min(.05,Math.max(0,(now-lastFrame)/1000));lastFrame=now;
   if(live&&!busy&&currentTrainer&&physicsReady){
     accumulator+=dt;let n=0;
-    while(accumulator>=.02&&n<4){
+    while(accumulator>=CONTROL_DT&&n<4){
       accumulator-=CONTROL_DT;n++;
       try{if(!advanceOneControlStep())break;}catch(error){showError(error);break;}
 

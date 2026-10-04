@@ -2,15 +2,17 @@ import fs from 'node:fs';
 import path from 'node:path';
 import http from 'node:http';
 import assert from 'node:assert/strict';
+import {createHash} from 'node:crypto';
 import {pathToFileURL} from 'node:url';
-const output=process.env.UI_TEST_OUTPUT||'/tmp/sonic-public-ui-test';
+const executionOnly=process.env.EXECUTION_ONLY==='1'||process.argv.includes('--execution');
+const output=path.join(process.env.UI_TEST_OUTPUT||'/tmp/sonic-public-ui-test',executionOnly?'execution':'visual');
 fs.mkdirSync(output,{recursive:true});
 const screenshot=name=>page.screenshot({path:path.join(output,name),fullPage:true});
 const spec=process.env.PLAYWRIGHT_MODULE;
 const {chromium}=await import(spec?pathToFileURL(spec).href:'playwright');
 // A static HTTP server owned by this test process: no persistent shell, desktop or process to kill.
 let server,latest={status:'no-browser'};
-let base=process.argv[2];
+let base=process.argv.slice(2).find(x=>!x.startsWith('--'));
 if(!base){
   const root=process.cwd();
   server=http.createServer(async(req,res)=>{
@@ -36,7 +38,9 @@ const page=await browser.newPage({viewport:{width:1600,height:1000},deviceScaleF
 const errors=[],checks=[];
 page.on('pageerror',e=>errors.push(e.message));
 page.on('console',m=>{if(m.type()==='error')errors.push(m.text());});
-const report={schema:'cartpole-sonic-browser-audit/v1',base,browser:browser.version(),checks,errors};
+const sourceFiles=['app.js','course.js','index.html','presentation.js','optimizer_evidence_view.js','control_contract.js','mujoco_sim.js','sonic_toy.js','temporal_control_lab.js','scripts/browser_smoke.mjs'];
+const sourceHashes=()=>Object.fromEntries(sourceFiles.map(file=>[file,createHash('sha256').update(fs.readFileSync(file)).digest('hex')]));
+const report={schema:'cartpole-sonic-browser-audit/v1',base,browser:browser.version(),executionOnly,source_sha256:sourceHashes(),checks,errors};
 const state=()=>page.evaluate(()=>window.__cartpoleSonic.getState());
 const waitReady=async()=>{
   await page.waitForFunction(()=>window.__cartpoleSonic?.getState().backends.physics?.includes('MuJoCo'));
@@ -65,7 +69,7 @@ const bounds=async label=>{
   for(const [id,w,h] of result.canvasSizes)assert.ok(w>0&&h>0,label+' empty canvas '+id);
 };
 try{
-  if(process.env.EXECUTION_ONLY==='1'){
+  if(executionOnly){
     await page.goto(base);await waitReady();
     const api=code=>page.evaluate(code);
     const reject=async work=>{const result=await page.evaluate(async source=>{try{await Function('return ('+source+')')()();return null;}catch(e){return e.message;}},work.toString());assert.ok(result,'expected API rejection');};
@@ -87,6 +91,8 @@ try{
     assert.deepEqual((await state()).signals.proprioception,failed);
     await api(()=>window.__cartpoleSonic.reset());await api(()=>window.__cartpoleSonic.step());
     assert.equal((await state()).execution.resetRequired,false);
+    checks.push({label:'invalid inputs preserve state; manual/live termination latch and reset'});
+    await screenshot('execution-reset.png');
     const ordinary=(await state()).training.ppoIterations;
     await api(()=>window.__cartpoleSonic.focus('token','temporal-control'));
     const pair=(await state()).representationLabs.temporalControl;
@@ -101,6 +107,7 @@ try{
     assert.equal(trained.training.ppoIterations,ordinary);
     assert.deepEqual(trained.lastTrainingTargets,['temporal-one','temporal-two']);
     assert.equal(trained.execution.state,'ready');
+    checks.push({label:'generic training targets both comparison policies; cached ordinary policy unchanged; busy calls rejected'});
     await api(()=>window.__cartpoleSonic.focus('robot'));
     await page.route('**/assets/student_ae_bootstrap.json',route=>route.fulfill({status:200,contentType:'application/json',body:'{"schema":"cartpole-sonic-student-bootstrap/v1","mode":"ae","policy":{}}'}));
     await reject(()=>window.__cartpoleSonic.focus('encoder','ae'));
@@ -108,12 +115,15 @@ try{
     assert.ok((await page.locator('#episodeStatus').innerText()).includes('체크포인트'));
     await page.unroute('**/assets/student_ae_bootstrap.json');await api(()=>window.__cartpoleSonic.focus('encoder','ae'));
     assert.equal((await state()).activeController.mode,'ae');assert.equal((await state()).execution.state,'ready');
+    await api(()=>window.__cartpoleSonic.openTraining('optimizer-sensitivity'));
+    await api(()=>window.__cartpoleSonic.runFocusAction());
+    assert.equal((await state()).system.focus?.concept,'temporal-control','evidence action must open the advertised live comparison');
     checks.push({label:'execution boundaries, latch, matched generic training, busy rejection, corrupt checkpoint recovery'});
     await screenshot('execution-recovered.png');
     assert.deepEqual(errors,[]);report.passed=true;
   }else{
   await page.goto(base+'?training=optimizer-sensitivity&depth=mechanism');await waitReady();
-  assert.equal((await state()).system.version,'2.7');
+  assert.equal((await state()).system.version,'2.8');
   await screenshot('optimizer-budget-50.png');
   assert.equal(await page.locator('.opt-data tbody tr').count(),16);
   await bounds('optimizer +50');
@@ -224,6 +234,7 @@ try{
   }
 }catch(error){report.passed=false;report.failure=error.stack;throw error;
 }finally{
+  assert.deepEqual(sourceHashes(),report.source_sha256,'rendering source changed during browser audit');
   fs.writeFileSync(path.join(output,'browser_audit.json'),JSON.stringify(report,null,2));
   console.log(JSON.stringify({passed:report.passed,checks:checks.length,errors,failure:report.failure},null,2));await browser.close();
   if(server)await new Promise(resolve=>server.close(resolve));

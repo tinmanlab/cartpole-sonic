@@ -1,10 +1,10 @@
 {
   "name": "cartpole-sonic",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "check": "node --check presentation.js && node --check optimizer_evidence_view.js && node --check app.js && node --check course.js && node --check alignment_lab.js && node --check temporal_token_lab.js && node --check temporal_control_lab.js && node --check sonic_toy.js && node --check teacher_policy.js && node --check mujoco_sim.js && node --check webgpu_fsq.js && node scripts/check.mjs",
+    "check": "node --check control_contract.js && node --check presentation.js && node --check optimizer_evidence_view.js && node --check app.js && node --check course.js && node --check alignment_lab.js && node --check temporal_token_lab.js && node --check temporal_control_lab.js && node --check sonic_toy.js && node --check teacher_policy.js && node --check mujoco_sim.js && node --check webgpu_fsq.js && node scripts/check.mjs",
     "verify:teacher": "node scripts/evaluate_teacher.mjs",
     "verify:bootstrap": "node scripts/evaluate_bootstrap.mjs",
     "verify:ppo": "node scripts/evaluate_ppo.mjs",
@@ -18,7 +18,15 @@
     "verify:optimization": "node scripts/verify_control_optimization.mjs",
     "verify:contracts": "node --test scripts/verify_ppo_contract.test.mjs scripts/verify_optimizer_evidence.test.mjs",
     "verify:presentation": "node --test scripts/verify_presentation.test.mjs",
-    "verify:public": "node --test scripts/verify_public_material.test.mjs && node scripts/verify_public_material.mjs"
+    "verify:public": "node --test scripts/verify_public_material.test.mjs && node scripts/verify_public_material.mjs",
+    "verify:execution": "node --test scripts/verify_execution.test.mjs",
+    "verify:browser": "node scripts/browser_smoke.mjs",
+    "verify:browser-execution": "node scripts/browser_smoke.mjs --execution"
   },
-  "dependencies": {"@mujoco/mujoco": "3.14.0"}
+  "dependencies": {
+    "@mujoco/mujoco": "3.14.0"
+  },
+  "devDependencies": {
+    "playwright": "1.63.0"
+  }
 }

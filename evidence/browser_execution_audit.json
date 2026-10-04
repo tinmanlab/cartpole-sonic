@@ -1,0 +1,31 @@
+{
+  "schema": "cartpole-sonic-browser-audit/v1",
+  "base": "http://127.0.0.1:57052/",
+  "browser": "153.0.8010.12",
+  "executionOnly": true,
+  "source_sha256": {
+    "app.js": "648791a95cd787a55a514cba5bc33a04811c49d7f6cd9044545a85d2725477d1",
+    "course.js": "acc76596da5ca5a1471193121d4e5f9c5d51219f1f176ac11d390fad67420e19",
+    "index.html": "3adfee76b84bd1eccaf0f984fac6e9bcea95f57796245a4961b204fb50bd5b1d",
+    "presentation.js": "a3775054bfb68c44876c2374cb8f9d3ae5e5c0de34f302894a740d636840c9ff",
+    "optimizer_evidence_view.js": "d0c97a8bfeb5a0553d66025e9bc0553aed7c41f3a2307228fd53cfb074771ae5",
+    "control_contract.js": "ecf8c6fca2d77f915ef7ccab361dc6b942d2674794feac411a161fdf22b861ab",
+    "mujoco_sim.js": "40ed2088fa0eca59c76b8014c9cfb9e410509a80fd2b32f163c4626420761ce8",
+    "sonic_toy.js": "fc757363230fb19c3a20f9744aa50a2873cb66a85f15f6171320dc930294b087",
+    "temporal_control_lab.js": "20e9abe34433bb4e189f10eb7b8921dc113fae14ca0711408a726474e50e2323",
+    "scripts/browser_smoke.mjs": "1ccd05f7d90be8bc22937f0da1a9985baf279b0b0be1c35c6439181055d5bd60"
+  },
+  "checks": [
+    {
+      "label": "invalid inputs preserve state; manual/live termination latch and reset"
+    },
+    {
+      "label": "generic training targets both comparison policies; cached ordinary policy unchanged; busy calls rejected"
+    },
+    {
+      "label": "execution boundaries, latch, matched generic training, busy rejection, corrupt checkpoint recovery"
+    }
+  ],
+  "errors": [],
+  "passed": true
+}
