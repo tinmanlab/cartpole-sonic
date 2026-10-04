@@ -66,12 +66,10 @@ export function renderOptimizerEvidencePanel({evidence,showHtml,beginCanvas,rere
   showHtml(`<div class="optimizer-audit">${nav}${content}</div>`,
     '<b>EVIDENCE · matched-budget PPO audit.</b> 1·2-token 모두 +10/+50을 비교합니다. 실제 Adam 변화량·KL·token 변화를 계측하며, 관측된 결과보다 강한 원인 결론을 내리지 않습니다.',
     ['3 PPO seeds · fixed bootstrap','10 / 50 matched iterations','raw Gaussian likelihood','measured Adam displacement']);
-  requestAnimationFrame(()=>{
-    if(!$('optBudget'))return;
-    if(view==='budget')drawRuns(ev,beginCanvas);
+  if(!$('optBudget'))return;
+  requestAnimationFrame(()=>{if(view==='budget'&&$('optimizerRuns'))drawRuns(ev,beginCanvas);});
     $('optBudget').onclick=()=>{view='budget';rerender();};
     $('optDiagnostics').onclick=()=>{view='diagnostics';rerender();};
     for(const n of [10,50])if($('opt'+n))$('opt'+n).onclick=()=>{budget=n;rerender();};
     if($('optVariant'))$('optVariant').onchange=e=>{variantId=e.target.value;rerender();};
-  });
 }

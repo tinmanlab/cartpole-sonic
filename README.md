@@ -1,985 +1,144 @@
-# CartPole SONIC
+# CartPole SONIC — 작은 로봇으로 이해하는 동작 표현과 제어
 
-> An interactive teaching lab that keeps the **SONIC universal-control system map** visible at all times, then explains Encoder/VQ/VQ-VAE/FSQ/token/decoder/training concepts inside the block where they actually belong.
+[학습장 열기](https://tinmanlab.github.io/cartpole-sonic/)
 
-[**Open the live lab →**](https://tinmanlab.github.io/cartpole-sonic/) · [FSQ](https://tinmanlab.github.io/cartpole-sonic/?focus=quantizer&concept=fsq) · [Universal Token](https://tinmanlab.github.io/cartpole-sonic/?focus=token)
+![현재 브라우저 교육용 화면](media/public-overview.png)
 
-<p align="center">
-  <a href="https://tinmanlab.github.io/cartpole-sonic/">
-    <img src="media/cartpole-sonic-demo.gif" alt="CartPole SONIC interactive learning lab" width="100%">
-  </a>
-</p>
+현재 버전의 실제 브라우저 캡처입니다. 오래된 소개 GIF/MP4 대신 이 화면과 공개 학습장을 기준으로 읽으세요. Native Python 실험 영상은 아닙니다.
 
-[High-resolution MP4](media/cartpole-sonic-demo.mp4)
+**원하는 움직임을 짧은 token으로 표현하고, 그 token과 현재 로봇 상태를 이용해 행동을 결정하는 과정을 살펴보는 공개 학습 자료입니다.** 비공개 저장소나 개인 개발 환경에 접근하지 않아도 브라우저 학습장을 사용할 수 있습니다.
 
-## Implementation identity
+가장 먼저 구분할 점이 있습니다. **브라우저에서 움직이는 것은 JavaScript 교육용 제어 모델과 MuJoCo WASM 시뮬레이션입니다. 공식 SONIC Python 구현은 별도의 native 실험에서 검증합니다.** 실제 물리 엔진을 쓴다는 사실과 공식 SONIC 제어 코드를 실행한다는 사실은 서로 다릅니다. 어떤 경로도 실제 하드웨어를 움직이지 않습니다.
 
-The **browser remains the independent JavaScript teaching model**. The separate native Python path now contains two distinct checks:
-
-- [Core module verification](native/README.md): original pinned SONIC Encoder/FSQ/Decoder forward/backward tests.
-- [Official trainer + physical CartPole integration](native/TRAINING.md): the unmodified official PPO trainer collects MuJoCo rollouts and updates actual policy/critic weights. [Measured results](evidence/native_training.json) record 2,048 control transitions and 8 optimizer steps in the bounded run.
-
-**Integration success is not controller-performance success:** the two-iteration random-initialization run completes 0/8 evaluation episodes. No teacher, hidden stabilizer, humanoid checkpoint, or browser-PPO substitute is used. This does not establish stable tracking, original humanoid benchmark performance, or sim-to-real readiness. Existing browser controllers and evidence are unchanged.
-
-## What this project is
-
-This is **not a reimplementation of GEAR-SONIC's humanoid capability**.
-
-It is a structural teaching model that keeps the control graph intact while replacing a high-DoF humanoid with one CartPole:
+## 1. 전체 흐름: 목표, 계획, 현재 상태는 다릅니다
 
 ```text
-high-level goal
-      ↓
-planner / future reference
-      ↓
-Encoder
-      ↓
-latent z
-      ↓
-VQ or FSQ
-      ↓
-motion token q
-      │
-      │      current robot proprioception
-      └──────────────┐
-                     ↓
-              Dynamic Decoder
-                     ↓
-                   action
-                     ↓
-              MuJoCo physics
-                     ↓
-               measured state
+사용자가 지정한 목표 위치
+           ↓
+Motion Generator — 앞으로 따라갈 위치·속도 reference 생성
+           ↓
+Encoder — reference를 작은 연속 표현 z로 변환
+           ↓
+FSQ — 각 성분을 정해진 단계로 양자화하여 token q 생성
+           ↓
+Dynamic Decoder ← 현재 시뮬레이터의 위치·속도·각도·각속도
+           ↓
+카트에 적용할 힘
+           ↓
+MuJoCo에서 다음 상태 계산 → 다음 제어 입력으로 되먹임
 ```
 
-Two training-only paths are shown separately:
+별도의 **Kinematic Decoder**는 token으로부터 reference를 복원합니다. 복원 오차는 움직임 정보가 얼마나 남았는지 검사하고 학습을 보조하는 수단입니다. 이 Decoder가 카트에 힘을 주는 것은 아닙니다.
 
-```text
-token → Kinematic Decoder → future-motion reconstruction  [auxiliary]
-rollout → Critic → GAE / PPO                              [training only]
-```
+**PPO는 구조의 이름이 아니라 학습 방법입니다.** 물리 시뮬레이션에서 모은 상태·행동·보상을 이용해 정책을 갱신합니다. 작은 token, 낮은 복원 오차, PPO 학습 완료 중 어느 하나만으로 좋은 제어를 보장하지는 않습니다.
 
-The point is to make each role visible before returning to a full humanoid system.
+## 2. 화면을 읽는 방법
 
----
+왼쪽은 **현재 브라우저 제어기가 구동하는 시뮬레이션**, 가운데는 **선택한 개념의 시각화**, 오른쪽은 **설명과 입출력의 의미**입니다. 현재 제어기 표시와 시각화의 출처 표시를 함께 확인하세요.
 
-## The first question: why compress and then reconstruct?
+| 표시 또는 값 | 뜻 | 뜻하지 않는 것 |
+|---|---|---|
+| 실시간 / LIVE | 현재 브라우저에서 계산한 값 | 공식 Python 실험을 실행 중이라는 뜻 |
+| 저장된 실험 / EVIDENCE | 파일로 보존된 조건별 실험 결과 | 왼쪽 로봇의 현재 성능이나 방금 수행한 학습 결과 |
+| 개념 설명 / CONCEPT | 구조를 설명하는 자료 | 화면의 모든 블록이 현재 제어기에 들어 있다는 뜻 |
+| 목표 위치 | 사용자가 원하는 최종 위치 | 현재 reference 또는 실제 위치 |
+| 현재 reference | 같은 시각에 따라가야 할 계획 값 | 80ms 뒤의 미리보기 값 |
+| 다음 힘 | 현재 상태로 계산한 다음 행동 | 이미 물리에 적용한 마지막 힘 |
+| 마지막 적용 힘 | 직전 시뮬레이션 step에 보낸 힘 | 계속 갱신되는 다음 행동 예측 |
 
-This is the core idea behind the Encoder/Decoder lesson.
+추적 오차는 **같은 시각의 실제 위치와 reference**를 비교해야 합니다. 미래 프레임은 Encoder의 입력과 미리보기용이며, `현재 위치 − 80ms 뒤 reference`를 현재 추적 오차로 읽지 않습니다.
 
-Suppose the planner provides eight future frames:
+로봇 그림은 계산된 상태를 보여 주는 **단순화된 2D 도식**입니다. 그림의 바퀴·색·화면 배율은 실제 하드웨어나 상세 메시의 검증 자료가 아닙니다. 긴 막대 preset에서도 물리 길이는 그대로 두고 화면 배율만 조정합니다.
 
-```text
-[x₁, ẋ₁, x₂, ẋ₂, ... x₈, ẋ₈] = 16 numbers
-```
+## 3. 추천 학습 순서
 
-The Encoder maps them into a much smaller latent:
+처음에는 기본 FSQ 화면에서 `1 Step`을 눌러 상태와 힘이 바뀌는 것을 확인하세요. 목표를 바꾼 직후 reference/token은 달라질 수 있지만, 로봇은 물리 step 없이 순간 이동하지 않습니다.
 
-```text
-16-D future reference
-        ↓ Encoder
-     [z₁, z₂]
-        2-D
-```
+다음으로 **Robot Control Decoder**에서 `Push` 전후를 비교하세요. 같은 시각의 reference를 고정하고 실제 상태만 바꾸면, token은 유지되지만 필요한 힘은 달라질 수 있습니다. 이것이 reference와 proprioception을 분리하는 이유입니다.
 
-Why deliberately throw information away?
+마지막으로 **Universal Token → Closed-loop 1 vs 2**와 별도의 학습 화면을 비교하세요. Token 개수의 증가, 복원 정확도와 실제 제어 성능은 각각 다른 질문입니다. 특정 한 번의 결과를 token 수의 일반적인 우열로 해석하지 않습니다.
 
-Because the bottleneck forces the network to find a **compact representation of what matters for the motion**, instead of copying every input number independently. A compact latent is also easier to discretize into reusable motion tokens.
-
-Then why decode it back to 16-D?
-
-```text
-[z₁, z₂]
-   ↓ Kinematic Decoder
-reconstructed future reference
-```
-
-**Not because deployment needs the original input again.**
-
-The reconstruction path is an auxiliary training test:
-
-> “Did the small latent actually retain enough motion information?”
-
-If the Decoder cannot reconstruct the reference, the latent probably discarded useful motion information.
-
-The deployed physical controller uses a different decoder:
-
-```text
-motion token + current robot state
-              ↓
-        Dynamic Decoder
-              ↓
-            action
-```
-
-This distinction is one of the main reasons this lab exists.
-
----
-
-## Learning structure: SONIC first, prerequisite concepts second
-
-The top of the page now follows the **SONIC system roles** rather than a generic ML study sequence:
-
-```text
-Task / Interface
-      ↓
-Motion Generator
-      ↓
-Motion Reference
-      ↓
-Encoder(s)
-      ↓
-FSQ Quantizer
-      ↓
-Universal Token
-      ├────────→ Robot Motion Decoder      [kinematic / reconstruction path]
-      │
-      └────────→ Robot Control Decoder + actual proprioception
-                                      ↓
-                                    Robot
-                                      ↓
-                                   feedback
-```
-
-This mirrors the role structure shown in the SONIC system diagram: diverse task interfaces feed motion generators and motion representations, multiple encoders map those representations through a quantizer into a universal token, and decoders produce robot motion/control outputs.
-
-The page therefore does **not** put AE, VAE, VQ-VAE, “What learns?”, or PPO into the deployment runtime chain.
-
-Instead, click the relevant SONIC block:
-
-| SONIC block | Contextual explanation |
+| 기능 | 실제 작동 |
 |---|---|
-| Encoder(s) | Core Encoder · Autoencoder · **VAE (optional background)** |
-| Quantizer · FSQ | VQ · **VQ-VAE** · FSQ |
-| Universal Token | token shape, numeric-vector meaning, temporal compression |
-| Robot Motion Decoder | live future-motion reconstruction |
-| Robot Control Decoder | live token + proprioception → action |
-| Robot / Feedback | live reference-vs-actual tracking |
-| **How is this learned?** | Loss flow · **What learns?** · Multi-encoder alignment · PPO |
+| `1 Step` / `Live` | 선택된 브라우저 제어기로 물리 상태를 진행 |
+| `Push` | 시뮬레이터 속도를 순간적으로 변경; 로봇 하드웨어 동작 아님 |
+| AE / VQ / FSQ 개념 선택 | 해당 교육용 경로로 바뀔 수 있음; 현재 제어기 표시 확인 |
+| 1-token / 2-token 선택 | 해당 비교 화면에서 어느 제어기가 왼쪽 시뮬레이션을 구동할지 지정 |
+| Temporal representation / alignment 학습 | 별도 표현 실험; 자동으로 모든 결과가 왼쪽 정책에 반영되는 것은 아님 |
+| PPO 학습 버튼 | 명시된 브라우저 모델을 갱신; 저장된 native 평가를 다시 실행하지 않음 |
+| Optimizer evidence 화면 | 기록된 실험 조건과 수치를 비교; 버튼으로 데이터가 재학습되는 것은 아님 |
 
-This distinction matters:
+VAE는 배경 개념 비교입니다. VAE 설명을 열었다고 공식 SONIC의 FSQ 경로가 VAE로 바뀌었다고 해석하지 않습니다. VQ는 학습되는 대표 벡터를 사용하고, 이 학습장의 FSQ는 정해진 단계의 숫자를 사용합니다. FSQ 단계 자체에 학습 가중치가 없어도 앞뒤 신경망에는 gradient가 전달됩니다.
 
-- **runtime blocks** answer “what information flows where?”
-- **context concepts** answer “why was this representation method invented?”
-- **training topics** answer “how do the parameters get learned?”
+## 4. 브라우저 모델의 크기와 물리 조건
 
-### Every block has the same three explanation depths
+일반 브라우저 경로는 미래 위치·속도 **8프레임 × 2성분 = 16개 수**를 입력으로 받습니다. 기본 FSQ 예에서는 이를 **2개 scalar로 된 token 하나**로 줄입니다. 2-token 비교 모델은 **2 tokens × 2 scalars = 4개 수**를 사용합니다. 현재 선택한 모델의 차원과 기본 예제의 차원을 혼동하지 않습니다.
 
-The right-hand guide no longer changes its teaching style from block to block.
+입력에 숫자가 16개 있다고 해서 정보의 자유도가 16개인 것은 아닙니다. 기본 reference는 목표와 시간으로 생성하는 제한된 곡선 집합입니다. 따라서 이 예제에서 좋은 복원 결과가 나와도 복잡한 휴머노이드 동작 전체를 같은 크기로 표현할 수 있다는 뜻은 아닙니다.
 
-```text
-쉽게
-  → intuition
-  → why this block exists
-  → what breaks without it
-  → why the next block is needed
+| 항목 | 기본 브라우저 설정 |
+|---|---|
+| 물리 엔진 | MuJoCo JavaScript/WebAssembly |
+| 물리 시간 간격 | 0.01초 |
+| 제어 간격 | 물리 2 step마다 1회, 즉 0.02초 / 50Hz |
+| 실제 상태의 순서 | 카트 위치, 카트 속도, 막대 각도, 막대 각속도 |
+| 내부 단위 | m, m/s, rad, rad/s; 화면이 °로 변환할 때 별도 단위 표기 |
+| 행동 | 카트에 가하는 힘, 최대 ±10N |
+| 기본 모델 | 카트 질량 1kg, 막대 질량 0.1kg, 이동 범위 ±1.8m |
 
-내부 동작
-  → calculation / learning mechanism
-  → toy and SONIC data shape
-  → current live values
+`Long pole`과 `Heavy pole`은 물리 조건 변화용 교육 preset입니다. 다른 preset이나 학습 범위를 벗어난 목표에서, 기본 모델의 저장된 성공률이 그대로 성립한다고 가정하지 않습니다. 이 모델은 카트 힘 하나로 막대의 움직임까지 함께 만들어야 하므로 카트 궤적과 막대 각도를 각각 임의로 명령할 수 없습니다.
 
-SONIC 실제
-  → the actual SONIC role
-  → how the CartPole reduction differs
-  → common implementation/conceptual mistakes
-```
+## 5. 공식 SONIC 코드로 수행한 별도 실험
 
-The explanation depth is independent of the center visualization. A learner can keep the same live graph while progressively exposing intuition, mechanics, and actual SONIC structure.
+Native 경로는 고정된 [공식 SONIC 소스](https://github.com/NVlabs/GR00T-WholeBodyControl/tree/b042411fae38ee4d1af9aac82a37a1f8d14d6dd0)를 직접 불러옵니다. 원본 파일, FSQ 설정, 입출력, 학습 경로와 실험 증거를 확인합니다. 브라우저 모델과 이름이 비슷하다는 것만으로 공식 구현이라고 부르지 않습니다.
 
-Training topics additionally highlight, in purple on the top SONIC map, the runtime modules whose parameters or signals are involved. For example, multi-encoder alignment highlights Encoder → Quantizer → Universal Token, while PPO highlights Encoder → Robot Control Decoder → Robot/physics.
+| 확인하려는 질문 | 방법·조건·결과 |
+|---|---|
+| 공식 모듈을 실제로 사용하는가? | [모듈 입출력·역전파 검증](native/README.md) |
+| 공식 학습기를 CartPole 물리환경에 연결했는가? | [원본 PPO trainer와 환경 경계](native/TRAINING.md) |
+| 단순 균형 유지와 목표 추적을 구분했는가? | [학습된 native 정책과 reference 제거 비교](native/LEARNING.md) |
+| 다른 입력 표현이 같은 Decoder를 사용할 수 있는가? | [다중 Encoder·공유 Decoder·복원 실험](native/CONCEPTS.md) |
+| 현재·목적지가 같아도 중간 미래를 구분하는가? | [물리적으로 가능한 같은 끝점 궤적 비교](native/TEMPORAL_AUDIT.md) |
+| 입력 종류별로 공정하게 학습해도 차이가 남는가? | [동일 예산 재학습·새 궤적 평가·관측 정보 검사](native/MATCHED_CUES.md) |
+| 언제 더 큰 로봇이 필요한가? | [검증 가능한 개념과 최소 로봇 전환 기준](native/PIVOT.md) |
 
-### What is actually live?
+실험마다 목표, 데이터, 초기화, 학습 방법, 평가 시간이 다릅니다. 특히 기록 궤적 재생의 mm 단위 오차와 목표 위치 추적의 cm 단위 오차를 같은 지표처럼 직접 비교하지 않습니다. 완주한 episode만의 오차에는 반드시 완주율을 함께 봅니다. 외란 전에 실패했다면 외란 회복값은 0이 아니라 미관측입니다.
 
-The UI marks every center view explicitly as one of three evidence types:
+짧은 과제의 여러 Encoder 초기화는 전체 제어기를 여러 번 독립 학습한 결과가 아닙니다. 깨끗한 marker 좌표는 실제 카메라나 VR 관측도 아닙니다. 원본 휴머노이드 성능, 장시간 안정성, 실제 센서·하드웨어 또는 sim-to-real 검증을 주장하지 않습니다.
 
-- **LIVE** — values come from the current CartPole/reference/policy state and update with `1 Step`, `Live`, or a bounded training action
-- **EVIDENCE** — deterministic repository ablations loaded from checked evidence files; not presented as current live training
-- **CONCEPT** — the toy does not contain that mechanism, so the page shows an explanatory diagram instead of inventing fake runtime data
+## 6. 직접 실행과 검증
 
-Current concept-only views are intentionally limited to:
-
-- VAE — SONIC does not use a VAE in this runtime path
-- high-level official task modalities — the toy collapses them to one goal scalar
-- loss/trainability diagrams — explanatory views of optimization structure
-
-VQ, VQ-VAE live values, FSQ, Universal Token, the 1-vs-2 temporal-slot experiment, both Decoder roles, robot tracking, PPO curves, and the two-Encoder alignment experiment all use real toy state. Optimizer-sensitivity comparisons use checked deterministic **EVIDENCE** snapshots.
-
----
-
-## Live multi-encoder alignment
-
-The training view now contains a real alignment experiment rather than a concept-only diagram.
-
-The **same future motion** is represented in two different ways:
-
-```text
-Representation A
-full trajectory
-8 frames × [x, ẋ] = 16D
-        ↓
-Primary Encoder A
-frozen anchor
-
-Representation B
-sparse keypoints
-frames 1,3,6,8 × [x, ẋ] = 8D
-        ↓
-Secondary Encoder B
-trainable
-```
-
-Both outputs pass through the **same fixed FSQ** and then the **same Robot Control Decoder with the same proprioception**.
-
-The toy trains only Encoder B with latent alignment MSE:
-
-```text
-L_align = || z_B - stopgrad(z_A) ||²
-```
-
-and measures three consequences on a deterministic validation set:
-
-- latent MSE ↓
-- FSQ token agreement ↑
-- same-state action MAE ↓
-
-Current deterministic `+50` alignment-step check:
-
-```text
-before
-latent MSE       0.1101
-token agreement  17.2%
-action MAE       0.290 N
-
-after 50 steps
-latent MSE       0.00258
-token agreement  92.2%
-action MAE       0.017 N
-```
-
-This is deliberately a **mechanism analogue**, not a claim that sparse CartPole keypoints reproduce G1/SMPL/teleop modalities. Real SONIC jointly aligns multiple modality Encoders with auxiliary alignment losses; the toy freezes Encoder A so the direction of alignment remains easy to see and stable to reproduce.
-
-Direct link:
-
-https://tinmanlab.github.io/cartpole-sonic/?training=alignment&depth=mechanism
-
----
-
-## Reference, token, and robot state are different things
-
-The live UI deliberately separates them.
-
-```text
-Reference world
-planner future motion
-      ↓
-Encoder
-      ↓
-continuous latent z
-      ↓
-FSQ
-      ↓
-motion token q
-```
-
-The blue future reference is **upstream of FSQ**. It is not the command sent to the motor.
-
-```text
-motion token q       actual robot proprioception
-      │                        │
-      └──────────┬─────────────┘
-                 ↓
-          Dynamic Decoder
-                 ↓
-              action
-                 ↓
-          actual MuJoCo robot
-```
-
-So the semantic roles are:
-
-- **reference** = desired future motion, before Encoder/FSQ
-- **latent z** = continuous Encoder output
-- **token q** = post-FSQ compact motion representation
-- **proprioception** = measured state of the actual robot
-- **action** = Dynamic Decoder output applied to the actual robot
-
-For that reason, the Simulation panel now draws only the actual robot. Reference trajectories live in the separate center visualization instead of being overlaid as a ghost robot.
-
----
-
-## FSQ in one minute
-
-VQ uses a learned vector codebook:
-
-```text
-continuous z
-     ↓ nearest learned vector
-codebook: ● ● ● ● ● ● ● ●
-     ↓
-discrete q
-```
-
-FSQ removes the learned vector lookup.
-
-For this toy, each latent scalar uses five finite levels. The implementation follows the odd-level form of the FSQ reference logic:
-
-```text
-qᵢ = round(1.998 · tanh(zᵢ)) / 2
-```
-
-So each normalized scalar lands on:
-
-```text
--1, -0.5, 0, 0.5, 1
-```
-
-With two scalar dimensions, that gives an implicit (5 × 5 = 25) code space.
-
-FSQ still uses a straight-through estimator for the non-differentiable rounding operation, but it does not need a learned vector codebook, codebook reseeding, or VQ-style commitment machinery.
-
----
-
-## Visualization behavior
-
-All lessons share the same fixed layout:
-
-- left: **actual MuJoCo robot only**, always the same location and controls
-- center: lesson-specific **reference / latent / token / training** visualization
-- right: lesson guide
-- bottom: stable SONIC information-flow strip
-
-The reference and robot worlds are intentionally separated:
-
-- the Simulation panel never draws a future-reference ghost robot
-- planner future motion is **pre-FSQ reference**, not a motor command
-- FSQ/VQ produces motion token `q`
-- `q + actual proprioception → Dynamic Decoder → action`
-
-For VQ/FSQ latent plots:
-
-- gray points are only the fixed FSQ grid or learned VQ codebook
-- the blue trail is the **actual z history generated during the current live episode**
-- there is no hypothetical goal sweep mixed into the live graph
-- the short dashed `z → q` segment is only the current quantization displacement
-- latent x/y axes use equal unit scale (1:1 data aspect)
-
-Canvas backing resolution follows displayed CSS size × device-pixel ratio, so plots are not stretched by mismatched canvas dimensions.
-
-When **Live** is enabled, the robot, current reference, latent, token-dependent visualizations, proprioception, and action are redrawn from the same control ticks. If the CartPole reaches a termination condition, the teaching demo automatically starts a new episode and keeps Live running instead of silently stopping.
-
-**Push** is a robot-only impulse: it changes actual velocity/proprioception without advancing the planner/reference. This makes the Dynamic Decoder experiment explicit:
-
-```text
-same reference
-same motion token q
-      +
-changed actual proprioception
-      ↓
-different action
-```
-
-PPO training plots redraw after each training iteration.
-
-
----
-
-## What actually learns?
-
-A useful distinction is:
-
-> **FSQ participates in training, but the standard FSQ quantizer itself is not parameter-learned.**
-
-The default SONIC quantizer is `vector_quantize_pytorch.FSQ`, instantiated from a fixed `levels` configuration. It has no learned vector codebook. The rounding operation uses a straight-through estimator (STE), so gradients can pass through the discrete bottleneck to the Encoder.
-
-| Component | Learned? | Main learning signal |
-|---|---:|---|
-| Motion Encoder(s) | **Yes** | PPO through the Dynamic Decoder + reconstruction auxiliary loss + cross-encoder latent-alignment losses |
-| FSQ finite levels / grid | **No** | Fixed hyperparameters; STE provides a surrogate backward path |
-| G1 Dynamic Decoder | **Yes** | PPO physical-tracking objective |
-| G1 Kinematic Decoder | **Yes** | Future-motion reconstruction auxiliary loss |
-| Critic | **Yes** | Value / return loss for PPO |
-| VQ learned codebook (comparison) | **Yes** | Codebook/EMA-style update; this is one of the mechanisms FSQ removes |
-
-The subtle point is that the representation still learns even though FSQ does not:
-
-```text
-loss
- ↓
-Decoder
- ↓
-quantized q
- ↓  STE through round()
-Encoder weights change
- ↓
-next z is placed more usefully relative to the fixed FSQ bins
-```
-
-So it is better to say:
-
-- “the **Encoder learns to use FSQ**”
-- not “FSQ learns its codebook”
-
-### Actual SONIC token shape
-
-The release configuration uses:
-
-```text
-token_dim = 32 scalar dimensions
-levels per scalar = 32 fixed values
-max_num_tokens = 2
-
-flattened decoder input from tokens = 2 × 32 = 64 values
-```
-
-The implementation config names are slightly confusing: `num_fsq_levels: 32` is assigned to `token_dim`, while `fsq_level_list: 32` is broadcast to 32 scalar dimensions.
-
-The implicit Cartesian-product code space is enormous, but it is **not explicitly stored as a table**. Each scalar is quantized independently.
-
-The SONIC decoder consumes the quantized numeric token vectors; “token” here should not be interpreted as necessarily one integer ID like an LLM vocabulary token.
-
-### How are the two temporal token slots formed?
-
-The released MLP Encoder config declares:
-
-```text
-num_input_temporal_dims  = num_future_frames
-num_output_temporal_dims = max_num_tokens = 2
-```
-
-`BaseModule` then flattens the temporal input before the MLP and reshapes the MLP output back into the requested number of output temporal slots. Therefore the implementation is conceptually:
-
-```text
-whole future window
-(time × features)
-      ↓ flatten
-one MLP sees the whole window
-      ↓
-joint latent output
-      ↓ reshape
-[token slot 1, token slot 2]
-      ↓ FSQ
-quantized token slots
-```
-
-It is **not** hard-coded as:
-
-```text
-first half of the window → token 1
-second half of the window → token 2
-```
-
-Token indices are learned representation slots. A near/far interpretation must be demonstrated empirically rather than assumed from the index.
-
-Implementation anchors:
-
-- [G1 MLP Encoder config](https://github.com/NVlabs/GR00T-WholeBodyControl/blob/main/gear_sonic/config/actor_critic/encoders/g1_mf_mlp.yaml) — future-frame input temporal dims → `max_num_tokens` output temporal dims
-- [BaseModule](https://github.com/NVlabs/GR00T-WholeBodyControl/blob/main/gear_sonic/trl/modules/base_module.py) — flattens temporal input before the network and reshapes output after the network
-- [UniversalTokenModule](https://github.com/NVlabs/GR00T-WholeBodyControl/blob/main/gear_sonic/trl/modules/universal_token_modules.py) — defines `token_dim`, `max_num_tokens`, FSQ, and flattened decoder token input
-
-### Live 1-token vs 2-token capacity experiment
-
-The Universal Token page now has a `1 vs 2 token slots` experiment. Both toy models receive the **same complete 16-D future window**:
-
-```text
-1-token model
-16D whole window → Encoder → 1 token × 2 FSQ scalars → Decoder → 16D reconstruction
-
-2-token model
-16D whole window → Encoder → reshape to 2 tokens × 2 FSQ scalars → Decoder → 16D reconstruction
-```
-
-The models use the same deterministic reference distribution and reconstruction training procedure. The experiment isolates representational capacity; it does **not** claim that two tokens are universally optimal.
-
-At 200 training steps:
-
-```text
-                         1 token       2 tokens
-reconstruction MSE      0.00831       0.00417
-distinct FSQ combos     23            97
-
-2-token / 1-token MSE ≈ 0.50
-```
-
-The page also perturbs the early and late halves of the input window and measures the continuous latent change of each token slot. This is a sensitivity diagnostic only. Both slots read the full window, so the UI explicitly warns against labeling slot 1 = near future and slot 2 = far future without evidence.
-
-Direct link:
-
-https://tinmanlab.github.io/cartpole-sonic/?focus=token&concept=temporal&depth=mechanism
-
----
-
-### Closed-loop 1-token vs 2-token control experiment
-
-The reconstruction experiment above answers only a **representation-capacity** question. It does not prove that the larger token interface produces a better physical controller.
-
-A second live lab therefore connects both tokenizations all the way to native MuJoCo:
-
-```text
-1-token controller
-16D future → Encoder → FSQ q(2) + proprioception(4) → Dynamic Decoder → force → MuJoCo
-
-2-token controller
-16D future → Encoder → reshape 2×2 → FSQ q(4) + proprioception(4) → Dynamic Decoder → force → MuJoCo
-```
-
-The comparison deliberately uses matched conditions:
-
-- same future-reference distribution
-- same frozen teacher target during a 300-step imitation/bootstrap phase
-- same native MuJoCo Playground dynamics
-- same PPO iteration budget and hyperparameters
-- same deterministic clean and disturbance evaluation seeds
-
-Both bootstrap controllers survive all 12 clean evaluation episodes. Before PPO, performance is similar:
-
-```text
-bootstrap              1 token       2 tokens
-clean tracking MAE     0.259 m       0.250 m
-push post-MAE          0.234 m       0.226 m
-```
-
-After the **same +10 PPO iterations**, the result diverges:
-
-```text
-+10 PPO                1 token       2 tokens
-clean survival         12/12         12/12
-clean tracking MAE     0.238 m       0.507 m
-push post-MAE          0.215 m       0.579 m
-```
-
-So this toy demonstrates an important distinction:
-
-> **More token capacity improved reconstruction, but it did not automatically improve closed-loop control under the same optimization settings.**
-
-The 2-token controller exposes a larger policy interface and more trainable parameters. The experiment intentionally does not retune each controller independently, so it should be read as a **matched-budget optimization ablation**, not as evidence that one token is universally better than two or that SONIC's two-token release design is suboptimal.
-
-The left shared MuJoCo viewport can be driven directly by either controller using `Drive robot: 1 token` or `Drive robot: 2 tokens`. This verifies that the comparison reaches the actual physical control path rather than stopping at reconstruction.
-
-Direct link:
-
-https://tinmanlab.github.io/cartpole-sonic/?focus=token&concept=temporal-control&depth=mechanism
-
----
-
-### Optimizer audit: what survives a fairer comparison?
-
-Open **How is this learned? → Optimizer sensitivity**. The view now separates **matched-budget results** from **measured optimizer diagnostics**. The evidence is generated by native MuJoCo, not by the chart renderer. Buttons switch the stored +10 / +50 comparisons; these buttons do not train a browser policy. Live training remains in **Universal Token → Closed-loop 1 vs 2**.
-
-#### Correctness before causal interpretation
-
-The audit corrected Gaussian-action bookkeeping in both trainers: the original sampled action is retained for PPO likelihood and score gradients, while only the actuator input is clipped to [-1, 1]. The original single-run ablation had zero sampled-action clipping and its performance values reproduce unchanged after this correction. Thus, this bug was real, but it does **not** explain that original 2-token regression.
-
-Ratio-outside-range fraction is now separate from advantage-dependent objective clipping. Physical failure exactly at the time limit remains terminal. A run that fails before the push now has **null**, not zero, post-push error. Recovery counts identify first tolerance entry, not sustained recovery; unrecovered reached episodes are explicitly capped at 380 control steps.
-
-Adam displacement is measured as `||weights_after - weights_before||₂` after gradient clipping and moment preconditioning. `raw gradient norm × learning rate` is no longer presented as an effective Adam step. The same collected states/references are used to measure fixed-variance raw-Gaussian policy KL and the fraction of references whose quantized token changes.
-
-#### Parameter counts: distinguish total and actor
-
-| Architecture | Total parameters | Actor = Encoder + Dynamic Decoder |
-|---|---:|---:|
-| 1 token | 1,220 | 607 |
-| 2 tokens | 1,366 | 705 |
-| 2 tokens, total-parameter match | 1,220 | 643 |
-| 2 tokens, actor-parameter match | 1,268 | 607 |
-
-The previous “matched capacity” description was too strong. Neither count matching establishes equal functional capacity: hidden-layer widths and the latent interface still differ. The new actor-matched width control is included as a diagnostic, not a causal isolation of token count.
-
-#### Same budgets, three paired PPO seeds
-
-Each architecture starts from its same stored teacher-bootstrap weights **and Adam moments**. PPO rollout/reset/shuffle seeds are 17011, 27011 and 37011, paired across four conditions. Both token counts use actor scales 1 and 0.05 and receive exactly 10 or 50 iterations: 7,680 or 38,400 environment steps and 240 or 1,200 optimizer minibatches per run. The critic and auxiliary-decoder scales remain 1.
-
-Evaluation uses the same 12 clean episodes (seed 18181) and 12 push episodes (seed 19191) for each run. These differ from the legacy exploratory evaluation seeds 8181/9191, so the following numbers must not be compared as though only the PPO seed changed.
-
-**Mean ± sample standard deviation over three PPO runs [m].** This is conditional on one fixed bootstrap per architecture, not three independent model initializations or a confidence interval. Clean MAE is conditional on episode completion; survival is shown alongside it. The 36 episode evaluations repeat the same 12 scenarios across three runs and are not 36 independent evaluation scenarios.
-
-| PPO iterations | Condition | Clean MAE ↓ | Post-push MAE ↓ | Survival clean · push |
-|---:|---|---:|---:|---:|
-| 10 | 1 token · actor ×1 | 0.260 ± 0.065 | 0.373 ± 0.057 | 36/36 · 36/36 |
-| 10 | 2 tokens · actor ×1 | 0.244 ± 0.015 | 0.308 ± 0.037 | 36/36 · 36/36 |
-| 10 | 1 token · actor ×0.05 | 0.237 ± 0.021 | 0.272 ± 0.035 | 36/36 · 36/36 |
-| 10 | 2 tokens · actor ×0.05 | 0.244 ± 0.010 | 0.269 ± 0.013 | 36/36 · 36/36 |
-| 50 | 1 token · actor ×1 | 0.316 ± 0.133 | 0.403 ± 0.147 | 36/36 · 36/36 |
-| 50 | 2 tokens · actor ×1 | 0.380 ± 0.125 | 0.562 ± 0.324 | 35/36 · 35/36 |
-| 50 | 1 token · actor ×0.05 | 0.249 ± 0.026 | 0.246 ± 0.038 | 36/36 · 36/36 |
-| 50 | 2 tokens · actor ×0.05 | 0.253 ± 0.021 | 0.243 ± 0.014 | 36/36 · 36/36 |
-
-At +10, the default 2-token mean is lower than the default 1-token mean on this repeated-seed evaluation, unlike the legacy single run. At +50, default-rate runs vary substantially; the default 2-token condition also loses one clean and one push episode. Smaller actor steps reduce the observed run-to-run spread for **both** token counts. They do not establish a universal optimal learning rate, automatic improvement over bootstrap, or superiority of two tokens.
-
-The safe conclusion is narrower than “the larger interface is inherently unstable” or “actor LR is the dominant cause”: **training randomness, budget and optimizer settings matter; the existing results do not isolate a token-count cause.** The UI shows individual-run dots, mean/standard-deviation markers, survival, exact per-seed values, and module-by-module Adam measurements. The last-iteration KL is a local change diagnostic, not a guarantee of long-horizon control quality.
-
-Reproduce or verify:
-
-```bash
-npm run evaluate:optimization  # explicitly regenerate measured evidence
-npm run verify:contracts      # numerical/action/evaluation contracts and evidence shape
-npm run verify:optimization   # rerun every variant/seed and compare all stored measurements
-```
-
-Verification is hypothesis-neutral: it checks source/asset hashes, budgets, numerical measurements and deterministic replay, **not that a chosen architecture must win**. Independent bootstrap initialization, additional evaluation scenarios, a separated tuning/validation procedure, and larger motion/dynamics distributions remain outside this small conditional study.
-
-Implementation references (principles, not copied production SONIC code):
-
-- [CleanRL continuous-action PPO](https://github.com/vwxyzjn/cleanrl/blob/master/cleanrl/ppo_continuous_action.py): raw Gaussian samples/log probabilities, environment-side action clipping, ratio clipping and sampled KL diagnostics.
-- [PyTorch Adam documentation](https://docs.pytorch.org/docs/stable/generated/torch.optim.Adam.html): clipped/raw gradient norm is not the actual moment-preconditioned parameter displacement.
-
-Direct link: https://tinmanlab.github.io/cartpole-sonic/?training=optimizer-sensitivity&depth=mechanism
-
----
-
-### Why do different encoders produce a universal token?
-
-FSQ alone does not guarantee that a G1 Encoder, SMPL Encoder, and teleoperation Encoder give the same semantic token.
-
-SONIC trains these encoders with auxiliary latent-alignment losses in addition to physical PPO and reconstruction. The released auxiliary configuration includes G1↔SMPL, G1↔teleop, teleop↔SMPL, and re-encoded SMPL↔G1 alignment terms.
-
-This is a key part of the word **universal**.
-
-Official implementation references:
-
-- [UniversalTokenModule](https://github.com/NVlabs/GR00T-WholeBodyControl/blob/main/gear_sonic/trl/modules/universal_token_modules.py)
-- [SONIC training code](https://github.com/NVlabs/GR00T-WholeBodyControl/blob/main/docs/source/references/training_code.md)
-- [FSQ config](https://github.com/NVlabs/GR00T-WholeBodyControl/blob/main/gear_sonic/config/actor_critic/quantizers/fsq.yaml)
-- [Universal-token config](https://github.com/NVlabs/GR00T-WholeBodyControl/blob/main/gear_sonic/config/actor_critic/universal_token/all_mlp_v1.yaml)
-- [Auxiliary-loss config](https://github.com/NVlabs/GR00T-WholeBodyControl/blob/main/gear_sonic/config/aux_losses/universal_token/g1_recon_and_all_latent.yaml)
-
----
-
-## Questions the learner should now be able to ask
-
-These are intentional checkpoints, not extra jargon:
-
-1. **Why compress at all?** What information do we want the bottleneck to retain?
-2. **Why reconstruct if the deployment controller does not need reconstruction?**
-3. **What is the difference between latent dimension, FSQ levels per dimension, number of tokens, and flattened token dimension?**
-4. **Does FSQ learn anything? If not, how does gradient reach the Encoder?**
-5. **Why can a fixed quantizer improve during training?**
-6. **Is a SONIC motion token an integer ID or a quantized numeric vector?**
-7. **Why does a motion token not contain the current robot state?**
-8. **Why does the Dynamic Decoder need proprioception in addition to the token?**
-9. **What teaches the Dynamic Decoder: reconstruction or PPO?**
-10. **What teaches the Kinematic Decoder?**
-11. **How do G1, SMPL, and teleop Encoders learn a compatible shared token space?**
-12. **Where does the reference come from, and is that reference source itself part of the SONIC tracker?**
-13. **How is temporal information compressed into multiple tokens?**
-14. **Which parts exist at deployment, and which exist only during training?**
-15. **Why can a larger token interface require different actor optimization even when reconstruction improves?**
-16. **What does this CartPole toy preserve, and what humanoid behavior can it not validate?**
-
-If those questions can be answered from the UI without reading source code, the teaching lab is doing its job.
-
----
-
-## Quick start
-
-### 1. Fastest: use GitHub Pages
-
-Open:
-
-**https://tinmanlab.github.io/cartpole-sonic/**
-
-Useful direct links:
-
-- System start / Task: https://tinmanlab.github.io/cartpole-sonic/?focus=task
-- Motion Generator: https://tinmanlab.github.io/cartpole-sonic/?focus=generator
-- Motion Reference: https://tinmanlab.github.io/cartpole-sonic/?focus=reference
-- Encoder core: https://tinmanlab.github.io/cartpole-sonic/?focus=encoder
-- Autoencoder: https://tinmanlab.github.io/cartpole-sonic/?focus=encoder&concept=ae
-- VAE optional background: https://tinmanlab.github.io/cartpole-sonic/?focus=encoder&concept=vae
-- VQ: https://tinmanlab.github.io/cartpole-sonic/?focus=quantizer&concept=vq
-- VQ-VAE: https://tinmanlab.github.io/cartpole-sonic/?focus=quantizer&concept=vqvae
-- FSQ: https://tinmanlab.github.io/cartpole-sonic/?focus=quantizer&concept=fsq
-- Universal Token: https://tinmanlab.github.io/cartpole-sonic/?focus=token
-- 1 vs 2 temporal token slots: https://tinmanlab.github.io/cartpole-sonic/?focus=token&concept=temporal&depth=mechanism
-- Closed-loop 1 vs 2 token control: https://tinmanlab.github.io/cartpole-sonic/?focus=token&concept=temporal-control&depth=mechanism
-- Robot Motion Decoder: https://tinmanlab.github.io/cartpole-sonic/?focus=motion-decoder
-- Robot Control Decoder: https://tinmanlab.github.io/cartpole-sonic/?focus=control-decoder
-- Robot / Feedback: https://tinmanlab.github.io/cartpole-sonic/?focus=robot
-- What learns?: https://tinmanlab.github.io/cartpole-sonic/?training=what-learns
-- Optimizer sensitivity: https://tinmanlab.github.io/cartpole-sonic/?training=optimizer-sensitivity&depth=mechanism
-- Multi-encoder alignment: https://tinmanlab.github.io/cartpole-sonic/?training=alignment
-- PPO: https://tinmanlab.github.io/cartpole-sonic/?training=ppo
-
-### 2. Run locally
-
-No build step is required for the web app.
+브라우저 학습장은 위 공개 링크에서 실행할 수 있습니다. 로컬 실행에는 저장소를 받아 HTTP 서버로 여세요. `file://`로 HTML을 직접 열면 모듈·WASM 로딩이 제한될 수 있습니다.
 
 ```bash
 git clone https://github.com/tinmanlab/cartpole-sonic.git
 cd cartpole-sonic
-python3 serve.py
+npm ci
+python3 -m http.server 8765 --bind 127.0.0.1
 ```
 
-Open:
-
-```text
-http://localhost:8765
-```
-
-For development checks:
+브라우저에서 `http://127.0.0.1:8765`를 엽니다. 선택적인 로컬 telemetry 기능이 필요할 때는 `serve.py`를 사용할 수 있지만, 그 개발용 서버를 인증 없이 외부 네트워크에 공개하는 배포 방법으로 사용하지 않습니다.
 
 ```bash
-npm ci
 npm run check
-npm run verify:teacher
-npm run verify:bootstrap
-npm run verify:ppo
+npm run verify:contracts
 ```
 
----
+Python 실험은 [native 실행 안내](native/README.md)와 [학습 환경 안내](native/TRAINING.md)의 분리된 CPU 환경을 따릅니다. 공개 문서의 예시 경로를 자신의 환경에 맞게 지정하세요. 개인 PC 경로나 다른 비공개 프로젝트가 실행 전제는 아닙니다.
 
-## Native MuJoCo WASM
+## 7. 기술별 역할
 
-The browser physics is real MuJoCo, not a hand-written CartPole equation.
+**MuJoCo WASM**은 브라우저 물리 상태를 계산합니다. **JavaScript/CPU**는 교육용 신경망 추론과 작은 학습 실험을 수행합니다. **WebGPU**는 FSQ 계산의 CPU/GPU 일치 여부를 검사하는 선택 기능이며, 학습 전체가 GPU에서 실행된다는 뜻은 아닙니다. **WebMCP**는 화면에서 사용하는 것과 같은 탐색·실험 기능을 도구로 노출합니다.
 
-The repo vendors the official MuJoCo 3.14.0 JavaScript/WASM build under:
+`course.js`의 구조와 설명은 화면과 WebMCP가 공유합니다. `sonic_get_state`에서 제공하는 상태·reference·token·힘에도 어떤 모델과 어떤 시각의 값인지 구분이 필요합니다. 저장된 실험 파일은 현재 실행 상태와 별도 자료입니다.
 
-```text
-vendor/mujoco/
-├── mujoco.js
-├── mujoco.wasm
-└── LICENSE
-```
+## 출처와 재사용 경계
 
-The default model follows the relevant MuJoCo Playground / dm_control CartPole settings:
+공식 프로젝트와 공개 라이브러리의 정당한 출처는 유지합니다. 출처를 적는 것과 그 프로젝트의 성능·모든 기능을 재현했다고 주장하는 것은 다릅니다.
 
-- simulation timestep: 10 ms
-- cart mass: 1.0 kg
-- pole mass: 0.1 kg
-- slide range: ±1.8 m
-- motor force interface: ±10 N
+- [GEAR-SONIC 공식 프로젝트](https://nvlabs.github.io/GEAR-SONIC/)와 [공식 코드·문서](https://github.com/NVlabs/GR00T-WholeBodyControl)
+- [Finite Scalar Quantization 구현](https://github.com/lucidrains/vector-quantize-pytorch)
+- [MuJoCo](https://github.com/google-deepmind/mujoco), [MuJoCo Playground](https://github.com/google-deepmind/mujoco_playground), [DeepMind Control Suite](https://github.com/google-deepmind/dm_control)
+- [포함된 라이선스와 제3자 고지](THIRD_PARTY_NOTICES.md)
 
-Two additional bounded variants are included for dynamics/morphology experiments:
-
-- Long pole
-- Heavy pole
-
-These are teaching variants, not official Playground benchmark tasks.
-
----
-
-## WebMCP
-
-The semantic API follows the same SONIC system map shown in the UI:
-
-```text
-sonic_get_map
-sonic_get_state
-sonic_focus
-sonic_open_training
-sonic_set_explanation_depth
-sonic_run_focus_action
-simulation_control
-experiment_set_goal
-training_run
-alignment_control
-temporal_token_control
-temporal_control_control
-simulation_set_model
-```
-
-`course.js` is the single source of truth for:
-
-- runtime SONIC blocks
-- contextual concept tabs
-- separate training topics
-- official-role ↔ CartPole-role mapping
-
-Examples:
-
-```text
-sonic_focus({node_id:"encoder", concept_id:"ae"})
-sonic_focus({node_id:"quantizer", concept_id:"vqvae"})
-sonic_focus({node_id:"token"})
-sonic_set_explanation_depth({depth:"mechanism"})
-sonic_open_training({topic_id:"what-learns"})
-sonic_open_training({topic_id:"alignment"})
-alignment_control({action:"train", steps:50})
-sonic_focus({node_id:"token", concept_id:"temporal"})
-temporal_token_control({action:"train", steps:200})
-sonic_focus({node_id:"token", concept_id:"temporal-control"})
-temporal_control_control({action:"select", controller:"two"})
-temporal_control_control({action:"train", steps:10})
-sonic_open_training({topic_id:"optimizer-sensitivity"})
-```
-
-The map payload also includes the same structured explanations used by the UI: intuition, mechanism, actual SONIC mapping, failure-if-removed, transition-to-next-block, and toy/SONIC data shapes.
-
-`sonic_get_state` returns the currently focused system block plus the actual signals and current explanation depth:
-
-```text
-reference       = desired future motion before FSQ
-latent          = continuous Encoder output
-token           = post-VQ/FSQ numeric motion representation
-proprioception  = measured actual robot state
-action          = Robot Control Decoder output
-```
-
-This makes agent navigation match the learner's conceptual map instead of exposing a second, unrelated lesson hierarchy.
-
----
-
-## WebGPU
-
-WebGPU is intentionally separated from the tiny PPO trainer so the project does not pretend that GPU acceleration is necessary for this small model.
-
-After the lesson UI is visible, `webgpu_fsq.js` asynchronously runs the actual FSQ scalar transform in a WebGPU compute shader:
-
-```wgsl
-dst[i] = round(tanh(src[i]) * 1.998) / 2.0;
-```
-
-It compares the GPU result with the CPU reference and reports parity in the top status badge.
-
-Current roles:
-
-- **MuJoCo WASM**: physical simulation
-- **JavaScript/CPU**: tiny PPO / teacher / MLP training
-- **WebGPU**: real FSQ compute parity and browser-GPU capability verification
-- **WebMCP**: semantic agent control
-
-This keeps each technology's role explicit.
-
----
-
-## Fast startup checkpoints
-
-The teaching UI does not recompute the 500-step teacher bootstrap on every page load.
-
-Deterministic bootstrap checkpoints are bundled for the default continuous/VQ/FSQ students, plus a matched 1-token/2-token closed-loop control checkpoint used by the control ablation. They are loaded immediately so the relevant visualization is usable without recomputing teacher imitation on page entry. PPO iterations run after that remain live browser-side learning.
-
-If a checkpoint is unavailable, the lab can fall back to the teacher bootstrap path.
-
----
-
-## Bundled teacher and PPO
-
-A frozen CartPole PPO artifact is included only as a **lab bootstrap teacher**.
-
-It is not a GEAR-SONIC component.
-
-Why use it?
-
-A completely random discrete-token policy often fails before the student can learn a useful physical controller. The teacher gives the toy student a stable initial action prior; the student is then improved using its own SONIC-like tracking PPO loop.
-
-Deterministic native-MuJoCo evidence is stored in `evidence/`.
-
-Current checked results:
-
-| Stage | Result |
-|---|---:|
-| frozen teacher stability | 15 / 15 episodes survive 10 s |
-| teacher ±0.8 m precision | ~0.42 m MAE |
-| FSQ student after bootstrap | 12 / 12 survive 10 s, ~0.201 m MAE |
-| FSQ student + 20 PPO iterations | ~0.144 m MAE |
-| FSQ student + 30 PPO iterations | ~0.142 m MAE |
-| FSQ student + 50 PPO iterations | regresses to ~0.192 m MAE |
-| two-Encoder alignment +50 steps | latent MSE 0.110 → 0.00258, token agreement 17.2% → 92.2% |
-| temporal capacity +200 steps | 2-token reconstruction MSE ~50% of 1-token |
-| matched closed-loop +10 PPO | 1-token 0.238 m MAE, 2-token 0.507 m MAE |
-
-These are **toy CartPole measurements**, not NVIDIA SONIC benchmark results. The alignment and temporal-token experiments are mechanism ablations, not claims about real G1/SMPL/teleop or globally optimal token counts.
-
----
-
-## Mapping back to GEAR-SONIC
-
-| CartPole SONIC | GEAR-SONIC role |
-|---|---|
-| future [x, ẋ] trajectory | future whole-body motion reference |
-| tiny reference Encoder | G1 / SMPL / teleop motion Encoder |
-| 2-D latent | learned motion latent |
-| VQ / FSQ | discrete motion bottleneck |
-| compact q | universal motion-token representation |
-| [x, ẋ, θ, θ̇] | robot proprioception |
-| Dynamic Decoder | G1 dynamic decoder |
-| scalar force | whole-body joint action |
-| MuJoCo CartPole | humanoid physics / robot |
-| Kinematic Decoder | future-motion reconstruction auxiliary path |
-| Critic + GAE + PPO | physical tracking policy optimization |
-
-What this toy **does not** reproduce:
-
-- G1 morphology and multi-contact dynamics
-- the production SONIC network size
-- real G1/SMPL/teleop modality alignment (the repo contains a two-representation CartPole alignment analogue, not those production modalities)
-- large-scale motion data
-- real actuator/sensor dynamics
-- sim-to-real deployment quality
-- VLA / teleoperation production interfaces
-
----
-
-## Repository structure
-
-```text
-.
-├── index.html                 # interactive UI
-├── app.js                     # fixed teaching shell + WebMCP orchestration
-├── course.js                  # canonical SONIC system-map / concept SSOT
-├── sonic_toy.js               # SONIC-like planner/encoder/token/decoder/PPO
-├── alignment_lab.js           # live two-Encoder representation-alignment experiment
-├── temporal_token_lab.js      # live 1-token vs 2-token reconstruction/capacity experiment
-├── temporal_control_lab.js    # live closed-loop control + measured PPO diagnostics
-├── optimizer_evidence_view.js # matched-budget dots/SD, exact runs and Adam diagnostics
-├── mujoco_sim.js              # native MuJoCo WASM CartPole wrapper
-├── webgpu_fsq.js              # WebGPU FSQ parity kernel
-├── teacher_policy.js          # frozen bootstrap teacher adapter
-├── assets/
-│   ├── teacher_cartpole_ppo.json
-│   ├── student_ae_bootstrap.json
-│   ├── student_vq_bootstrap.json
-│   ├── student_fsq_bootstrap.json
-│   └── temporal_control_bootstrap.json
-├── evidence/                  # deterministic evaluation snapshots, including temporal_control_eval.json and control_optimization_eval.json
-├── scripts/                   # structure, deterministic evaluation, and optimizer-ablation checks
-├── vendor/mujoco/             # pinned MuJoCo 3.14.0 JS/WASM
-└── media/
-    ├── cartpole-sonic-demo.gif
-    └── cartpole-sonic-demo.mp4
-```
-
----
-
-## References
-
-- NVIDIA GEAR-SONIC: https://nvlabs.github.io/GEAR-SONIC/
-- NVIDIA GR00T Whole-Body Control: https://github.com/NVlabs/GR00T-WholeBodyControl
-- ProtoMotions: https://github.com/NVlabs/ProtoMotions
-- FSQ — *Finite Scalar Quantization: VQ-VAE Made Simple*: https://arxiv.org/abs/2309.15505
-- MuJoCo: https://github.com/google-deepmind/mujoco
-- MuJoCo Playground: https://github.com/google-deepmind/mujoco_playground
-
-## Scope
-
-This repository is a learning and research prototype. Its goal is to make the architecture understandable and inspectable, not to claim performance equivalence with GEAR-SONIC or a production humanoid controller.
-
-### v1.1.0 browser and measurement audit
-
-Encoder gradients combine PPO and reconstruction auxiliary terms. Scaling its learning rate changes both contributions; “actor LR” here is not a policy-gradient-only intervention. Critic and auxiliary-decoder learning-rate scales remain 1.
-
-Local periodic `/telemetry` now sends a bounded summary rather than repeatedly serializing full checkpoints and static evidence. Full evidence remains available on explicit `sonic_get_state` reads and in the evidence JSON. The browser audit checks real delivery under the 64 KiB request budget, live two-token force/state changes, matched PPO, reset, 13 registered-tool names, and desktop layout/navigation. Long explanations scroll instead of being silently clipped.
-
-![Matched-budget PPO audit](media/optimizer-budget-50.png)
-
-![Actual Adam, KL and token-change diagnostics](media/optimizer-diagnostics.png)
-
-## Native learned-control result — separate from the browser policy
-
-The original two-iteration native integration check above remains a smoke test, not the latest learning budget. The subsequent [native learning experiment](native/LEARNING.md) uses the **same original SONIC trainer**, with no teacher or hidden stabilizer, and records a 512-iteration run plus separate fixed-checkpoint evaluation.
-
-In 32 separate initial-condition cases, the native policy survived 10 seconds in both clean and specified-impulse conditions. Correct-reference tracking MAE was **0.1073 m**, versus **0.2267 m** with the reference input erased and **0.3590 m** with it sign-reversed while the true target remained unchanged. This distinguishes useful reference-conditioned tracking from merely remaining upright.
-
-[Measured summary](evidence/native_learning/summary.json) · [Per-episode audit](evidence/native_learning/holdout.json) · [Native weights](evidence/native_learning/weights-final.pt)
-
-This is one training initialization, a fixed CartPole plant, a narrow goal range and a 10-second evaluation—not a seed-robust, humanoid or sim-to-real guarantee. The 32-level setting is not established as necessary or optimal. **The browser controller is unchanged:** these native weights are evaluated through Python, not silently substituted into the JavaScript teaching demo.
-
-## SONIC concept gates and conditional embodiment pivot
-
-The [small-environment concept experiments](native/CONCEPTS.md) now test physically recorded motion references, two coordinate representations, actual multi-Encoder routing, frozen shared-Decoder transfer, future-frame interventions and reconstruction-loss removal. Both successful and unsuccessful control paths are preserved in [`evidence/native_concepts/`](evidence/native_concepts/). In the successful transfer path the already verified native Decoder is unchanged; only new Encoders learn its existing token space. This is not a silent replacement of the browser policy or a new teacher-free PPO performance record.
-
-[The pivot contract](native/PIVOT.md) distinguishes an implementation/experiment gap from a missing physical capability. CartPole remains the fast regression environment. A pinned upstream 2R Reacher is prepared for independently actuated joint/interface questions; a planar walker is a separate conditional option for contact questions. Neither has been installed or trained by these changes. CartPole weights, reward, normalization and force units are not universal robot defaults.
-
-### Same-present / same-endpoint temporal audit
-
-The [frozen-policy temporal-information audit](native/TEMPORAL_AUDIT.md) constructs actual nonlinear CartPole maneuvers with identical current state/history and matched terminal full state, but different interior motion. The declared protocol, all accepted/rejected candidates and policy outcomes are stored in [`evidence/temporal_audit/`](evidence/temporal_audit/). No policy training, extra solver dependency, browser change or new robot was introduced. The result distinguishes **reacting to future detail** from **using it better than reduced-cue inputs**; it does not claim optimal anticipation.
+교육용 teacher와 student checkpoint는 이 저장소에 포함되어 있으며, 공개 출처 메타데이터와 원시 실험 파일은 재현성 자료로 보존합니다. 비공개 저장소 이름, 개인 접근 경로, 내부 작업 지시는 일반 학습 설명에 필요하지 않습니다. 과거 Git 이력을 재작성하거나 정당한 원출처를 지우는 방식으로 공개 자료를 정리하지 않습니다.

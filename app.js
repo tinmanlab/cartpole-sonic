@@ -1,3 +1,4 @@
+import { controlSample, controllerIdentity, controllerSummary, blockShape, decoderLayout, decoderConnections, robotGeometry } from "./presentation.js";
 import { MuJoCoCartPole } from "./mujoco_sim.js";
 import {
   SonicToyTrainer,
@@ -105,6 +106,10 @@ function preview(){
   }
   return currentTrainer ? currentTrainer.preview(state(),currentReference(),goal) : null;
 }
+function activeController(p=preview()){
+  const policy=temporalControlActive()?(temporalControlSelected==="two"?temporalControlLab.two:temporalControlLab.one).policy:null;
+  return controllerIdentity(p,currentTrainer?.mode||requiredMode(),policy);
+}
 function setBadge(id,text,ok=true){
   const el=$(id); if(!el) return;
   el.textContent=text;
@@ -174,10 +179,7 @@ function resetSignalHistory(reason="reset"){
 }
 function recordControlSample(p,s){
   if(!p) return;
-  signalHistory.push({
-    t:controlTick*.02,episode:episodeIndex,
-    state:Array.from(s),reference:Array.from(p.ref),z:Array.from(p.z),q:Array.from(p.q),force:p.force,
-  });
+  signalHistory.push({...controlSample(controlTick*.02,s,plannerContext[0],p.ref,p,lastForce,SONIC_TOY_CONSTANTS.STATE_SCALE[0]),episode:episodeIndex});
   controlTick++;
   if(signalHistory.length>MAX_SIGNAL_HISTORY) signalHistory.shift();
 }
@@ -403,7 +405,7 @@ function buildSystemMap(){
     const b=document.createElement("button");b.className="map-node";
     b.classList.toggle("active",!trainingMode&&focus.id===id);
     b.classList.toggle("training-hit",trainingMode&&trainingHits.includes(id));
-    b.innerHTML='<b>'+n.nav+'</b><span class="official">'+n.official+'</span><span class="toy">toy: '+n.toy+'</span>';
+    b.innerHTML='<b>'+n.nav+'</b><span class="official">'+n.official+'</span><span class="toy">browser: '+blockShape(id,activeController(),n.toy)+'</span>';
     b.onclick=()=>{void focusNode(id);};host.appendChild(b);
     if(i<topIds.length-1){const a=document.createElement("span");a.className="map-arrow";a.textContent="→";host.appendChild(a);}
   });
@@ -432,34 +434,37 @@ function buildConceptTabs(){
 function renderSimulation(){
   const c=$("cart"),{ctx,w:W,h:H}=beginCanvas(c);
   ctx.fillStyle="#fff";ctx.fillRect(0,0,W,H);
-  const centerX=W/2,railY=H*.82,pivotY=railY-54,wheelY=railY-11;
-  const scale=Math.min((W-74)/(1.8*2),118),cartW=76,cartH=28;
+  const s=state(),geometry=robotGeometry(W,H,sim.spec?.poleLength||1,s[0],s[2]);
+  const {scale,railY,pivotY,wheelY,cartW,cartH}=geometry,centerX=W/2;
   ctx.strokeStyle="#cbd5e1";ctx.lineWidth=5;ctx.lineCap="round";
-  ctx.beginPath();ctx.moveTo(34,railY);ctx.lineTo(W-34,railY);ctx.stroke();
-  const s=state();drawActual(s[0],s[2]);
+  ctx.beginPath();ctx.moveTo(centerX-1.8*scale,railY);ctx.lineTo(centerX+1.8*scale,railY);ctx.stroke();
+  drawActual();
   const gx=centerX+goal*scale;
   ctx.strokeStyle="#16805d";ctx.lineWidth=2;ctx.setLineDash([5,4]);ctx.beginPath();ctx.moveTo(gx,28);ctx.lineTo(gx,railY);ctx.stroke();ctx.setLineDash([]);
   ctx.fillStyle="#16805d";ctx.font="600 10px system-ui";ctx.textAlign="center";ctx.fillText("goal",gx,22);
-  ctx.fillStyle="#667085";ctx.font="10px system-ui";ctx.textAlign="left";ctx.fillText("actual MuJoCo robot",10,16);
-  function drawActual(x,theta){
-    const cx=centerX+x*scale,L=Math.min(H*.48,126)*(sim.spec?.poleLength||1);
-    const tx=cx+Math.sin(theta)*L,ty=pivotY-Math.cos(theta)*L;
+  ctx.fillStyle="#667085";ctx.font="10px system-ui";ctx.textAlign="left";ctx.fillText("browser MuJoCo WASM robot",10,16);
+  function drawActual(){
+    const {cx,tx,ty}=geometry;
     ctx.strokeStyle="#d64f4f";ctx.lineWidth=7;ctx.beginPath();ctx.moveTo(cx,pivotY);ctx.lineTo(tx,ty);ctx.stroke();
     ctx.fillStyle="#334155";ctx.fillRect(cx-cartW/2,pivotY,cartW,cartH);ctx.fillStyle="#1e293b";
-    for(const dx of [-23,23]){ctx.beginPath();ctx.arc(cx+dx,wheelY,8,0,Math.PI*2);ctx.fill();}
+    for(const dx of [-.19*scale,.19*scale]){ctx.beginPath();ctx.arc(cx+dx,wheelY,.07*scale,0,Math.PI*2);ctx.fill();}
   }
   $("goal").value=goal;$("goalVal").textContent=(goal>=0?"+":"")+fmt(goal,2)+" m";
   $("simPreset").disabled=temporalControlModeRequested();
   $("liveBtn").textContent="Live "+(live?"ON":"OFF");$("liveBtn").classList.toggle("active",live);
-  $("vX").textContent=fmt(s[0],3)+" m";$("vXd").textContent=fmt(s[1],3);
-  $("vTh").textContent=fmt(s[2]*180/Math.PI,1)+"°";$("vThd").textContent=fmt(s[3]*180/Math.PI,1);
+  $("vX").textContent=fmt(s[0],3)+" m";$("vXd").textContent=fmt(s[1],3)+" m/s";
+  $("vTh").textContent=fmt(s[2]*180/Math.PI,1)+"°";$("vThd").textContent=fmt(s[3]*180/Math.PI,1)+" °/s";
   $("vForce").textContent=fmt(lastForce,2)+" N";
-  $("episodeStatus").textContent="ep "+episodeIndex+" · t="+fmt(controlTick*.02,2)+"s"+(autoResetCount?" · ↻"+autoResetCount:"");
+  $("episodeStatus").textContent="ep "+episodeIndex+" · trace="+fmt(controlTick*.02,2)+"s"+(autoResetCount?" · ↻"+autoResetCount:"");
   $("episodeStatus").title=lastEpisodeEvent;
+  const identity=activeController();
+  $("activeController").textContent="현재 제어기 · "+controllerSummary(identity);
   if($("simNote")){
     $("simNote").innerHTML=temporalControlActive()
-      ?("<b>Closed-loop ablation:</b> actual MuJoCo is currently driven by the <b>"+(temporalControlSelected==="two"?"2-token":"1-token")+"</b> controller. Both use the same reference and measured proprioception.")
-      :"Robot world는 measured state만 표시한다. future reference / latent / token은 별도 세계다.";
+      ?("<b>Closed-loop ablation:</b> 브라우저 MuJoCo WASM 시뮬레이션은 현재 <b>"+(temporalControlSelected==="two"?"2-token":"1-token")+"</b> controller로 구동된다. 두 제어기는 같은 목표 궤적과 측정 상태를 사용한다.")
+      :"LIVE 브라우저 계산: 현재 수업에 따라 AE·VQ·FSQ 제어기가 바뀐다. temporal 표현·alignment 학습은 별도 실험이며 왼쪽 제어기를 갱신하지 않는다.";
+    $("simNote").innerHTML+="<br>상태를 그린 2D 도식이다. 화면 배율과 바퀴 그림은 물리 asset 자체가 아니다.";
+    if(preset!=="playground"||Math.abs(goal)>.8)$("simNote").innerHTML+="<br><b>범위 주의:</b> 기본 모델·목표 범위 밖에서는 저장된 평가 성능을 보장하지 않는다.";
   }
 }
 
@@ -635,7 +640,7 @@ function renderVqvaeViz(){
         '<tr><td>some codes may never be selected</td><td>capacity is wasted</td><td>dead-code / collapse management</td></tr>'+
       '</tbody></table>'+
     '</div>',
-    '<b>LIVE values + training explanation.</b> 현재 z/q/reconstruction 값은 실제 toy model에서 오지만, Live 버튼은 reference만 움직이고 weight를 재학습하지 않는다. 아래 표가 VQ-VAE training 시 필요한 STE · commitment · codebook update · dead-code 문제를 설명한다. FSQ는 이 learned-codebook machinery를 제거한다.',
+    '<b>LIVE values + training explanation.</b> 현재 z/q/reconstruction 값은 실제 toy model에서 오지만, Live 버튼은 선택한 브라우저 제어기로 물리 시뮬레이션과 목표 궤적을 진행하며 weight를 재학습하지 않는다. 아래 표가 VQ-VAE training 시 필요한 STE · commitment · codebook update · dead-code 문제를 설명한다. FSQ는 이 learned-codebook machinery를 제거한다.',
     ["current code="+code,"recon MSE="+recon,"STE","commitment","codebook update"]
   );
 }
@@ -867,7 +872,7 @@ function renderTemporalControlViz(){
         '</div>'+
       '</div>'+
     '</div>',
-    '<b>LIVE closed-loop control ablation.</b> 왼쪽 actual MuJoCo robot은 선택한 controller가 직접 구동한다. 두 controller는 같은 future reference, same proprioception, 같은 teacher bootstrap/PPO budget을 사용한다. representation 이득이 control 이득으로 자동 전이되는지 직접 분리 검증한다.',
+    '<b>주황 = 1-token, 파랑 = 2-token. 실선·점 = 현재 브라우저 평가, 옅은 점선 = 저장된 평가.</b><br>왼쪽 MuJoCo WASM 시뮬레이션은 선택한 교육용 제어기가 구동한다. 두 제어기의 reference·현재 상태·teacher bootstrap·PPO 예산을 맞춰 비교한다. 복원이 좋아져도 제어가 자동으로 좋아지는 것은 아니다.',
     ["selected="+temporalControlSelected+"-token","1-token q dim=2","2-token q dim=4","matched 300-step teacher bootstrap"]
   );
   requestAnimationFrame(()=>{
@@ -886,39 +891,44 @@ function renderMotionDecoderViz(){
 }
 function renderControlDecoderViz(){
   const c=$("lessonViz"),{ctx,w,h}=beginCanvas(c),p=preview(),s=state(),hist=signalHistory.filter(x=>x.episode===episodeIndex);
-  const topH=175;
+  const topH=220,layout=decoderLayout(w);
   const boxes=[
-    {x:45,w:150,title:"motion token q",text:p?"["+p.q.map(v=>fmt(v,2)).join(", ")+"]":"—",color:"#315dc9"},
-    {x:240,w:190,title:"actual proprioception",text:"["+s.map(v=>fmt(v,2)).join(", ")+"]",color:"#667085"},
-    {x:480,w:170,title:"Dynamic Decoder",text:"token + state",color:"#795fc5"},
-    {x:700,w:120,title:"force",text:p?fmt(p.force,2)+" N":"—",color:"#16805d"},
+    {title:"motion token q",text:p?"["+p.q.map(v=>fmt(v,2)).join(", ")+"]":"—",color:"#315dc9"},
+    {title:"measured state",text:"x="+fmt(s[0],2)+" m · ẋ="+fmt(s[1],2)+" m/s",text2:"θ="+fmt(s[2],2)+" rad · θ̇="+fmt(s[3],2)+" rad/s",color:"#667085"},
+    {title:"Dynamic Decoder",text:"token + measured state",color:"#795fc5"},
+    {title:"다음 힘 · next force",text:p?fmt(p.force,2)+" N":"—",color:"#16805d"},
   ];
-  for(const b of boxes){ctx.strokeStyle=b.color;ctx.lineWidth=2;ctx.strokeRect(b.x,45,b.w,78);ctx.fillStyle="#172033";ctx.font="700 11px system-ui";ctx.fillText(b.title,b.x+8,66);ctx.fillStyle="#596273";ctx.font="10px ui-monospace";ctx.fillText(b.text,b.x+8,92);}
-  ctx.fillStyle="#9aa3af";ctx.font="20px system-ui";ctx.fillText("+",218,88);ctx.fillText("→",446,88);ctx.fillText("→",672,88);
-  const pad={l:52,r:25,t:topH+25,b:40},pts=hist.length?hist:[{t:0,force:p?.force||0}],tMax=Math.max(.2,...pts.map(x=>x.t)),maxF=Math.max(10,...pts.map(x=>Math.abs(x.force)));
+  boxes.forEach((b,i)=>{const r=layout[i];ctx.strokeStyle=b.color;ctx.lineWidth=2;ctx.strokeRect(r.x,r.y,r.w,r.h);ctx.fillStyle="#172033";ctx.font="700 12px system-ui";ctx.fillText(b.title,r.x+8,r.y+22);ctx.fillStyle="#596273";ctx.font="11px system-ui";ctx.fillText(b.text,r.x+8,r.y+44);if(b.text2)ctx.fillText(b.text2,r.x+8,r.y+62);});
+  ctx.strokeStyle="#7b8492";ctx.fillStyle="#7b8492";ctx.lineWidth=1.5;
+  for(const edge of decoderConnections(w)){
+    ctx.beginPath();edge.points.forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y));ctx.stroke();
+    const [x,y]=edge.points.at(-1);
+    if(edge.arrow){ctx.beginPath();ctx.moveTo(x,y);if(edge.arrow==="down"){ctx.lineTo(x-4,y-6);ctx.lineTo(x+4,y-6);}else{ctx.lineTo(x-6,y-4);ctx.lineTo(x-6,y+4);}ctx.closePath();ctx.fill();}
+  }
+  const pad={l:52,r:25,t:topH+25,b:40},pts=hist.length?hist:[{t:0,force:lastForce}],tMax=Math.max(.2,...pts.map(x=>x.t)),maxF=Math.max(10,...pts.map(x=>Math.abs(x.force)));
   const X=t=>pad.l+t/tMax*(w-pad.l-pad.r),Y=v=>h-pad.b-(v+maxF)/(2*maxF)*(h-pad.t-pad.b);
   ctx.strokeStyle="#e9ecf1";ctx.beginPath();ctx.moveTo(pad.l,Y(0));ctx.lineTo(w-pad.r,Y(0));ctx.stroke();
   ctx.strokeStyle="#16805d";ctx.lineWidth=2.5;ctx.beginPath();pts.forEach((x,i)=>{const px=X(x.t),py=Y(x.force);i?ctx.lineTo(px,py):ctx.moveTo(px,py);});ctx.stroke();
   const lastPt=pts.at(-1);ctx.fillStyle="#16805d";ctx.beginPath();ctx.arc(X(lastPt.t),Y(lastPt.force),4,0,Math.PI*2);ctx.fill();
-  ctx.fillStyle="#667085";ctx.font="10px system-ui";ctx.fillText("actual action / force history",pad.l,pad.t-8);
+  ctx.fillStyle="#667085";ctx.font="10px system-ui";ctx.fillText("applied command history (N), sample time (s)",pad.l,pad.t-8);
   $("vizCaption").innerHTML='<b>LIVE Robot Control Decoder.</b> q는 motor command가 아니다. Push는 reference/token을 유지한 채 actual proprioception만 바꾸므로 action이 어떻게 달라지는지 바로 확인할 수 있다.';
-  setMetrics(["token="+(p?"["+p.q.map(v=>fmt(v,2)).join(",")+"]":"—"),"θ="+fmt(s[2]*180/Math.PI,1)+"°","force="+fmt(p?.force,2)+"N"]);
+  setMetrics(["token="+(p?"["+p.q.map(v=>fmt(v,2)).join(",")+"]":"—"),"θ="+fmt(s[2]*180/Math.PI,1)+"°","planned next="+fmt(p?.force,2)+" N","last applied="+fmt(lastForce,2)+" N"]);
 }
 function renderRobotTrackingViz(){
   const c=$("lessonViz"),{ctx,w,h}=beginCanvas(c),hist=signalHistory.filter(x=>x.episode===episodeIndex),p=preview();
-  const pts=hist.length?hist:[{t:0,state:state(),reference:Array.from(currentReference()),force:p?.force||0}];
+  const pts=hist.length?hist:[{t:0,state:state(),reference:Array.from(currentReference()),referenceNow:plannerContext[0],force:lastForce}];
   const pad={l:55,r:24,t:34,b:45},gap=30,panelH=(h-pad.t-pad.b-gap)/2,tMax=Math.max(.2,...pts.map(x=>x.t));
   const X=t=>pad.l+t/tMax*(w-pad.l-pad.r);
   const top1=pad.t,Y1=v=>top1+panelH/2-v/1.8*(panelH*.45);
   ctx.strokeStyle="#eef0f3";ctx.beginPath();ctx.moveTo(pad.l,Y1(0));ctx.lineTo(w-pad.r,Y1(0));ctx.stroke();
   const draw=(get,color,dash=[])=>{ctx.strokeStyle=color;ctx.lineWidth=2.3;ctx.setLineDash(dash);ctx.beginPath();pts.forEach((s,i)=>{const x=X(s.t),y=Y1(get(s));i?ctx.lineTo(x,y):ctx.moveTo(x,y);});ctx.stroke();ctx.setLineDash([]);};
-  draw(s=>s.state[0],"#d64f4f");draw(s=>s.reference[0]*SONIC_TOY_CONSTANTS.STATE_SCALE[0],"#315dc9",[6,4]);
-  ctx.fillStyle="#667085";ctx.font="10px system-ui";ctx.fillText("x tracking: red actual · blue dashed reference(+80ms)",pad.l,top1+12);
+  draw(s=>s.state[0],"#d64f4f");draw(s=>s.referenceNow,"#315dc9",[6,4]);draw(s=>s.reference[0]*SONIC_TOY_CONSTANTS.STATE_SCALE[0],"#b76a12",[2,5]);
+  ctx.fillStyle="#667085";ctx.font="10px system-ui";ctx.fillText("x (m): red measured · blue target now · amber +80ms preview",pad.l,top1+12);
   const top2=pad.t+panelH+gap,maxF=10,Y2=v=>top2+panelH/2-v/maxF*(panelH*.44);
   ctx.strokeStyle="#eef0f3";ctx.beginPath();ctx.moveTo(pad.l,Y2(0));ctx.lineTo(w-pad.r,Y2(0));ctx.stroke();
   ctx.strokeStyle="#16805d";ctx.lineWidth=2.3;ctx.beginPath();pts.forEach((s,i)=>{const x=X(s.t),y=Y2(s.force);i?ctx.lineTo(x,y):ctx.moveTo(x,y);});ctx.stroke();
-  ctx.fillStyle="#667085";ctx.fillText("control force",pad.l,top2+12);
-  const err=p?Math.abs(state()[0]-p.ref[0]*SONIC_TOY_CONSTANTS.STATE_SCALE[0]):NaN;
+  ctx.fillStyle="#667085";ctx.fillText("applied command (N) · sample time (s)",pad.l,top2+12);
+  const err=p?Math.abs(state()[0]-plannerContext[0]):NaN;
   $("vizCaption").innerHTML='<b>LIVE closed-loop result.</b> actual robot과 desired reference는 같은 것이 아니다. Dynamic Decoder action이 physics를 바꾸고 measured state가 다시 feedback된다.';
   setMetrics(["current x error="+fmt(err,3)+"m","episode="+episodeIndex,"auto resets="+autoResetCount]);
 }
@@ -928,18 +938,18 @@ function renderTrainingFlowViz(){
       '<div class="training-box main"><b>Physics rollout</b><br>reference + current state → action → MuJoCo</div>'+
       '<div class="training-box main"><b>PPO loss</b><br>tracking reward / advantage → Dynamic Decoder + Encoder</div>'+
       '<div class="training-box aux"><b>Reconstruction aux</b><br>token → Kinematic Decoder → future motion</div>'+
-      '<div class="training-box aux"><b>Latent alignment aux</b><br>G1 ↔ SMPL ↔ teleop encoders share semantics</div>'+
+      '<div class="training-box aux"><b>Concept-only: official alignment</b><br>G1 robot / SMPL human body / teleoperation encoders; separate browser demo</div>'+
       '<div class="training-box"><b>Critic</b><br>value / return loss for PPO</div>'+
       '<div class="training-box"><b>FSQ</b><br>fixed levels; STE passes gradient, no learned codebook</div>'+
-    '</div><div class="flow-diagram"><div class="flow-row"><div class="flow-box accent"><strong>Total update</strong><span>PPO + weighted auxiliary losses</span></div></div></div></div>',
-    'SONIC training은 reconstruction 하나가 아니라 <b>physical PPO + representation auxiliary losses</b>를 함께 사용한다. deployment runtime graph와 training graph를 섞어 보지 않는 것이 중요하다.',
+    '</div><div class="flow-diagram"><div class="flow-row"><div class="flow-box accent"><strong>LIVE browser update</strong><span>PPO + reconstruction; alignment demo is separate</span></div></div></div></div>',
+    'Concept-only 공식 구조와 LIVE 브라우저 학습을 구분한다. 브라우저 PPO(Proximal Policy Optimization, 정책 개선)와 reconstruction(입력 복원)만 왼쪽 제어기를 갱신한다. alignment(표현 정렬)는 별도 교육 실험이다. SONIC training은 reconstruction 하나가 아니라 <b>physical PPO + representation auxiliary losses</b>를 함께 사용한다. deployment runtime graph와 training graph를 섞어 보지 않는 것이 중요하다.',
     ["PPO = physical tracking","aux = representation","FSQ = fixed bottleneck"]
   );
 }
 function renderLearningGraphViz(){
   showHtml(
     '<table class="compare-table"><thead><tr><th>Module</th><th>Trainable?</th><th>Main signal</th><th>What changes?</th></tr></thead><tbody>'+
-    '<tr><td><b>Encoder(s)</b></td><td>YES</td><td>PPO + reconstruction + latent alignment</td><td>reference/modality → latent mapping</td></tr>'+
+    '<tr><td><b>Encoder(s)</b></td><td>YES</td><td>Browser: PPO + reconstruction; alignment demo separately</td><td>reference/modality → latent mapping</td></tr>'+
     '<tr><td><b>FSQ</b></td><td><b>NO</b></td><td>STE backward only</td><td>fixed levels do not move</td></tr>'+
     '<tr><td><b>Dynamic Decoder</b></td><td>YES</td><td>PPO tracking</td><td>token + state → action mapping</td></tr>'+
     '<tr><td><b>Kinematic Decoder</b></td><td>YES</td><td>reconstruction aux</td><td>token → future motion mapping</td></tr>'+
@@ -1032,6 +1042,7 @@ function renderAlignmentViz(){
 
 function renderOptimizerEvidenceViz(){
   renderOptimizerEvidencePanel({evidence:optimizerEvidence,showHtml,beginCanvas,rerender:render});
+  $("vizCaption").innerHTML+='<br><b>Saved evidence:</b> 저장된 결과는 LIVE 계산과 별개다. Python native matched-cue 결과는 이 애니메이션에서 실행하지 않는다. <a href="https://github.com/tinmanlab/cartpole-sonic/blob/main/native/MATCHED_CUES.md">별도 native 검증 문서</a>';
 }
 function renderTrainingViz(){
   const c=$("lessonViz"),{ctx,w,h}=beginCanvas(c);
@@ -1063,7 +1074,8 @@ function renderVisualization(){
   clearViz();
   buildConceptTabs();
   const kind=visualizationKind(),vm=$("vizMode");
-  vm.textContent=kind==="live"?"LIVE · current toy state":kind==="evidence"?"EVIDENCE · deterministic repo ablation":"CONCEPT · explanatory, not toy runtime data";
+  vm.textContent=kind==="live"?"LIVE browser calculation":kind==="evidence"?"Saved evidence":"Concept-only";
+  vm.title=kind==="evidence"?"EVIDENCE · deterministic repo ablation":kind==="live"?"Values calculated by the browser teaching implementation":"Explanatory architecture concept";
   vm.className="viz-mode "+kind;
   if(trainingMode){
     $("vizTitle").textContent=trainingTopic.title;
@@ -1126,11 +1138,11 @@ function guideData(){
   return {
     kicker:concept?("CONCEPT INSIDE · "+focus.nav):("SONIC SYSTEM BLOCK · "+focus.nav),
     title:concept?concept.title:focus.title,
-    map:"Official block: "+focus.official+" · CartPole mapping: "+focus.toy,
+    map:"Official architecture concept: "+focus.official+" · Browser baseline: "+(conceptId==="temporal-control"?"1-token q2 / 2-token q4 comparison":focus.toy),
     input:concept?.input||focus.input,output:concept?.output||focus.output,
     question:concept?.question||focus.question,
     concept,
-    details:RUNTIME_DETAILS[focus.id]||{}
+    details:conceptId==="temporal-control"?{...RUNTIME_DETAILS[focus.id],toyShape:CONCEPT_TEXT["temporal-control"].toyShape}:RUNTIME_DETAILS[focus.id]||{}
   };
 }
 function guideLiveValues(){
@@ -1157,9 +1169,9 @@ function guideLiveValues(){
     case "task":
       return [cell("goal x*",fmt(goal,2)+" m"),cell("Live",live?"ON":"OFF"),cell("episode",episodeIndex),cell("preset",preset)];
     case "generator":
-      return [cell("planner x",fmt(plannerContext[0],3)+" m"),cell("planner ẋ",fmt(plannerContext[1],3)),cell("ref +80ms",fmt(ref[0]*SONIC_TOY_CONSTANTS.STATE_SCALE[0],3)+" m"),cell("horizon","0.64 s")];
+      return [cell("planner x",fmt(plannerContext[0],3)+" m"),cell("planner ẋ",fmt(plannerContext[1],3)+" m/s"),cell("ref +80ms",fmt(ref[0]*SONIC_TOY_CONSTANTS.STATE_SCALE[0],3)+" m"),cell("horizon","0.64 s")];
     case "reference":
-      return [cell("input dim","16"),cell("frame 1 x",fmt(ref[0]*SONIC_TOY_CONSTANTS.STATE_SCALE[0],3)),cell("frame 1 ẋ",fmt(ref[1]*SONIC_TOY_CONSTANTS.STATE_SCALE[1],3)),cell("actual x",fmt(s[0],3))];
+      return [cell("input dim","16"),cell("frame 1 x",fmt(ref[0]*SONIC_TOY_CONSTANTS.STATE_SCALE[0],3)+" m"),cell("frame 1 ẋ",fmt(ref[1]*SONIC_TOY_CONSTANTS.STATE_SCALE[1],3)+" m/s"),cell("measured x",fmt(s[0],3)+" m")];
     case "encoder":
       return [cell("z₁",fmt(p?.z?.[0],3)),cell("z₂",fmt(p?.z?.[1],3)),cell("recon MSE",fmt(reconstructionError(p,ref),4)),cell("mode",requiredMode())];
     case "quantizer":
@@ -1175,12 +1187,12 @@ function guideLiveValues(){
       }
       return [cell("q₁",fmt(p?.q?.[0],2)),cell("q₂",fmt(p?.q?.[1],2)),cell("toy token","2 values"),cell("SONIC release","64 flattened")];
     case "motion-decoder":
-      return [cell("recon MSE",fmt(reconstructionError(p,ref),4)),cell("recon x₁",fmt((p?.kinRecon?.[0]??NaN)*SONIC_TOY_CONSTANTS.STATE_SCALE[0],3)),cell("target x₁",fmt(ref[0]*SONIC_TOY_CONSTANTS.STATE_SCALE[0],3)),cell("token",p?"["+p.q.map(v=>fmt(v,2)).join(",")+"]":"—")];
+      return [cell("recon MSE",fmt(reconstructionError(p,ref),4)),cell("recon x₁",fmt((p?.kinRecon?.[0]??NaN)*SONIC_TOY_CONSTANTS.STATE_SCALE[0],3)+" m"),cell("target x₁",fmt(ref[0]*SONIC_TOY_CONSTANTS.STATE_SCALE[0],3)+" m"),cell("token",p?"["+p.q.map(v=>fmt(v,2)).join(",")+"]":"—")];
     case "control-decoder":
-      return [cell("token",p?"["+p.q.map(v=>fmt(v,2)).join(",")+"]":"—"),cell("θ",fmt(s[2]*180/Math.PI,1)+"°"),cell("ẋ",fmt(s[1],3)),cell("force",fmt(p?.force,2)+" N")];
+      return [cell("token",p?"["+p.q.map(v=>fmt(v,2)).join(",")+"]":"—"),cell("θ",fmt(s[2]*180/Math.PI,1)+"°"),cell("ẋ",fmt(s[1],3)+" m/s"),cell("planned next",fmt(p?.force,2)+" N")];
     case "robot":
-      const rx=p?p.ref[0]*SONIC_TOY_CONSTANTS.STATE_SCALE[0]:NaN;
-      return [cell("actual x",fmt(s[0],3)+" m"),cell("ref +80ms",fmt(rx,3)+" m"),cell("|error|",fmt(Math.abs(s[0]-rx),3)+" m"),cell("force",fmt(lastForce,2)+" N")];
+      const rx=plannerContext[0];
+      return [cell("actual x",fmt(s[0],3)+" m"),cell("target now",fmt(rx,3)+" m"),cell("preview +80ms",fmt(p?.ref[0]*SONIC_TOY_CONSTANTS.STATE_SCALE[0],3)+" m"),cell("|error|",fmt(Math.abs(s[0]-rx),3)+" m"),cell("last applied",fmt(lastForce,2)+" N")];
     default:return [];
   }
 }
@@ -1299,6 +1311,7 @@ function renderPreload(){
 
   const kind=visualizationKind(),vm=$("vizMode");
   vm.textContent=kind==="live"?"LIVE · waiting for MuJoCo/model":kind==="evidence"?"EVIDENCE · loading deterministic repo ablation":"CONCEPT · explanatory, not toy runtime data";
+  vm.title=kind==="evidence"?"EVIDENCE · deterministic repo ablation":kind==="live"?"Values calculated by the browser teaching implementation":"Explanatory architecture concept";
   vm.className="viz-mode "+kind;
 
   if(kind==="evidence"){
@@ -1328,7 +1341,7 @@ function renderPreload(){
   }else{
     clearViz();
     $("vizTitle").textContent=(conceptId&&conceptId!=="core"&&CONCEPT_TEXT[conceptId])?CONCEPT_TEXT[conceptId].title:focus.title;
-    $("vizSub").textContent="Loading native MuJoCo WASM + student checkpoint…";
+    $("vizSub").textContent="Loading browser MuJoCo WASM + student checkpoint…";
     showHtml(
       '<div style="height:100%;display:grid;place-items:center"><div style="text-align:center"><b style="font-size:15px">Preparing live visualization</b><div style="margin-top:8px;color:#667085;font-size:11px">MuJoCo physics and the precomputed student checkpoint are loading.<br>The SONIC block explanation is already available on the right.</div></div></div>',
       'LIVE visualization will appear as soon as the actual model state is available.',
@@ -1354,22 +1367,22 @@ function systemSnapshot(){
       trainingTopic:trainingMode?trainingTopic.id:null,
       outline:getSystemOutline(),
     },
-    experiment:{goal,live,preset,representationMode:requiredMode(),episode:episodeIndex,autoResets:autoResetCount,lastEpisodeEvent},
+    experiment:{goal,live,preset,busy,representationMode:requiredMode(),episode:episodeIndex,autoResets:autoResetCount,lastEpisodeEvent},
     semantics:{
       reference:"desired future motion upstream of Encoder/FSQ; not measured robot state",
       latent:"continuous Encoder output",
       token:"post-VQ/FSQ quantized numeric motion representation; not motor command",
       proprioception:"measured actual robot state",
-      action:"Robot Control/Dynamic Decoder output applied to physics",
+      action:"force is planned next command; lastAppliedForce is the last actuator command (N)",
       motionDecoder:"token → reconstructed future motion; auxiliary/kinematic role",
     },
     signals:{
-      reference:Array.from(ref),latent:p?.z||null,token:p?.q||null,proprioception:s,actionMean:p?.mu??null,force:p?.force??null,
+      timeBase:"seconds since signal trace reset",simulationTime:sim.data?.time??null,sampleTime:controlTick*.02,targetTime:controlTick*.02,referenceNow:plannerContext[0],previewTargetTime:controlTick*.02+.08,referencePreview:ref[0]*SONIC_TOY_CONSTANTS.STATE_SCALE[0],plannedForce:p?.force??null,lastAppliedForce:lastForce,activeController:activeController(p),drawing:robotGeometry($("cart").clientWidth,$("cart").clientHeight,sim.spec?.poleLength||1,s[0],s[2]),reference:Array.from(ref),latent:p?.z||null,token:p?.q||null,proprioception:s,actionMean:p?.mu??null,force:p?.force??null,
       kinematicReconstruction:p?.kinRecon||null,
-      liveHistory:signalHistory.slice(-80).map(x=>({t:x.t,episode:x.episode,z:x.z,q:x.q,force:x.force,state:x.state,reference:x.reference}))
+      liveHistory:signalHistory.slice(-80).map(x=>({...x}))
     },
     modelSemantics:{
-      encoder:{trainable:true,signals:["PPO","reconstruction auxiliary","cross-encoder latent alignment"]},
+      encoder:{trainable:true,signals:["PPO","reconstruction auxiliary"],separateDemo:"cross-encoder latent alignment"},
       fsq:{trainable:false,levels:"fixed",gradient:"STE through rounding; no learned vector codebook"},
       dynamicDecoder:{trainable:true,signals:["PPO tracking objective"]},
       kinematicDecoder:{trainable:true,signals:["future-motion reconstruction auxiliary loss"]},
@@ -1422,13 +1435,13 @@ async function registerWebMCP(){
     {name:"sonic_open_training",description:"Open a training-only topic without pretending it is part of the deployment runtime graph.",inputSchema:{type:"object",properties:{topic_id:{type:"string",enum:trainingIds}},required:["topic_id"]},annotations:{readOnlyHint:false},execute:async({topic_id})=>{await openTraining(topic_id);return systemSnapshot();}},
     {name:"sonic_set_explanation_depth",description:"Switch the right-side explanation between easy intuition, internal mechanism, and actual SONIC structure.",inputSchema:{type:"object",properties:{depth:{type:"string",enum:["easy","mechanism","sonic"]}},required:["depth"]},annotations:{readOnlyHint:false},execute:async({depth})=>{setGuideDepth(depth);return systemSnapshot();}},
     {name:"sonic_run_focus_action",description:"Run the canonical experiment for the currently focused block.",inputSchema:{type:"object",properties:{}},annotations:{readOnlyHint:false},execute:async()=>{await runFocusAction();return systemSnapshot();}},
-    {name:"simulation_control",description:"Control the shared actual MuJoCo robot.",inputSchema:{type:"object",properties:{action:{type:"string",enum:["step","live_on","live_off","push","reset"]},steps:{type:"integer",minimum:1,maximum:100}},required:["action"]},annotations:{readOnlyHint:false},execute:async({action,steps=1})=>{if(action==="step")stepPolicy(steps);else if(action==="live_on"){live=true;render();}else if(action==="live_off"){live=false;render();}else if(action==="push")pushRobot();else if(action==="reset")resetRobot();return systemSnapshot();}},
+    {name:"simulation_control",description:"Control the shared browser MuJoCo WASM robot.",inputSchema:{type:"object",properties:{action:{type:"string",enum:["step","live_on","live_off","push","reset"]},steps:{type:"integer",minimum:1,maximum:100}},required:["action"]},annotations:{readOnlyHint:false},execute:async({action,steps=1})=>{if(action==="step")stepPolicy(steps);else if(action==="live_on"){live=true;render();}else if(action==="live_off"){live=false;render();}else if(action==="push")pushRobot();else if(action==="reset")resetRobot();return systemSnapshot();}},
     {name:"experiment_set_goal",description:"Set the high-level task goal used by the motion generator.",inputSchema:{type:"object",properties:{x:{type:"number",minimum:-1.2,maximum:1.2}},required:["x"]},annotations:{readOnlyHint:false},execute:async({x})=>{setGoal(x);return systemSnapshot();}},
     {name:"training_run",description:"Run bounded PPO iterations on the current student policy.",inputSchema:{type:"object",properties:{iterations:{type:"integer",minimum:1,maximum:30}},required:["iterations"]},annotations:{readOnlyHint:false},execute:async({iterations})=>{await runPPO(iterations);return systemSnapshot();}},
     {name:"alignment_control",description:"Train or reset the live CartPole multi-encoder alignment lab. The tool first switches to the alignment training view/FSQ student, then aligns a sparse-keypoint Encoder to the frozen full-trajectory Encoder and reports latent/token/action agreement.",inputSchema:{type:"object",properties:{action:{type:"string",enum:["train","reset"]},steps:{type:"integer",minimum:1,maximum:200}},required:["action"]},annotations:{readOnlyHint:false},execute:async({action,steps=50})=>{if(!trainingMode||trainingTopic.id!=="alignment")await openTraining("alignment");if(action==="reset")resetAlignment();else await runAlignment(steps);return systemSnapshot();}},
     {name:"temporal_token_control",description:"Train or reset the live 1-token vs 2-token temporal-slot lab. The tool switches to Universal Token → 1 vs 2 token slots and compares reconstruction capacity without assigning near/far semantics to token indices.",inputSchema:{type:"object",properties:{action:{type:"string",enum:["train","reset"]},steps:{type:"integer",minimum:1,maximum:250}},required:["action"]},annotations:{readOnlyHint:false},execute:async({action,steps=50})=>{if(trainingMode||focus.id!=="token"||conceptId!=="temporal")await focusNode("token","temporal");if(action==="reset")resetTemporalTokenLab();else await runTemporalTokenTraining(steps);return systemSnapshot();}},
     {name:"temporal_control_control",description:"Operate the matched 1-token vs 2-token closed-loop control ablation. Switches to Universal Token → Closed-loop 1 vs 2 on the default Playground model, can select which controller drives the shared MuJoCo robot, train both with the same PPO budget, or reset to the matched teacher-bootstrap checkpoint.",inputSchema:{type:"object",properties:{action:{type:"string",enum:["train","reset","select"]},steps:{type:"integer",minimum:1,maximum:30},controller:{type:"string",enum:["one","two"]}},required:["action"]},annotations:{readOnlyHint:false},execute:async({action,steps=5,controller="one"})=>{if(!temporalControlModeRequested())await focusNode("token","temporal-control");await ensureTemporalControlLabReady();if(action==="reset")resetTemporalControlLab();else if(action==="select")selectTemporalController(controller);else await runTemporalControlPPO(steps);return systemSnapshot();}},
-    {name:"simulation_set_model",description:"Switch native MuJoCo CartPole dynamics/morphology preset.",inputSchema:{type:"object",properties:{preset:{type:"string",enum:["playground","long","heavy"]}},required:["preset"]},annotations:{readOnlyHint:false},execute:async({preset})=>{await changePreset(preset);return systemSnapshot();}}
+    {name:"simulation_set_model",description:"Switch browser MuJoCo WASM CartPole dynamics/morphology preset.",inputSchema:{type:"object",properties:{preset:{type:"string",enum:["playground","long","heavy"]}},required:["preset"]},annotations:{readOnlyHint:false},execute:async({preset})=>{await changePreset(preset);return systemSnapshot();}}
   ];
   for(const t of tools)await mc.registerTool(t);webmcpTools=tools.map(t=>t.name);renderHeaderState();
 }

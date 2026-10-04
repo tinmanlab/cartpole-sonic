@@ -1,52 +1,51 @@
-# Native SONIC core: what is actually connected?
+# 공식 SONIC 모듈 연결 검증
 
-This page describes `core_smoke.py`, the **first native-code gate**, not a trained CartPole controller.
-For the subsequent actual trainer/physics integration, see [TRAINING.md](TRAINING.md).
-It imports the unmodified official `UniversalTokenModule`, its `BaseModule` Encoder/Decoders, and the actual `vector_quantize_pytorch.FSQ` dependency. No local neural-network, FSQ or PPO replacement is used in this path.
+이 문서는 **`core_smoke.py`라는 작은 연결 검사**를 설명합니다. 전체 native 경로의 최신 성능 보고서는 아닙니다. 실제 학습기 연결은 [TRAINING.md](TRAINING.md), 학습된 정책은 [LEARNING.md](LEARNING.md), 표현·공유 Decoder 비교는 [CONCEPTS.md](CONCEPTS.md)를 참고하세요.
 
-## 쉽게 이해하기
+브라우저는 SONIC 원리를 설명하는 별도 JavaScript 모델입니다. 이 Python 검사는 고정된 공식 소스의 `UniversalTokenModule`과 `BaseModule`, 실제 `vector_quantize_pytorch.FSQ`를 불러옵니다. 이름만 같은 신경망·양자화 함수를 다시 작성한 경로가 아닙니다.
 
-기존 브라우저는 **SONIC의 구조를 설명하려고 따로 만든 작은 모델**입니다. 이 디렉터리는 **공식 SONIC 부품을 직접 연결해 전기 신호가 통하는지 확인하는 단계**에 해당합니다.
+## 이 검사에서 실제로 하는 일
 
 ```text
-8개 미래 [위치, 속도] 프레임 (16개 수)
-    ↓ 공식 BaseModule Encoder
-공식 FSQ → 실제 양자화된 token
-    ├─ + 현재 [위치, 속도, 기울기, 각속도]
-    │      ↓ 공식 BaseModule Dynamic Decoder
-    │   CartPole용 출력 1개 — 아직 물리에 적용하지 않음
-    └─ 공식 BaseModule Kinematic Decoder
-        미래 프레임 복원 (16개 수)
+미래 위치·속도 8프레임 — 테스트 입력
+               ↓
+       공식 Encoder와 실제 FSQ
+               ↓
+       양자화된 token
+          ┌────┴────┐
+          ↓         ↓
+현재 상태와 결합   Kinematic Decoder
+          ↓         ↓
+ Dynamic Decoder  미래 프레임 복원
+          ↓
+        출력 1개
 ```
 
-동일한 미래 reference에서 현재 상태만 바꾸면 **token은 그대로이고 출력만 달라집니다**. token은 현재 상태 자체가 아니라 원하는 움직임의 표현이라는 분리를 실제 공식 코드 경계에서 확인합니다.
+**순전파**는 입력으로부터 출력을 계산하는 과정입니다. **역전파**는 출력 오차의 gradient가 필요한 앞쪽 모듈에 전달되는지 계산하는 과정입니다. 이 검사에서는 둘 다 실행하지만 가중치를 갱신하거나 물리 로봇을 구동하지 않습니다. 출력 하나가 계산된다고 안정적인 힘 제어기를 얻은 것은 아닙니다.
 
-| 단계 | 이 경로가 확인하는 것 | 확인하지 않는 것 |
-|---|---|---|
-| 브라우저 설명용 모델 | 기존 JS/MuJoCo 학습장은 별도로 유지 | 공식 코드로 바뀌었다고 재표기하지 않음 |
-| 공식 모듈 연결 | 원본 클래스·FSQ 호출·입출력 크기·역전파·reference/state 분리 | 학습된 제어 성능 |
-| 공식 학습기 + 물리 CartPole | 후속 gate | 이번 코드에서 실행하지 않음 |
+현재 상태만 바꿨을 때 reference-derived token은 유지되고 행동 출력은 달라지는지 검사합니다. 행동 오차는 Encoder와 Dynamic Decoder로, 복원 오차는 Encoder와 Kinematic Decoder로 전달되는지도 따로 확인합니다.
 
-**순전파**는 입력을 넣어 출력을 계산하는 것입니다. **역전파**는 출력의 오차로부터 앞쪽 Encoder까지 학습 신호가 돌아가는 것입니다. 이것이 통과해도 넘어지지 않는 제어기를 얻었다는 뜻은 아닙니다. 이번에는 optimizer update, 공식 PPO, physical rollout을 모두 0회 실행합니다.
+| 검사 구성 | Token 크기 | 각 scalar의 단계 수 | 출력 / 복원 |
+|---|---:|---:|---|
+| 축소형 1-token | 1 × 2 | 5 | 출력 1개 / 8 × 2 프레임 |
+| 축소형 2-token | 2 × 2 | 5 | 출력 1개 / 8 × 2 프레임 |
+| 공식 release와 같은 token 크기 | 2 × 32 | 32 | 출력 1개 / 8 × 2 프레임 |
 
-## Provenance and intentional adaptations
+마지막 행은 **token 크기만** 대응합니다. 전체 신경망 크기, 입력 종류, 데이터, 가중치와 휴머노이드 성능까지 같다는 뜻은 아닙니다. 이 검사에서 hidden layer는 `[32,32]`로 줄였고, 입력은 결정적인 합성 테스트 데이터입니다.
 
-Upstream: [NVlabs/GR00T-WholeBodyControl](https://github.com/NVlabs/GR00T-WholeBodyControl), pinned to `b042411fae38ee4d1af9aac82a37a1f8d14d6dd0`.
+## 공식 코드 재사용과 변경 사항
 
-- [UniversalTokenModule](https://github.com/NVlabs/GR00T-WholeBodyControl/blob/b042411fae38ee4d1af9aac82a37a1f8d14d6dd0/gear_sonic/trl/modules/universal_token_modules.py) is imported directly from the checkout. Its source file, BaseModule and instantiation helper must be byte-equal to the pinned Git blobs. Wrong revision, dirty source or imports from another location fail.
-- [BaseModule](https://github.com/NVlabs/GR00T-WholeBodyControl/blob/b042411fae38ee4d1af9aac82a37a1f8d14d6dd0/gear_sonic/trl/modules/base_module.py) and upstream encoder/dynamic/kinematic YAML configurations supply the actual network construction. All hidden widths are reduced to `[32,32]`; SiLU activation is retained. CartPole dimensions and every resolved setting appear in the report.
-- Only one encoder, `cartpole`, is configured. No fake SMPL, teleoperation or humanoid motion data is supplied.
-- The dynamic decoder retains the upstream **legacy dispatch key `g1_dyn`**, because `forward()` extracts `action_mean` from that name. The name does not mean a G1 observation, checkpoint or actuator is used. The reconstruction decoder is `cartpole_kin`.
-- FSQ is the actual pinned PyPI package `vector-quantize-pytorch==1.31.6`. The optional `return_indices=False` setting avoids integer-index/implicit-codebook-table construction; quantization itself remains enabled and its invocation is measured. The public code is not patched.
-- The `release-token-shape` case uses **2 tokens × 32 scalars, 32 levels per scalar**. It does **not** reproduce release network widths, all observation features, data, weights, modalities or performance.
-- Inputs are deterministic synthetic CartPole reference/state fixtures. Reference normalization is `[1.8,3.0]`; state normalization is `[1.8,3.0,0.55,4.0]`. Batch 4 and sequence length 2 exercise temporal handling. The output is one raw network coordinate, not a calibrated or safely bounded physical force command.
-- Independent action-squared and reconstruction-MSE probes check gradient paths. They are test losses, **not official SONIC PPO/auxiliary training**. All weights remain unchanged.
+공식 소스는 [NVlabs/GR00T-WholeBodyControl](https://github.com/NVlabs/GR00T-WholeBodyControl/tree/b042411fae38ee4d1af9aac82a37a1f8d14d6dd0)의 지정 commit에 고정합니다. 원본 파일 바이트와 실제 import 위치를 검사하며, 수정된 원본이나 다른 버전이면 실패합니다.
 
-## Run without changing a global Python environment
+원본 설정에서 CartPole의 reference·상태·출력 차원과 작은 layer 폭을 지정했습니다. `g1_dyn`은 공식 코드가 행동 출력을 선택할 때 사용하는 **호환용 이름**입니다. G1 관측이나 가중치를 사용한다는 뜻이 아닙니다.
 
-The reproducible CI target is Python 3.10, Linux x86_64, CPU only. No CUDA/Isaac Lab/hardware, motion datasets, model downloads, services or W&B login are needed. `wandb` and `torchvision` are installed because upstream modules import them; this probe does not initialize tracking or download image models.
+FSQ의 `return_indices=False`는 사용하지 않는 정수 index와 암시적 codebook table 생성을 생략합니다. 숫자 양자화 자체는 실행되며, 실제 호출과 출력 grid를 검사합니다. 입력 형식 하나를 확인하는 검사이므로 가짜 SMPL·VR·카메라 데이터를 채워 넣지 않습니다.
 
-From this repository root:
+Reference 정규화는 `[1.8,3.0]`, 상태 정규화는 `[1.8,3.0,0.55,4.0]`이며 해석 단위는 m, m/s, rad, rad/s입니다. 이것은 CartPole 전용 설정이지 다른 로봇의 보편적 기본값이 아닙니다.
+
+## 별도 CPU 환경에서 실행
+
+검증 대상은 Python 3.10 / Linux x86_64 / CPU 환경입니다. 전역 Python이나 GPU 드라이버를 변경할 필요가 없습니다. 의존성 누락은 명시적 실패이며, 저장된 PASS로 대체하지 않습니다.
 
 ```bash
 python3.10 -m venv .venv-native
@@ -56,7 +55,6 @@ python3.10 -m venv .venv-native
 .venv-native/bin/python -m pip install -r native/requirements.lock
 .venv-native/bin/python -m pip check
 
-# Use a separate empty path; do not reset or repair an existing user checkout.
 git clone --filter=blob:none --no-checkout \
   https://github.com/NVlabs/GR00T-WholeBodyControl.git .upstream-sonic
 git -C .upstream-sonic sparse-checkout set \
@@ -69,22 +67,10 @@ export PYTHONDONTWRITEBYTECODE=1 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 WANDB_MODE=dis
 .venv-native/bin/python native/core_smoke.py --output /tmp/native-core-result.json
 ```
 
-A missing dependency is a nonzero exit/FAIL, never a skipped success. The command atomically replaces its specified report with FAIL on an ordinary computation/import failure, so a stale PASS at that path cannot survive such a failed run. Only explicitly regenerate `evidence/native_core_smoke.json` when reviewing a changed experiment; tests compare its source/configuration and gradient measurements to fresh computation.
+Clone 대상은 기존 checkout을 덮어쓰지 않는 새로운 경로로 지정합니다.
 
-The full-framework installer is intentionally not used: this is a narrow direct-module smoke. Dependency versions are locked to the tested CPU environment; compatibility with arbitrary versions or platforms is not claimed. One upstream `docker-pycreds`/W&B Python 3.10 deprecation warning is known; it does not affect the tensor tests.
+## 결과의 범위
 
-## Checks and evidence
+[원시 실행 보고서](../evidence/native_core_smoke.json)에는 소스 hash, 의존성, 실제 적용된 설정, 양자화 호출 횟수, 입출력 shape, gradient와 상태 변경 결과가 있습니다.
 
-[Stored execution report](../evidence/native_core_smoke.json) includes source SHA-256 values, actual dependency versions, resolved configurations, quantizer invocation counts, output shapes, separate gradient norms, state perturbation results and explicit scope flags. CI executes the tests and runner afresh and uploads its own report; it does not merely read a stored PASS.
-
-| Case | Tokens per control input | Scalar levels | Output | Reconstruction |
-|---|---|---|---|---|
-| reduced-one | 1 × 2 | 5 | 1 coordinate | 8 × 2 |
-| reduced-two | 2 × 2 | 5 | 1 coordinate | 8 × 2 |
-| release-token-shape | 2 × 32 | 32 | 1 coordinate | 8 × 2 |
-
-For each case: action-loss gradients reach Encoder + Dynamic Decoder, reconstruction gradients reach Encoder + Kinematic Decoder, and unrelated decoder gradients are zero. FSQ has zero trainable parameters in these configurations but still propagates the gradient through its upstream implementation.
-
-## Next dependent gate
-
-Connect the official trainer at a supported CartPole environment/task boundary. Define observation ordering, feasible reference distribution, action scale/units, timing, reset, reward and termination explicitly. Only a real rollout followed by an official trainer update can promote the claim to **native SONIC training framework adapted to CartPole**. A zero-action balance policy or this module smoke is not that evidence. See [issue #2](https://github.com/tinmanlab/cartpole-sonic/issues/2).
+이 검사의 “optimizer 0회, 물리 rollout 없음”은 올바른 범위 표시입니다. **다른 파일에 이미 구현된 공식 trainer 연결까지 미구현이라는 뜻은 아닙니다.** 학습·물리 실행은 [TRAINING.md](TRAINING.md)를 참고하세요.
