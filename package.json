@@ -1,6 +1,6 @@
 {
   "name": "cartpole-sonic",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -23,7 +23,9 @@
     "verify:browser": "node scripts/browser_smoke.mjs",
     "verify:browser-execution": "node scripts/browser_smoke.mjs --execution",
     "verify:lesson": "node --test scripts/verify_lesson.test.mjs",
-    "verify:browser-lesson": "node scripts/browser_lesson.mjs"
+    "verify:browser-lesson": "node scripts/browser_lesson.mjs",
+    "verify:readability": "node --test scripts/verify_readability.test.mjs",
+    "verify:browser-readability": "node scripts/browser_readability.mjs"
   },
   "dependencies": {
     "@mujoco/mujoco": "3.14.0"

@@ -123,7 +123,7 @@ try{
     assert.deepEqual(errors,[]);report.passed=true;
   }else{
   await page.goto(base+'?training=optimizer-sensitivity&depth=mechanism');await waitReady();
-  assert.equal((await state()).system.version,'2.9');
+  assert.equal((await state()).system.version,'2.10');
   await screenshot('optimizer-budget-50.png');
   assert.equal(await page.locator('.opt-data tbody tr').count(),16);
   await bounds('optimizer +50');
@@ -132,9 +132,11 @@ try{
   await screenshot('optimizer-budget-10.png');await bounds('optimizer +10');
   await page.click('#optDiagnostics');await bounds('optimizer diagnostics');
   await page.selectOption('#optVariant','two-matched-capacity');
-  assert.ok((await page.locator('.opt-cards').innerText()).includes('1220 / 643'));
+  await page.locator('.opt-details summary').click();
+  assert.ok((await page.locator('.opt-details').innerText()).includes('1220 / 643'));
   await page.selectOption('#optVariant','two-matched-actor');
-  assert.ok((await page.locator('.opt-cards').innerText()).includes('1268 / 607'));
+  await page.locator('.opt-details summary').click();
+  assert.ok((await page.locator('.opt-details').innerText()).includes('1268 / 607'));
   await page.selectOption('#optVariant','two-default');
   await screenshot('optimizer-diagnostics.png');
   for(const width of [1440,1920]){await page.setViewportSize({width,height:1000});await bounds('optimizer '+width+'px');}

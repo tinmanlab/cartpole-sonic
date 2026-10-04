@@ -1,6 +1,6 @@
 import {mountNativeLesson} from "./native_lesson.js";
 import {physicalFailureReason,finiteNumber,integerCount,CONTROL_DT,CONTROL_SUBSTEPS} from "./control_contract.js";
-import { controlSample, controllerIdentity, controllerSummary, blockShape, decoderLayout, decoderConnections, robotGeometry } from "./presentation.js";
+import { controlSample, controllerIdentity, controllerSummary, blockShape, decoderLayout, decoderConnections, robotGeometry, canvasLines, canvasTicks } from "./presentation.js";
 import { MuJoCoCartPole } from "./mujoco_sim.js";
 import {
   SonicToyTrainer,
@@ -156,6 +156,7 @@ function beginCanvas(canvas){
   if(canvas.width!==bw||canvas.height!==bh){canvas.width=bw;canvas.height=bh;}
   const ctx=canvas.getContext("2d");
   ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.font="13px system-ui";ctx.textAlign="left";ctx.textBaseline="alphabetic";
   ctx.clearRect(0,0,w,h);
   return {ctx,w,h,dpr};
 }
@@ -463,7 +464,9 @@ function buildConceptTabs(){
 }
 
 function renderSimulation(){
-  const c=$("cart"),{ctx,w:W,h:H}=beginCanvas(c);
+  const c=$("cart");
+  if(c.clientWidth<2||c.clientHeight<42)return; // Hidden/reflowing canvas: no negative drawing radius.
+  const {ctx,w:W,h:H}=beginCanvas(c);
   ctx.fillStyle="#fff";ctx.fillRect(0,0,W,H);
   const s=state(),geometry=robotGeometry(W,H,sim.spec?.poleLength||1,s[0],s[2]);
   const {scale,railY,pivotY,wheelY,cartW,cartH}=geometry,centerX=W/2;
@@ -472,8 +475,8 @@ function renderSimulation(){
   drawActual();
   const gx=centerX+goal*scale;
   ctx.strokeStyle="#16805d";ctx.lineWidth=2;ctx.setLineDash([5,4]);ctx.beginPath();ctx.moveTo(gx,28);ctx.lineTo(gx,railY);ctx.stroke();ctx.setLineDash([]);
-  ctx.fillStyle="#16805d";ctx.font="600 10px system-ui";ctx.textAlign="center";ctx.fillText("goal",gx,22);
-  ctx.fillStyle="#667085";ctx.font="10px system-ui";ctx.textAlign="left";ctx.fillText("browser MuJoCo WASM robot",10,16);
+  ctx.fillStyle="#16805d";ctx.font="600 12px system-ui";ctx.textAlign="center";ctx.fillText("goal",gx,22);
+  // Runtime source is already named in the visible panel header.
   function drawActual(){
     const {cx,tx,ty}=geometry;
     ctx.strokeStyle="#d64f4f";ctx.lineWidth=7;ctx.beginPath();ctx.moveTo(cx,pivotY);ctx.lineTo(tx,ty);ctx.stroke();
@@ -542,9 +545,9 @@ function renderReferenceCurveViz(){
     ctx.strokeStyle="#eef0f3";ctx.beginPath();ctx.moveTo(pad.l,Y(0,top));ctx.lineTo(w-pad.r,Y(0,top));ctx.stroke();
     ctx.strokeStyle="#315dc9";ctx.lineWidth=2.7;ctx.beginPath();
     for(let i=0;i<8;i++){const x=X(i),y=Y(ref[i*2+comp],top);i?ctx.lineTo(x,y):ctx.moveTo(x,y);ctx.fillStyle="#315dc9";ctx.beginPath();ctx.arc(x,y,3,0,Math.PI*2);ctx.fill();}
-    ctx.fillStyle="#667085";ctx.font="11px system-ui";ctx.textAlign="left";ctx.fillText(labels[comp],pad.l,top+12);
+    ctx.fillStyle="#667085";ctx.font="12px system-ui";ctx.textAlign="left";ctx.fillText(labels[comp],pad.l,top+12);
   }
-  ctx.fillStyle="#7b8492";ctx.font="9.5px ui-monospace";ctx.textAlign="center";for(let i=0;i<8;i++)ctx.fillText("+"+fmt((i+1)*.08,2)+"s",X(i),h-12);
+  ctx.fillStyle="#7b8492";ctx.font="12px ui-monospace";ctx.textAlign="center";canvasTicks(ctx,Array.from({length:8},(_,i)=>"+"+fmt((i+1)*.08,2)+"s"),Array.from({length:8},(_,i)=>X(i)),h-12);
   $("vizCaption").innerHTML='<b>Reference world.</b> 이것은 actual robot trajectory가 아니라 planner가 만든 미래 target이다. Encoder는 이 시간축 reference를 읽는다.';
   setMetrics(["goal="+fmt(goal,2)+"m","planner context x="+fmt(plannerContext[0],3)+"m","8 future frames"]);
 }
@@ -556,7 +559,7 @@ function renderReferenceVectorViz(){
   for(let i=0;i<n;i++){
     const x=pad.l+(i+.5)*(w-pad.l-pad.r)/n,v=ref[i],bh=Math.abs(v)*scale;
     ctx.fillStyle=i%2===0?"#315dc9":"#795fc5";ctx.fillRect(x-barW/2,v>=0?Y0-bh:Y0,barW,bh);
-    ctx.fillStyle="#667085";ctx.font="8.5px ui-monospace";ctx.textAlign="center";ctx.fillText(i%2===0?"x":"ẋ",x,h-25);
+    ctx.fillStyle="#667085";ctx.font="12px ui-monospace";ctx.textAlign="center";ctx.fillText(i%2===0?"x":"ẋ",x,h-25);
     ctx.fillText(String(Math.floor(i/2)+1),x,h-10);
   }
   $("vizCaption").innerHTML='Encoder 입력을 실제 16개 숫자로 펼친 모습. frame 1~8마다 <b>x와 ẋ</b>가 한 쌍이며 actual proprioception은 여기에 포함되지 않는다.';
@@ -565,7 +568,7 @@ function renderReferenceVectorViz(){
 function renderEncoderCoreViz(){
   const c=$("lessonViz"),{ctx,w,h}=beginCanvas(c),p=preview(),ref=currentReference();
   const split=w*.58,pad=32,Y0=h*.54,scale=h*.31,n=ref.length,barW=(split-2*pad)/n*.7;
-  ctx.fillStyle="#667085";ctx.font="11px system-ui";ctx.fillText("16D future reference",pad,20);
+  ctx.fillStyle="#667085";ctx.font="12px system-ui";ctx.fillText("16D future reference",pad,20);
   ctx.strokeStyle="#e3e6eb";ctx.beginPath();ctx.moveTo(pad,Y0);ctx.lineTo(split-pad,Y0);ctx.stroke();
   for(let i=0;i<n;i++){
     const x=pad+(i+.5)*(split-2*pad)/n,v=ref[i],bh=Math.abs(v)*scale;
@@ -574,12 +577,12 @@ function renderEncoderCoreViz(){
   ctx.strokeStyle="#d7dce4";ctx.beginPath();ctx.moveTo(split,25);ctx.lineTo(split,h-25);ctx.stroke();
   const box={x:split+38,y:80,w:w-split-76,h:h-160};
   ctx.strokeStyle="#dfe4ea";ctx.strokeRect(box.x,box.y,box.w,box.h);
-  ctx.fillStyle="#667085";ctx.font="11px system-ui";ctx.fillText("2D latent z",box.x,box.y-12);
+  ctx.fillStyle="#667085";ctx.font="12px system-ui";ctx.fillText("2D latent z",box.x,box.y-12);
   if(p){
     const lim=1.5,X=v=>box.x+(v+lim)/(2*lim)*box.w,Y=v=>box.y+box.h-(v+lim)/(2*lim)*box.h;
     ctx.strokeStyle="#eef0f3";ctx.beginPath();ctx.moveTo(box.x,Y(0));ctx.lineTo(box.x+box.w,Y(0));ctx.moveTo(X(0),box.y);ctx.lineTo(X(0),box.y+box.h);ctx.stroke();
     ctx.fillStyle="#315dc9";ctx.beginPath();ctx.arc(X(p.z[0]),Y(p.z[1]),9,0,Math.PI*2);ctx.fill();
-    ctx.fillStyle="#172033";ctx.font="11px ui-monospace";ctx.fillText("z=["+fmt(p.z[0],2)+", "+fmt(p.z[1],2)+"]",box.x+8,box.y+18);
+    ctx.fillStyle="#172033";ctx.font="12px ui-monospace";canvasLines(ctx,"z=["+fmt(p.z[0],2)+", "+fmt(p.z[1],2)+"]",box.x+8,box.y+18,box.w-16);
   }
   ctx.fillStyle="#9aa3af";ctx.font="22px system-ui";ctx.fillText("→",split-10,h/2);
   $("vizCaption").innerHTML='Encoder는 16D future reference를 2D latent로 압축한다. 이 toy의 2D는 이해를 위한 축소이며 실제 SONIC release token scalar dimension은 32/token이다.';
@@ -593,11 +596,11 @@ function renderAutoencoderViz(){
     ctx.strokeStyle="#eef0f3";ctx.beginPath();ctx.moveTo(pad.l,Y(0,top));ctx.lineTo(w-pad.r,Y(0,top));ctx.stroke();
     const draw=(arr,color,dash=[])=>{ctx.strokeStyle=color;ctx.lineWidth=2.6;ctx.setLineDash(dash);ctx.beginPath();for(let i=0;i<8;i++){const x=X(i),y=Y(arr[i*2+comp],top);i?ctx.lineTo(x,y):ctx.moveTo(x,y);}ctx.stroke();ctx.setLineDash([]);};
     draw(ref,"#315dc9");if(p)draw(p.kinRecon,"#795fc5",[7,5]);
-    ctx.fillStyle="#667085";ctx.font="11px system-ui";ctx.fillText(label,pad.l,top+12);
+    ctx.fillStyle="#667085";ctx.font="12px system-ui";ctx.fillText(label,pad.l,top+12);
   };
   drawPanel(0,pad.t,"future x");drawPanel(1,pad.t+panelH+gap,"future ẋ");
   $("vizCaption").innerHTML='<b>Autoencoder idea.</b> blue=input reference, purple=reconstruction. Decoder는 deployment 원본을 다시 쓰기 위해서가 아니라 작은 latent가 motion 정보를 보존하도록 학습 신호를 주기 위해 존재한다.';
-  setMetrics(["16D → z(2D) → 16D","recon MSE="+fmt(reconstructionError(p,ref),4),"background concept for SONIC auxiliary decoder"]);
+  setMetrics(["16D → z(2D) → 16D","정규화 복원 MSE (무차원)="+fmt(reconstructionError(p,ref),4),"background concept for SONIC auxiliary decoder"]);
 }
 function renderVaeViz(){
   showHtml(
@@ -628,7 +631,7 @@ function renderLatentViz(mode){
   if(mode==="vq")for(let k=0;k<8;k++)maxAbs=Math.max(maxAbs,Math.abs(currentTrainer.policy.codebook[k*2]),Math.abs(currentTrainer.policy.codebook[k*2+1]));
   const lim=Math.max(1.25,Math.min(2.5,maxAbs*1.15)),{X,Y}=drawAxes(ctx,w,h,{xmin:-lim,xmax:lim,ymin:-lim,ymax:lim});
   if(mode==="vq"){
-    for(let k=0;k<8;k++){const x=currentTrainer.policy.codebook[k*2],y=currentTrainer.policy.codebook[k*2+1];ctx.fillStyle="#9aa3af";ctx.beginPath();ctx.arc(X(x),Y(y),6,0,Math.PI*2);ctx.fill();ctx.fillStyle="#596273";ctx.font="10px ui-monospace";ctx.fillText(String(k),X(x)+8,Y(y)-5);}
+    for(let k=0;k<8;k++){const x=currentTrainer.policy.codebook[k*2],y=currentTrainer.policy.codebook[k*2+1];ctx.fillStyle="#9aa3af";ctx.beginPath();ctx.arc(X(x),Y(y),6,0,Math.PI*2);ctx.fill();ctx.fillStyle="#596273";ctx.font="12px ui-monospace";ctx.fillText(String(k),X(x)+8,Y(y)-5);}
   }else{
     for(const a of [-1,-.5,0,.5,1])for(const b of [-1,-.5,0,.5,1]){ctx.fillStyle="#c7ccd4";ctx.beginPath();ctx.arc(X(a),Y(b),3.3,0,Math.PI*2);ctx.fill();}
   }
@@ -640,16 +643,16 @@ function renderLatentViz(mode){
     const zx=X(p.z[0]),zy=Y(p.z[1]),qx=X(p.q[0]),qy=Y(p.q[1]);
     ctx.strokeStyle="#7b8492";ctx.setLineDash([5,4]);ctx.beginPath();ctx.moveTo(zx,zy);ctx.lineTo(qx,qy);ctx.stroke();ctx.setLineDash([]);
     ctx.fillStyle="#315dc9";ctx.beginPath();ctx.arc(zx,zy,8,0,Math.PI*2);ctx.fill();ctx.fillStyle="#d64f4f";ctx.beginPath();ctx.arc(qx,qy,8,0,Math.PI*2);ctx.fill();
-    ctx.fillStyle="#667085";ctx.font="10px system-ui";ctx.fillText("quantize",(zx+qx)/2+5,(zy+qy)/2-5);
+    ctx.fillStyle="#667085";ctx.font="12px system-ui";ctx.fillText("양자화",(zx+qx)/2+5,(zy+qy)/2-5);
   }
-  ctx.fillStyle="#667085";ctx.font="11px system-ui";ctx.fillText("z₁",w-48,Y(0)-8);ctx.fillText("z₂",X(0)+7,22);
+  ctx.fillStyle="#667085";ctx.font="12px system-ui";ctx.fillText("z₁",w-48,Y(0)-8);ctx.fillText("z₂",X(0)+7,22);
   const used=new Set(hist.map(x=>x.q.map(v=>v.toFixed(2)).join(",")));if(p)used.add(p.q.map(v=>v.toFixed(2)).join(","));
   const refX=p?p.ref[0]*SONIC_TOY_CONSTANTS.STATE_SCALE[0]:NaN;
   if(mode==="vq"){
-    $("vizCaption").innerHTML='<b>LIVE VQ.</b> 회색 큰 점=learned codebook, 파란 trail=actual episode z history, 빨간 q=nearest learned vector. 짧은 점선은 현재 quantization 이동이다.';
+    $("vizCaption").innerHTML='<b>LIVE VQ.</b> 회색 큰 점은 학습되는 대표 벡터, 파란 선은 연속 표현 z의 이력, 빨간 점은 가장 가까워서 선택된 q이다. 점선은 z와 q의 차이다.';
     setMetrics(["codebook=8 learned vectors","episode codes="+used.size+"/8","ref x(+80ms)="+fmt(refX,3)+"m"]);
   }else{
-    $("vizCaption").innerHTML='<b>LIVE FSQ.</b> 회색 grid=fixed finite levels, 파란 trail=actual episode z history, 빨간 q=현재 FSQ output. FSQ grid는 학습되어 움직이지 않는다.';
+    $("vizCaption").innerHTML='<b>LIVE FSQ.</b> 회색 점은 고정된 가능 값, 파란 점과 선은 연속 표현 z, 빨간 점은 선택된 양자화 값 q이다. 학습해도 회색 격자는 움직이지 않는다.';
     setMetrics(["toy L=[5,5]","episode tokens="+used.size+"/25","q=["+fmt(p?.q[0],2)+","+fmt(p?.q[1],2)+"]"]);
   }
 }
@@ -658,21 +661,21 @@ function renderVqvaeViz(){
   const code=p?.qIndex??"—";
   showHtml(
     '<div style="height:100%;display:grid;grid-template-rows:1fr auto;gap:12px">'+
-      '<div class="flow-row">'+
-        '<div class="flow-box"><strong>Reference</strong><span>16D future motion</span></div><div class="flow-arrow">→</div>'+
-        '<div class="flow-box"><strong>Encoder</strong><span>live z=['+fmt(p?.z[0],2)+', '+fmt(p?.z[1],2)+']</span></div><div class="flow-arrow">→</div>'+
-        '<div class="flow-box accent"><strong>Nearest VQ code</strong><span>index '+code+'<br>q=['+fmt(p?.q[0],2)+', '+fmt(p?.q[1],2)+']</span></div><div class="flow-arrow">→</div>'+
-        '<div class="flow-box purple"><strong>Decoder</strong><span>live recon MSE '+recon+'</span></div>'+
+      '<div class="vq-pipeline">'+
+        '<div class="flow-box"><strong>Reference</strong><span>미래 위치·속도 16개</span></div><div class="flow-arrow">→</div>'+
+        '<div class="flow-box"><strong>Encoder</strong><span>현재 z=['+fmt(p?.z[0],2)+', '+fmt(p?.z[1],2)+']</span></div><div class="flow-arrow">→</div>'+
+        '<div class="flow-box accent"><strong>가까운 코드 선택</strong><span>index '+code+'<br>q=['+fmt(p?.q[0],2)+', '+fmt(p?.q[1],2)+']</span></div><div class="flow-arrow">→</div>'+
+        '<div class="flow-box purple"><strong>복원 Decoder</strong><span>정규화 MSE (무차원) '+recon+'</span></div>'+
       '</div>'+
-      '<table class="compare-table"><thead><tr><th>Training problem</th><th>Why it exists</th><th>Mechanism</th></tr></thead><tbody>'+
-        '<tr><td>nearest lookup is non-differentiable</td><td>Encoder still needs gradient</td><td><b>STE</b>: backward treats quantization approximately like identity</td></tr>'+
-        '<tr><td>Encoder can drift far from selected code</td><td>z should commit to usable codes</td><td><b>commitment loss</b></td></tr>'+
-        '<tr><td>codebook must represent data</td><td>representative vectors need to move</td><td><b>codebook / EMA-style update</b></td></tr>'+
-        '<tr><td>some codes may never be selected</td><td>capacity is wasted</td><td>dead-code / collapse management</td></tr>'+
+      '<table class="compare-table"><thead><tr><th>학습에서 생기는 문제</th><th>필요한 이유</th><th>해결하는 방식</th></tr></thead><tbody>'+
+        '<tr><td>가장 가까운 코드 선택은 불연속</td><td>앞단 Encoder도 갱신해야 함</td><td><b>STE</b>: 역전파에 대체 기울기를 사용</td></tr>'+
+        '<tr><td>연속 표현 z가 선택 코드에서 멀어짐</td><td>z와 선택한 코드의 차이를 줄임</td><td><b>commitment loss</b></td></tr>'+
+        '<tr><td>코드도 입력 분포를 나타내야 함</td><td>선택된 대표 벡터를 함께 갱신</td><td><b>codebook / EMA-style update</b></td></tr>'+
+        '<tr><td>일부 코드는 선택되지 않을 수 있음</td><td>사용 가능한 표현을 낭비함</td><td>개념: 미사용 코드 관리 (브라우저의 별도 갱신 경로 아님)</td></tr>'+
       '</tbody></table>'+
     '</div>',
-    '<b>LIVE values + training explanation.</b> 현재 z/q/reconstruction 값은 실제 toy model에서 오지만, Live 버튼은 선택한 브라우저 제어기로 물리 시뮬레이션과 목표 궤적을 진행하며 weight를 재학습하지 않는다. 아래 표가 VQ-VAE training 시 필요한 STE · commitment · codebook update · dead-code 문제를 설명한다. FSQ는 이 learned-codebook machinery를 제거한다.',
-    ["current code="+code,"recon MSE="+recon,"STE","commitment","codebook update"]
+    '<b>LIVE values + training explanation.</b> 현재 z/q/reconstruction 값은 실제 toy model에서 오지만, Live 버튼은 선택한 브라우저 제어기로 물리 시뮬레이션과 목표 궤적을 진행하며 weight를 재학습하지 않는다. 표는 VQ-VAE의 학습 개념이다. 브라우저 VQ는 STE·z 근접 항·코드 평균 갱신만 실행하며, 별도의 미사용 코드 관리는 구현하지 않는다. FSQ는 학습 코드북을 사용하지 않는다.',
+    ["current code="+code,"정규화 복원 MSE (무차원)="+recon,"STE","commitment","codebook update"]
   );
 }
 function renderTokenViz(){
@@ -680,24 +683,24 @@ function renderTokenViz(){
   const q=p?.q||[0,0];
 
   // Current toy token — always visible, even before Live starts.
-  ctx.fillStyle="#667085";ctx.font="11px system-ui";ctx.textAlign="left";
+  ctx.fillStyle="#667085";ctx.font="12px system-ui";ctx.textAlign="left";
   ctx.fillText("Current CartPole motion token (post-FSQ)",36,24);
-  const cellY=38,cellW=135,cellH=64;
+  const cellY=38,cellW=Math.min(135,(w-84)/2),cellH=64;
   for(let i=0;i<2;i++){
     const x=36+i*(cellW+12);
     ctx.strokeStyle=i===0?"#315dc9":"#795fc5";ctx.lineWidth=2;ctx.strokeRect(x,cellY,cellW,cellH);
     ctx.fillStyle="#172033";ctx.font="700 12px system-ui";ctx.fillText("q"+(i+1),x+10,cellY+21);
     ctx.fillStyle=i===0?"#315dc9":"#795fc5";ctx.font="700 22px ui-monospace";ctx.fillText(fmt(q[i],2),x+10,cellY+50);
   }
-  ctx.fillStyle="#667085";ctx.font="10px system-ui";
-  ctx.fillText("These are quantized numeric values — not one vocabulary integer ID.",330,72);
+  ctx.fillStyle="#667085";ctx.font="12px system-ui";
+  ctx.fillText("양자화된 수치 벡터",36,105);
 
   // Schematic of actual released token shape: 2 tokens x 32 scalar dims.
   const gridTop=128,gridLeft=36,gridRight=w-36,cols=32,gap=2;
   const cw=(gridRight-gridLeft-(cols-1)*gap)/cols,ch=20;
-  ctx.fillStyle="#667085";ctx.font="11px system-ui";ctx.fillText("Released SONIC token shape (schematic)",gridLeft,gridTop-10);
+  ctx.fillStyle="#667085";ctx.font="12px system-ui";ctx.fillText("Released SONIC token shape (schematic)",gridLeft,gridTop-10);
   for(let row=0;row<2;row++){
-    ctx.fillStyle="#596273";ctx.font="9px ui-monospace";ctx.fillText("token "+(row+1),gridLeft,gridTop+row*34+14);
+    ctx.fillStyle="#596273";ctx.font="12px ui-monospace";ctx.fillText("token "+(row+1),gridLeft,gridTop+row*34+14);
     for(let col=0;col<cols;col++){
       const x=gridLeft+58+col*(cw*.82+gap);
       const y=gridTop+row*34;
@@ -705,7 +708,7 @@ function renderTokenViz(){
       ctx.fillRect(x,y,Math.max(4,cw*.78),ch);
     }
   }
-  ctx.fillStyle="#667085";ctx.font="9.5px system-ui";ctx.fillText("2 temporal tokens × 32 scalar dimensions = 64 flattened numeric values; each scalar uses fixed finite FSQ levels.",gridLeft,gridTop+77);
+  ctx.fillStyle="#667085";ctx.font="12px system-ui";canvasLines(ctx,"2 표현 칸 × 32 성분 = 64개 값 · 고정 수준",gridLeft,gridTop+77,w-gridLeft-24);
 
   // Live toy token history in lower half.
   const pts=hist.length?hist:[{t:0,q}],chartTop=235,pad={l:50,r:24,b:42},panelGap=18;
@@ -718,7 +721,7 @@ function renderTokenViz(){
     ctx.strokeStyle=k===0?"#315dc9":"#795fc5";ctx.lineWidth=2.5;ctx.beginPath();
     pts.forEach((s,i)=>{const x=X(s.t),y=Y(s.q[k],top);if(i===0)ctx.moveTo(x,y);else{const py=Y(pts[i-1].q[k],top);ctx.lineTo(x,py);ctx.lineTo(x,y);}});ctx.stroke();
     const last=pts.at(-1);ctx.fillStyle=k===0?"#315dc9":"#795fc5";ctx.beginPath();ctx.arc(X(last.t),Y(last.q[k],top),4,0,Math.PI*2);ctx.fill();
-    ctx.fillStyle="#667085";ctx.font="10px system-ui";ctx.fillText("q"+(k+1)+" live discrete history",pad.l,top+12);
+    ctx.fillStyle="#667085";ctx.font="12px system-ui";ctx.fillText("q"+(k+1)+" live discrete history",pad.l,top+12);
   }
   $("vizCaption").innerHTML='<b>Universal Token.</b> 위는 지금 decoder가 받는 toy q, 가운데는 실제 SONIC release의 token shape 개념, 아래는 Live에서 q가 finite level 사이를 step-wise 이동하는 history다.';
   setMetrics(["toy q=["+fmt(q[0],2)+","+fmt(q[1],2)+"]","SONIC: 2×32=64","32 fixed levels/scalar","token = numeric vector(s)"]);
@@ -741,9 +744,9 @@ function drawTemporalRecon(lab,ref){
     draw(ref,comp,top,"#172033");
     draw(cmp.one.recon,comp,top,"#c97b20",[5,4]);
     draw(cmp.two.recon,comp,top,"#315dc9");
-    ctx.fillStyle="#667085";ctx.font="9px system-ui";ctx.textAlign="left";ctx.fillText(comp===0?"future x":"future ẋ",pad.l,top+10);
+    ctx.fillStyle="#667085";ctx.font="12px system-ui";ctx.textAlign="left";ctx.fillText(comp===0?"future x":"future ẋ",pad.l,top+10);
   }
-  ctx.fillStyle="#667085";ctx.font="8.5px system-ui";ctx.textAlign="right";ctx.fillText("black target · orange 1-token · blue 2-token",w-pad.r,14);
+  ctx.fillStyle="#667085";ctx.font="12px system-ui";ctx.textAlign="right";ctx.fillText("black target · orange 1-token · blue 2-token",w-pad.r,14);
 }
 function drawTemporalCurve(lab){
   const c=$("temporalCurve");if(!c)return;
@@ -760,7 +763,7 @@ function drawTemporalCurve(lab){
     pts.forEach(p=>{ctx.fillStyle=color;ctx.beginPath();ctx.arc(X(p.step),Y(Math.log10(Math.max(p[key],1e-6))),2.5,0,Math.PI*2);ctx.fill();});
   };
   draw("mseOne","#c97b20");draw("mseTwo","#315dc9");
-  ctx.fillStyle="#667085";ctx.font="9px system-ui";ctx.textAlign="left";ctx.fillText("log₁₀ reconstruction MSE ↓",pad.l,13);
+  ctx.fillStyle="#667085";ctx.font="12px system-ui";ctx.textAlign="left";ctx.fillText("log₁₀ reconstruction MSE ↓",pad.l,13);
   ctx.textAlign="right";ctx.fillText("training steps →",w-pad.r,h-8);
 }
 function renderTemporalTokenViz(){
@@ -799,7 +802,7 @@ function renderTemporalTokenViz(){
               '<tr><td>early frames 1–4</td><td>'+sensCell(sens.earlyLatentDelta[0])+'</td><td>'+sensCell(sens.earlyLatentDelta[1])+'</td></tr>'+
               '<tr><td>late frames 5–8</td><td>'+sensCell(sens.lateLatentDelta[0])+'</td><td>'+sensCell(sens.lateLatentDelta[1])+'</td></tr>'+
             '</tbody></table>'+
-            '<div style="font-size:8.4px;line-height:1.3;color:#667085;margin-top:5px"><b>Do not label slot 1=near and slot 2=far.</b> Both slots read the entire window. This matrix only probes learned sensitivity after training.</div>'+
+            '<div style="font-size:13px;line-height:1.3;color:#667085;margin-top:5px"><b>Do not label slot 1=near and slot 2=far.</b> Both slots read the entire window. This matrix only probes learned sensitivity after training.</div>'+
           '</div>'+
         '</div>'+
       '</div>'+
@@ -834,7 +837,7 @@ function drawTemporalControlCurve(lab){
   for(let i=0;i<=4;i++){
     const v=ymin+(ymax-ymin)*i/4,y=Y(v);
     ctx.strokeStyle="#f0f2f5";ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(w-pad.r,y);ctx.stroke();
-    ctx.fillStyle="#7b8492";ctx.font="8px ui-monospace";ctx.textAlign="right";ctx.fillText(v.toFixed(2),pad.l-5,y+3);
+    ctx.fillStyle="#7b8492";ctx.font="12px ui-monospace";ctx.textAlign="right";ctx.fillText(v.toFixed(2),pad.l-5,y+3);
   }
   const draw=(arr,get,color,dash=[])=>{
     const q=arr.filter(x=>Number.isFinite(get(x)));if(!q.length)return;
@@ -846,13 +849,13 @@ function drawTemporalControlCurve(lab){
   draw(ref,x=>x.two?.clean?.trackingMae,"rgba(49,93,201,.40)",[5,4]);
   draw(pts,x=>x.one?.clean?.trackingMae,"#c97b20");
   draw(pts,x=>x.two?.clean?.trackingMae,"#315dc9");
-  ctx.fillStyle="#667085";ctx.font="9px system-ui";ctx.textAlign="left";ctx.fillText("clean tracking MAE ↓",pad.l,13);
+  ctx.fillStyle="#667085";ctx.font="12px system-ui";ctx.textAlign="left";ctx.fillText("clean tracking MAE ↓",pad.l,13);
   ctx.textAlign="right";ctx.fillText("PPO iterations →",w-pad.r,h-8);
 }
 function renderTemporalControlViz(){
   const lab=temporalControlLab;
   if(!lab){
-    showHtml('<div style="height:100%;display:grid;place-items:center"><div style="text-align:center"><b>Loading closed-loop controller lab…</b><div style="font-size:10px;color:#667085;margin-top:6px">precomputed 1-token / 2-token bootstrap checkpoint</div></div></div>','Closed-loop controller comparison is loading.');
+    showHtml('<div style="height:100%;display:grid;place-items:center"><div style="text-align:center"><b>Loading closed-loop controller lab…</b><div style="font-size:13px;color:#667085;margin-top:6px">precomputed 1-token / 2-token bootstrap checkpoint</div></div></div>','Closed-loop controller comparison is loading.');
     return;
   }
   const ref=currentReference(),s=state();
@@ -929,7 +932,7 @@ function renderControlDecoderViz(){
     {title:"Dynamic Decoder",text:"token + measured state",color:"#795fc5"},
     {title:"다음 힘 · next force",text:p?fmt(p.force,2)+" N":"—",color:"#16805d"},
   ];
-  boxes.forEach((b,i)=>{const r=layout[i];ctx.strokeStyle=b.color;ctx.lineWidth=2;ctx.strokeRect(r.x,r.y,r.w,r.h);ctx.fillStyle="#172033";ctx.font="700 12px system-ui";ctx.fillText(b.title,r.x+8,r.y+22);ctx.fillStyle="#596273";ctx.font="11px system-ui";ctx.fillText(b.text,r.x+8,r.y+44);if(b.text2)ctx.fillText(b.text2,r.x+8,r.y+62);});
+  boxes.forEach((b,i)=>{const r=layout[i];ctx.strokeStyle=b.color;ctx.lineWidth=2;ctx.strokeRect(r.x,r.y,r.w,r.h);ctx.fillStyle="#172033";ctx.font="700 12px system-ui";ctx.fillText(b.title,r.x+8,r.y+22);ctx.fillStyle="#596273";ctx.font="12px system-ui";canvasLines(ctx,b.text,r.x+8,r.y+44,r.w-16);if(b.text2)ctx.fillText(b.text2,r.x+8,r.y+62);});
   ctx.strokeStyle="#7b8492";ctx.fillStyle="#7b8492";ctx.lineWidth=1.5;
   for(const edge of decoderConnections(w)){
     ctx.beginPath();edge.points.forEach(([x,y],i)=>i?ctx.lineTo(x,y):ctx.moveTo(x,y));ctx.stroke();
@@ -941,7 +944,7 @@ function renderControlDecoderViz(){
   ctx.strokeStyle="#e9ecf1";ctx.beginPath();ctx.moveTo(pad.l,Y(0));ctx.lineTo(w-pad.r,Y(0));ctx.stroke();
   ctx.strokeStyle="#16805d";ctx.lineWidth=2.5;ctx.beginPath();pts.forEach((x,i)=>{const px=X(x.t),py=Y(x.force);i?ctx.lineTo(px,py):ctx.moveTo(px,py);});ctx.stroke();
   const lastPt=pts.at(-1);ctx.fillStyle="#16805d";ctx.beginPath();ctx.arc(X(lastPt.t),Y(lastPt.force),4,0,Math.PI*2);ctx.fill();
-  ctx.fillStyle="#667085";ctx.font="10px system-ui";ctx.fillText("applied command history (N), sample time (s)",pad.l,pad.t-8);
+  ctx.fillStyle="#667085";ctx.font="12px system-ui";ctx.fillText("applied command history (N), sample time (s)",pad.l,pad.t-8);
   $("vizCaption").innerHTML='<b>LIVE Robot Control Decoder.</b> q는 motor command가 아니다. Push는 reference/token을 유지한 채 actual proprioception만 바꾸므로 action이 어떻게 달라지는지 바로 확인할 수 있다.';
   setMetrics(["token="+(p?"["+p.q.map(v=>fmt(v,2)).join(",")+"]":"—"),"θ="+fmt(s[2]*180/Math.PI,1)+"°","planned next="+fmt(p?.force,2)+" N","last applied="+fmt(lastForce,2)+" N"]);
 }
@@ -954,7 +957,7 @@ function renderRobotTrackingViz(){
   ctx.strokeStyle="#eef0f3";ctx.beginPath();ctx.moveTo(pad.l,Y1(0));ctx.lineTo(w-pad.r,Y1(0));ctx.stroke();
   const draw=(get,color,dash=[])=>{ctx.strokeStyle=color;ctx.lineWidth=2.3;ctx.setLineDash(dash);ctx.beginPath();pts.forEach((s,i)=>{const x=X(s.t),y=Y1(get(s));i?ctx.lineTo(x,y):ctx.moveTo(x,y);});ctx.stroke();ctx.setLineDash([]);};
   draw(s=>s.state[0],"#d64f4f");draw(s=>s.referenceNow,"#315dc9",[6,4]);draw(s=>s.reference[0]*SONIC_TOY_CONSTANTS.STATE_SCALE[0],"#b76a12",[2,5]);
-  ctx.fillStyle="#667085";ctx.font="10px system-ui";ctx.fillText("x (m): red measured · blue target now · amber +80ms preview",pad.l,top1+12);
+  ctx.fillStyle="#667085";ctx.font="12px system-ui";canvasLines(ctx,"x (m): 빨강 실제 · 파랑 같은 시각 목표 · 황색 +80ms",pad.l,top1+12,w-pad.l-pad.r);
   const top2=pad.t+panelH+gap,maxF=10,Y2=v=>top2+panelH/2-v/maxF*(panelH*.44);
   ctx.strokeStyle="#eef0f3";ctx.beginPath();ctx.moveTo(pad.l,Y2(0));ctx.lineTo(w-pad.r,Y2(0));ctx.stroke();
   ctx.strokeStyle="#16805d";ctx.lineWidth=2.3;ctx.beginPath();pts.forEach((s,i)=>{const x=X(s.t),y=Y2(s.force);i?ctx.lineTo(x,y):ctx.moveTo(x,y);});ctx.stroke();
@@ -1006,7 +1009,7 @@ function drawAlignmentCurve(lab){
   ctx.strokeStyle="#315dc9";ctx.lineWidth=2.3;ctx.beginPath();
   pts.forEach((p,i)=>{const x=X(p.step),y=Ylog(Math.log10(Math.max(p.latentMse,1e-6)));i?ctx.lineTo(x,y):ctx.moveTo(x,y);});ctx.stroke();
   pts.forEach(p=>{ctx.fillStyle="#315dc9";ctx.beginPath();ctx.arc(X(p.step),Ylog(Math.log10(Math.max(p.latentMse,1e-6))),3.2,0,Math.PI*2);ctx.fill();});
-  ctx.fillStyle="#667085";ctx.font="9.5px system-ui";ctx.textAlign="left";ctx.fillText("log₁₀ latent MSE ↓",pad.l,14);
+  ctx.fillStyle="#667085";ctx.font="12px system-ui";ctx.textAlign="left";ctx.fillText("log₁₀ latent MSE ↓",pad.l,14);
 
   // Bottom: token agreement.
   const top2=pad.t+panelH+gap,Yagree=v=>top2+panelH-(v*panelH);
@@ -1056,7 +1059,7 @@ function renderAlignmentViz(){
             '<tr><td>force, same state</td><td>'+fmt(cmp.primary.force,3)+' N</td><td>'+fmt(cmp.secondary.force,3)+' N</td></tr>'+
           '</tbody></table>'+
           '<div class="align-actions"><button id="alignmentTrainBtn" class="primary">Train +50</button><button id="alignmentResetBtn">학습 기준 복원</button></div>'+
-          '<div style="font-size:8.7px;line-height:1.35;color:#667085;margin-top:6px">Toy simplification: Encoder A is a frozen anchor. SONIC aligns multiple modality Encoders jointly; the toy reproduces the alignment mechanism, not the real G1/SMPL/teleop modalities.</div>'+
+          '<div style="font-size:13px;line-height:1.35;color:#667085;margin-top:6px">Toy simplification: Encoder A is a frozen anchor. SONIC aligns multiple modality Encoders jointly; the toy reproduces the alignment mechanism, not the real G1/SMPL/teleop modalities.</div>'+
         '</div>'+
       '</div>'+
     '</div>',
@@ -1084,10 +1087,11 @@ function renderTrainingViz(){
   const held=ppoHeldoutHistory.filter(x=>Number.isFinite(x.mae)),all=[...ref,...rollout,...held];
   const maxIter=Math.max(50,...all.map(x=>x.iterations)),maxMae=Math.max(.25,...all.map(x=>x.mae)),minMae=Math.min(.10,...all.map(x=>x.mae));
   const X=i=>pad.l+i/maxIter*(w-pad.l-pad.r),Y=v=>h-pad.b-(v-minMae)/(maxMae-minMae)*(h-pad.t-pad.b);
-  for(let i=0;i<=5;i++){const v=minMae+(maxMae-minMae)*i/5,y=Y(v);ctx.strokeStyle="#f0f2f5";ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(w-pad.r,y);ctx.stroke();ctx.fillStyle="#7b8492";ctx.font="10px ui-monospace";ctx.textAlign="right";ctx.fillText(v.toFixed(2),pad.l-8,y+3);}
+  for(let i=0;i<=5;i++){const v=minMae+(maxMae-minMae)*i/5,y=Y(v);ctx.strokeStyle="#f0f2f5";ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(w-pad.r,y);ctx.stroke();ctx.fillStyle="#7b8492";ctx.font="12px ui-monospace";ctx.textAlign="right";ctx.fillText(v.toFixed(2),pad.l-8,y+3);}
   const draw=(pts,color,dash,width)=>{if(!pts.length)return;ctx.strokeStyle=color;ctx.lineWidth=width;ctx.setLineDash(dash);ctx.beginPath();pts.forEach((p,i)=>{const x=X(p.iterations),y=Y(p.mae);i?ctx.lineTo(x,y):ctx.moveTo(x,y);});ctx.stroke();ctx.setLineDash([]);};
   draw(ref,"#9aa3af",[6,5],2);draw(rollout,"#315dc9",[],2.5);held.forEach(p=>{ctx.fillStyle="#16805d";ctx.beginPath();ctx.arc(X(p.iterations),Y(p.mae),5,0,Math.PI*2);ctx.fill();});
-  ctx.fillStyle="#667085";ctx.font="11px system-ui";ctx.textAlign="left";ctx.fillText("tracking MAE [m] ↓",pad.l,18);ctx.textAlign="right";ctx.fillText("PPO iterations →",w-pad.r,h-15);
+  ctx.font="12px ui-monospace";ctx.fillStyle="#667085";ctx.textAlign="center";const ticks=Array.from({length:6},(_,i)=>Math.round(maxIter*i/5));canvasTicks(ctx,ticks.map(String),ticks.map(X),h-pad.b+20);
+  ctx.font="12px system-ui";ctx.textAlign="left";ctx.fillText("추적 MAE [m] ↓",pad.l,18);ctx.textAlign="right";ctx.fillText("PPO 학습 횟수 →",w-pad.r,h-8);
   $("vizCaption").innerHTML='회색 점선=deterministic held-out reference · 파랑=현재 PPO rollout MAE · 초록=현재 held-out check. <b>PPO는 physical tracking을 학습한다.</b>';
   setMetrics(["PPO iter="+currentTrainer.iter,heldoutEval?"held-out="+fmt(heldoutEval.trackingMae,3)+"m":"held-out=—"]);
 }
@@ -1266,21 +1270,21 @@ function renderGuide(){
 
   let s1Title="",s1="",s2Title="",s2="";
   if(guideDepth==="easy"){
-    s1Title="한 줄 이해";
+    s1Title="무엇을 계산하나";
     s1=c?.short||d.easy||"—";
-    s2Title="없으면 / 다음";
+    s2Title="한계 · 다음 단계";
     const miss=c?.ifMissing||d.ifMissing||"—";
     const next=(!trainingMode&&!c&&d.next)?(" 다음: "+d.next):"";
     s2="없으면: "+miss+next;
   }else if(guideDepth==="mechanism"){
-    s1Title="내부 동작";
+    s1Title="무엇을 계산하나";
     s1=c?.mechanism||d.mechanism||"—";
     s2Title="왜 필요한가";
     s2=c?.why||(!trainingMode?focus.why:trainingTopic.why)||"—";
   }else{
-    s1Title="SONIC 실제 구조";
+    s1Title="고정된 원본 설정과 비교";
     s1=c?.sonic||d.sonic||"—";
-    s2Title="Toy ↔ SONIC / 주의";
+    s2Title="교육용 구현과 원본의 차이";
     const mapping=trainingMode?"training-only topic":("toy: "+focus.toy+" · official: "+focus.official);
     const warning=c?.key||(!trainingMode?focus.misconception:trainingTopic.misconception)||"—";
     s2=mapping+" · "+warning;
@@ -1297,8 +1301,8 @@ function renderGuide(){
 
   const toyShape=c?.toyShape||d.toyShape||(!trainingMode?focus.toy:"—");
   const sonicShape=c?.sonicShape||d.sonicShape||(!trainingMode?focus.official:"—");
-  $("guideShapeBlock").hidden=(guideDepth==="easy")||(trainingMode&&trainingTopic.id==="alignment"&&guideDepth==="mechanism");
-  $("guideShape").textContent="toy: "+toyShape+"\nSONIC: "+sonicShape;
+  $("guideShapeBlock").hidden=false;
+  $("guideShape").textContent=((c?.formula||d.formula)?(c?.formula||d.formula)+"\n\n":"")+"브라우저: "+toyShape+"\nSONIC: "+sonicShape;
   $("guideQuestion").textContent=g.question;
 
   const note=$("conceptNote");
@@ -1377,7 +1381,7 @@ function renderPreload(){
     $("vizTitle").textContent=(conceptId&&conceptId!=="core"&&CONCEPT_TEXT[conceptId])?CONCEPT_TEXT[conceptId].title:focus.title;
     $("vizSub").textContent="Loading browser MuJoCo WASM + student checkpoint…";
     showHtml(
-      '<div style="height:100%;display:grid;place-items:center"><div style="text-align:center"><b style="font-size:15px">Preparing live visualization</b><div style="margin-top:8px;color:#667085;font-size:11px">MuJoCo physics and the precomputed student checkpoint are loading.<br>The SONIC block explanation is already available on the right.</div></div></div>',
+      '<div style="height:100%;display:grid;place-items:center"><div style="text-align:center"><b style="font-size:15px">Preparing live visualization</b><div style="margin-top:8px;color:#667085;font-size:13px">MuJoCo physics and the precomputed student checkpoint are loading.<br>The SONIC block explanation is already available on the right.</div></div></div>',
       'LIVE visualization will appear as soon as the actual model state is available.',
       ["loading physics","loading student model"]
     );

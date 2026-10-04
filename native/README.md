@@ -1,8 +1,10 @@
 # 공식 SONIC 모듈 연결 검증
 
-이 문서는 **`core_smoke.py`라는 작은 연결 검사**를 설명합니다. 전체 native 경로의 최신 성능 보고서는 아닙니다. 실제 학습기 연결은 [TRAINING.md](TRAINING.md), 학습된 정책은 [LEARNING.md](LEARNING.md), 표현·공유 Decoder 비교는 [CONCEPTS.md](CONCEPTS.md)를 참고하세요.
+이 문서는 **`core_smoke.py`라는 작은 연결 검사**를 설명합니다. 전체 native 경로의 최신 성능 보고서는 아닙니다. 실제 학습기 연결은 [TRAINING.md](TRAINING.md), 학습된
+정책은 [LEARNING.md](LEARNING.md), 표현·공유 Decoder 비교는 [CONCEPTS.md](CONCEPTS.md)를 참고하세요.
 
-브라우저는 SONIC 원리를 설명하는 별도 JavaScript 모델입니다. 이 Python 검사는 고정된 공식 소스의 `UniversalTokenModule`과 `BaseModule`, 실제 `vector_quantize_pytorch.FSQ`를 불러옵니다. 이름만 같은 신경망·양자화 함수를 다시 작성한 경로가 아닙니다.
+브라우저는 SONIC 원리를 설명하는 별도 JavaScript 모델입니다. 이 Python 검사는 고정된 공식 소스의 `UniversalTokenModule`과 `BaseModule`, 실제
+`vector_quantize_pytorch.FSQ`를 불러옵니다. 이름만 같은 신경망·양자화 함수를 다시 작성한 경로가 아닙니다.
 
 ## 이 검사에서 실제로 하는 일
 
@@ -21,9 +23,11 @@
         출력 1개
 ```
 
-**순전파**는 입력으로부터 출력을 계산하는 과정입니다. **역전파**는 출력 오차의 gradient가 필요한 앞쪽 모듈에 전달되는지 계산하는 과정입니다. 이 검사에서는 둘 다 실행하지만 가중치를 갱신하거나 물리 로봇을 구동하지 않습니다. 출력 하나가 계산된다고 안정적인 힘 제어기를 얻은 것은 아닙니다.
+**순전파**는 입력으로부터 출력을 계산하는 과정입니다. **역전파**는 출력 오차의 gradient가 필요한 앞쪽 모듈에 전달되는지 계산하는 과정입니다. 이 검사에서는 둘 다 실행하지만 가중치를 갱신하거나 물리
+로봇을 구동하지 않습니다. 출력 하나가 계산된다고 안정적인 힘 제어기를 얻은 것은 아닙니다.
 
-현재 상태만 바꿨을 때 reference-derived token은 유지되고 행동 출력은 달라지는지 검사합니다. 행동 오차는 Encoder와 Dynamic Decoder로, 복원 오차는 Encoder와 Kinematic Decoder로 전달되는지도 따로 확인합니다.
+현재 상태만 바꿨을 때 reference-derived token은 유지되고 행동 출력은 달라지는지 검사합니다. 행동 오차는 Encoder와 Dynamic Decoder로, 복원 오차는 Encoder와
+Kinematic Decoder로 전달되는지도 따로 확인합니다.
 
 | 검사 구성 | Token 크기 | 각 scalar의 단계 수 | 출력 / 복원 |
 |---|---:|---:|---|
@@ -35,13 +39,22 @@
 
 ## 공식 코드 재사용과 변경 사항
 
-공식 소스는 [NVlabs/GR00T-WholeBodyControl](https://github.com/NVlabs/GR00T-WholeBodyControl/tree/b042411fae38ee4d1af9aac82a37a1f8d14d6dd0)의 지정 commit에 고정합니다. 원본 파일 바이트와 실제 import 위치를 검사하며, 수정된 원본이나 다른 버전이면 실패합니다.
+공식 소스는
+[NVlabs/GR00T-WholeBodyControl](https://github.com/NVlabs/GR00T-WholeBodyControl/tree/b042411fae38ee4d1af9aac82a37a1f8d14d6dd0)
+의 지정 commit에 고정합니다. 원본 파일 바이트와 실제 import 위치를 검사하며, 수정된 원본이나 다른 버전이면 실패합니다.
 
 원본 설정에서 CartPole의 reference·상태·출력 차원과 작은 layer 폭을 지정했습니다. `g1_dyn`은 공식 코드가 행동 출력을 선택할 때 사용하는 **호환용 이름**입니다. G1 관측이나 가중치를 사용한다는 뜻이 아닙니다.
 
-FSQ의 `return_indices=False`는 사용하지 않는 정수 index와 암시적 codebook table 생성을 생략합니다. 숫자 양자화 자체는 실행되며, 실제 호출과 출력 grid를 검사합니다. 입력 형식 하나를 확인하는 검사이므로 가짜 SMPL·VR·카메라 데이터를 채워 넣지 않습니다.
+FSQ의 `return_indices=False`는 사용하지 않는 정수 index와 암시적 codebook table 생성을 생략합니다. FSQ의 단계는 고정되어 있고 학습된 codebook은 없습니다. 주변
+Encoder·Decoder의 신경망 가중치가 학습됩니다. 숫자 양자화 자체는 실행되며, 실제 호출과 출력 grid를 검사합니다. 입력 형식 하나를 확인하는 검사이므로 가짜 SMPL·VR·카메라 데이터를 채워 넣지
+않습니다.
 
 Reference 정규화는 `[1.8,3.0]`, 상태 정규화는 `[1.8,3.0,0.55,4.0]`이며 해석 단위는 m, m/s, rad, rad/s입니다. 이것은 CartPole 전용 설정이지 다른 로봇의 보편적 기본값이 아닙니다.
+
+브라우저 축소 예제의 scalar 양자화는 `q_i = round(1.998*tanh(z_i))/2`입니다.
+`z_i`는 Encoder 출력의 i번째 성분, `q_i`는 무차원 양자화 값이며 가능한 값은 `{-1,-0.5,0,0.5,1}`입니다.
+이 식을 upstream의 모든 FSQ 단계 설정(예: 32단계)에 그대로 적용하지 않습니다.
+두 token slot도 가까운/먼 미래로 역할이 지정되지 않습니다.
 
 ## 별도 CPU 환경에서 실행
 
@@ -73,4 +86,5 @@ Clone 대상은 기존 checkout을 덮어쓰지 않는 새로운 경로로 지�
 
 [원시 실행 보고서](../evidence/native_core_smoke.json)에는 소스 hash, 의존성, 실제 적용된 설정, 양자화 호출 횟수, 입출력 shape, gradient와 상태 변경 결과가 있습니다.
 
-이 검사의 “optimizer 0회, 물리 rollout 없음”은 올바른 범위 표시입니다. **다른 파일에 이미 구현된 공식 trainer 연결까지 미구현이라는 뜻은 아닙니다.** 학습·물리 실행은 [TRAINING.md](TRAINING.md)를 참고하세요.
+이 검사의 “optimizer 0회, 물리 rollout 없음”은 올바른 범위 표시입니다. **다른 파일에 이미 구현된 공식 trainer 연결까지 미구현이라는 뜻은 아닙니다.** 학습·물리 실행은
+[TRAINING.md](TRAINING.md)를 참고하세요.

@@ -1,22 +1,22 @@
 {
   "schema": "cartpole-sonic-browser-audit/v1",
-  "base": "http://127.0.0.1:57838/",
+  "base": "http://127.0.0.1:58298/",
   "browser": "153.0.8010.12",
   "executionOnly": true,
   "source_sha256": {
-    "app.js": "19c36ab87b1de8da74af8389adf5111b443f493376b69e753507d6bdda2ca547",
-    "course.js": "7fe8cca081be39f9670f6af0d6dbf7cb2dec92cffde28f9a78bdde0bb4c725a9",
-    "index.html": "5a7403282522bcf6d4dc5ebe6ff8793f8d91e47718ce67c79cc359526ccf4bff",
-    "presentation.js": "a3775054bfb68c44876c2374cb8f9d3ae5e5c0de34f302894a740d636840c9ff",
-    "optimizer_evidence_view.js": "d0c97a8bfeb5a0553d66025e9bc0553aed7c41f3a2307228fd53cfb074771ae5",
+    "app.js": "5fe1f28bb31ee0fd36eb012f46dcb309ddd2670c8504e7a29b501b2a0492f302",
+    "course.js": "e64877099ffd5f6e9666e92aa12108d98201c3e341f9f8748b20e6922647abcd",
+    "index.html": "2590427f035a88d38f03fec53b52f77600e23690ad501e076f11c7c6eabffa02",
+    "presentation.js": "a03a1ecfba4495b83f801905d664ffe10c8990ce275d5ad556067e2fdb838bad",
+    "optimizer_evidence_view.js": "207a5b0ff35d982d3e68208938b0ed23e1c40cc782fa7908fee8f0758a57dbe3",
     "control_contract.js": "ecf8c6fca2d77f915ef7ccab361dc6b942d2674794feac411a161fdf22b861ab",
     "mujoco_sim.js": "40ed2088fa0eca59c76b8014c9cfb9e410509a80fd2b32f163c4626420761ce8",
     "sonic_toy.js": "fc757363230fb19c3a20f9744aa50a2873cb66a85f15f6171320dc930294b087",
     "temporal_control_lab.js": "20e9abe34433bb4e189f10eb7b8921dc113fae14ca0711408a726474e50e2323",
-    "native_lesson.js": "91f2a5e84b3eb2f14bfd04084a41bcf8714233d313176ec6444e379e783dfd4b",
-    "native_lesson.css": "55feec86b86a5fa43b643cf095580aeb78ee0ffd78a2207b0bd3f89b93e90c4a",
+    "native_lesson.js": "e89938b206603a42f6e77592df1e53b8a9e19eabaeca995c1275ec11c4b9b681",
+    "native_lesson.css": "2053e4a751c938264af5d71939d85a77c26037e23f66ec68289467e2e8cbd96f",
     "evidence/guided_lesson/traces.json": "8dadc52d5eb6a3b3d9c127c10e6c3a54c7e9afa1019379e22937de8eb41c8338",
-    "scripts/browser_smoke.mjs": "6cab22901bc717e80ac22633a4aede0f29fa03cd8c9c900280f6e02e976b736f"
+    "scripts/browser_smoke.mjs": "ab4cd25e32306095546a359df20f4c56a4efdd2ca4b0ade32e114438f6ce1c4c"
   },
   "checks": [
     {
